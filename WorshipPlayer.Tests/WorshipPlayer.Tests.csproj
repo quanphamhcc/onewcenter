@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
+    <PackageReference Include="xunit" Version="2.6.6" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WorshipPlayer.Core\WorshipPlayer.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Include Presenter service sources directly for testing (Presenter project is net8.0-windows, can't be referenced) -->
+    <Compile Include="..\WorshipPlayer.Presenter\Services\ThemeManager.cs" Link="ThemeManager.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Services\MusicianViewRenderer.cs" Link="MusicianViewRenderer.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Services\StageDisplayData.cs" Link="StageDisplayData.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Services\RemoteCommandHandler.cs" Link="RemoteCommandHandler.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Services\PresenterEngine.cs" Link="PresenterEngine.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Models\VideoLibrary.cs" Link="VideoLibrary.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Services\NdiOutputService.cs" Link="NdiOutputService.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Services\StubNdiOutput.cs" Link="StubNdiOutput.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Services\TemplateService.cs" Link="TemplateService.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Services\AlertService.cs" Link="AlertService.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Services\CountdownService.cs" Link="CountdownService.cs" />
+  </ItemGroup>
+
+</Project>

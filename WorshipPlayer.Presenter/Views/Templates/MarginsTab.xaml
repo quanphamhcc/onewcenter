@@ -1,0 +1,117 @@
+<UserControl x:Class="WorshipPlayer.Presenter.Views.Templates.MarginsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="4">
+            <!-- Top Margin -->
+            <TextBlock Text="Top Margin (px)" FontSize="11"
+                       Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="50"/>
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="TopMarginSlider" Grid.Column="0"
+                        Minimum="0" Maximum="200" Value="40"
+                        Style="{StaticResource OwcSlider}"
+                        ValueChanged="TopMargin_ValueChanged"/>
+                <TextBlock Grid.Column="1" x:Name="TopMarginDisplay" Text="40"
+                           Foreground="{StaticResource OwcTextPrimaryBrush}"
+                           FontSize="12" HorizontalAlignment="Right"
+                           VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Left Margin -->
+            <TextBlock Text="Left Margin (px)" FontSize="11"
+                       Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="50"/>
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="LeftMarginSlider" Grid.Column="0"
+                        Minimum="0" Maximum="200" Value="60"
+                        Style="{StaticResource OwcSlider}"
+                        ValueChanged="LeftMargin_ValueChanged"/>
+                <TextBlock Grid.Column="1" x:Name="LeftMarginDisplay" Text="60"
+                           Foreground="{StaticResource OwcTextPrimaryBrush}"
+                           FontSize="12" HorizontalAlignment="Right"
+                           VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Right Margin -->
+            <TextBlock Text="Right Margin (px)" FontSize="11"
+                       Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="50"/>
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="RightMarginSlider" Grid.Column="0"
+                        Minimum="0" Maximum="200" Value="60"
+                        Style="{StaticResource OwcSlider}"
+                        ValueChanged="RightMargin_ValueChanged"/>
+                <TextBlock Grid.Column="1" x:Name="RightMarginDisplay" Text="60"
+                           Foreground="{StaticResource OwcTextPrimaryBrush}"
+                           FontSize="12" HorizontalAlignment="Right"
+                           VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Bottom Margin -->
+            <TextBlock Text="Bottom Margin (px)" FontSize="11"
+                       Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+            <Grid Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="50"/>
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="BottomMarginSlider" Grid.Column="0"
+                        Minimum="0" Maximum="200" Value="40"
+                        Style="{StaticResource OwcSlider}"
+                        ValueChanged="BottomMargin_ValueChanged"/>
+                <TextBlock Grid.Column="1" x:Name="BottomMarginDisplay" Text="40"
+                           Foreground="{StaticResource OwcTextPrimaryBrush}"
+                           FontSize="12" HorizontalAlignment="Right"
+                           VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Border Style -->
+            <TextBlock Text="Border Style" FontSize="11"
+                       Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+            <ComboBox x:Name="BorderStyleComboBox"
+                      Background="{StaticResource OwcSurfaceBrush}"
+                      Foreground="{StaticResource OwcTextPrimaryBrush}"
+                      FontSize="12" Padding="8,6" Margin="0,0,0,16"
+                      SelectionChanged="BorderStyle_Changed">
+                <ComboBoxItem Content="None" IsSelected="True"/>
+                <ComboBoxItem Content="Solid"/>
+                <ComboBoxItem Content="Dashed"/>
+            </ComboBox>
+
+            <!-- Visual Indicator -->
+            <TextBlock Text="Margin Preview" FontSize="11"
+                       Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+            <Border Background="#1A1D27" CornerRadius="4" Height="120">
+                <Border x:Name="MarginIndicator"
+                        Background="#252A36" Margin="30,20,30,20"
+                        CornerRadius="2" BorderBrush="{StaticResource OwcAccentBrush}"
+                        BorderThickness="1">
+                    <TextBlock Text="Text Area"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="10" HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Border>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

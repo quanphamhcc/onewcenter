@@ -1,0 +1,291 @@
+<Window x:Class="WorshipPlayer.UI.Views.SectionEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Section Editor"
+        Height="650" Width="950"
+        Background="#1E1E2E"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,8">
+            <TextBlock x:Name="TitleText" Text="Section Editor"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="White" />
+            <TextBlock x:Name="SongInfoText" Text=""
+                       FontSize="11" Foreground="#B0B0C0" Margin="0,2,0,0" />
+        </StackPanel>
+
+        <!-- Main Two-Panel Layout -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0.35*" />
+                <ColumnDefinition Width="0.65*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ═══ LEFT PANEL: Tools & Analysis ═══ -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,8,0">
+                <StackPanel>
+
+                    <!-- AI Analysis Panel -->
+                    <Border BorderBrush="#4A4A60" BorderThickness="1" CornerRadius="4"
+                            Background="#252538" Margin="0,0,0,8" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="AI Analysis" FontSize="12" FontWeight="Bold"
+                                       Foreground="#4A90D9" Margin="0,0,0,8" />
+
+                            <Button Content="Auto-Detect (Full Song)" 
+                                    Style="{StaticResource TransportButton}"
+                                    Click="AutoDetect_Click" Margin="0,0,0,8" HorizontalAlignment="Stretch"
+                                    ToolTip="Analyze entire song for BPM, sections, and labels" />
+
+                            <!-- Quality dropdown (only visible for single-track songs) -->
+                            <StackPanel x:Name="QualityPanel" Orientation="Horizontal" Margin="0,0,0,6"
+                                        Visibility="Collapsed">
+                                <TextBlock Text="Quality:" FontSize="11" Foreground="#B0B0C0"
+                                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <ComboBox x:Name="QualityComboBox" Width="120" Height="24"
+                                          FontSize="11" Background="#2B2B3D" Foreground="White"
+                                          BorderBrush="#4A4A60" SelectedIndex="1">
+                                    <ComboBoxItem Content="Fast" Tag="fast" />
+                                    <ComboBoxItem Content="Default" Tag="default" />
+                                    <ComboBoxItem Content="Best (Slow)" Tag="best" />
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- BPM Override (only visible for single-track songs) -->
+                            <StackPanel x:Name="BpmOverridePanel" Orientation="Horizontal" Margin="0,0,0,6"
+                                        Visibility="Collapsed">
+                                <TextBlock Text="BPM:" FontSize="11" Foreground="#B0B0C0"
+                                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <ComboBox x:Name="BpmModeComboBox" Width="70" Height="24"
+                                          FontSize="11" Background="#2B2B3D" Foreground="White"
+                                          BorderBrush="#4A4A60" SelectedIndex="0"
+                                          SelectionChanged="BpmMode_SelectionChanged">
+                                    <ComboBoxItem Content="Auto" />
+                                    <ComboBoxItem Content="Manual" />
+                                </ComboBox>
+                                <TextBox x:Name="BpmOverrideBox" Width="50" Height="24"
+                                         FontSize="11" Background="#2B2B3D" Foreground="White"
+                                         BorderBrush="#4A4A60" VerticalContentAlignment="Center"
+                                         Padding="4,0" Visibility="Collapsed" Margin="4,0,0,0"
+                                         ToolTip="Enter BPM value (e.g. 75)" />
+                            </StackPanel>
+
+                            <!-- Progress bar (hidden until analysis runs) -->
+                            <StackPanel x:Name="ProgressPanel" Visibility="Collapsed" Margin="0,4,0,0">
+                                <TextBlock x:Name="ProgressStepText" Text="" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#50E3C2" Margin="0,0,0,3" TextWrapping="Wrap" />
+                                <ProgressBar x:Name="AnalysisProgressBar" Height="14" Minimum="0" Maximum="100"
+                                             Value="0" Foreground="#4A90D9" Background="#2B2B3D"
+                                             BorderBrush="#4A4A60" BorderThickness="1" />
+                                <TextBlock x:Name="ProgressPercentText" Text="0%" FontSize="10"
+                                           Foreground="#B0B0C0" HorizontalAlignment="Right" Margin="0,2,0,0" />
+                            </StackPanel>
+
+                            <!-- Tap status text (hidden by default) -->
+                            <TextBlock x:Name="TapStatusText" Text="" FontSize="11" FontWeight="Bold"
+                                       Foreground="OrangeRed" TextWrapping="Wrap"
+                                       Margin="0,4,0,0" Visibility="Collapsed" />
+
+                            <!-- Lyrics / Chord Chart Import -->
+                            <Separator Background="#4A4A60" Margin="0,8,0,8" />
+                            <TextBlock Text="Lyrics &amp; Chords" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#B0B0C0" Margin="0,0,0,6" />
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBox x:Name="LyricsUrlBox" Height="24" FontSize="10"
+                                         Background="#2B2B3D" Foreground="White" BorderBrush="#4A4A60"
+                                         VerticalContentAlignment="Center" Padding="4,0"
+                                         ToolTip="Paste URL (Ultimate Guitar, etc.) or path to local .txt file"
+                                         HorizontalAlignment="Stretch"
+                                         Width="180" />
+                            </StackPanel>
+
+                            <WrapPanel Margin="0,0,0,4">
+                                <Button Content="Fetch" Click="FetchLyrics_Click" Margin="0,0,4,4"
+                                        Padding="8,3" FontSize="10"
+                                        ToolTip="Fetch lyrics from URL or file, parse chords, show preview" />
+                                <Button Content="Browse..." Click="BrowseLyricsFile_Click" Margin="0,0,4,4"
+                                        Padding="8,3" FontSize="10"
+                                        ToolTip="Select a local .txt chord chart file" />
+                                <Button Content="Paste" Click="PasteLyrics_Click" Margin="0,0,4,4"
+                                        Padding="8,3" FontSize="10"
+                                        Background="#50E3C2" Foreground="Black"
+                                        ToolTip="Parse chord chart from clipboard (paste multi-line text)" />
+                            </WrapPanel>
+
+                            <TextBlock x:Name="LyricsFetchStatus" Text="" FontSize="10"
+                                       Foreground="#7ED321" TextWrapping="Wrap" Margin="0,0,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Manual Tools Panel -->
+                    <Border BorderBrush="#4A4A60" BorderThickness="1" CornerRadius="4"
+                            Background="#252538" Margin="0,0,0,8" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Manual Tools" FontSize="12" FontWeight="Bold"
+                                       Foreground="#50E3C2" Margin="0,0,0,8" />
+
+                            <WrapPanel Margin="0,0,0,8">
+                                <Button x:Name="TapModeBtn" Content="TAP BEATS"
+                                        Style="{StaticResource TransportButton}"
+                                        Click="TapMode_Click" Margin="0,0,4,4" Background="DarkSlateBlue"
+                                        ToolTip="Tap spacebar along to the beat to detect BPM" />
+                                <Button Content="Snap All to Bar"
+                                        Style="{StaticResource TransportButton}"
+                                        Click="SnapToBar_Click" Margin="0,0,4,4"
+                                        ToolTip="Snap all loop points to nearest bar downbeat" />
+                                <Button Content="Generate Click"
+                                        Style="{StaticResource TransportButton}"
+                                        Click="GenerateClick_Click" Margin="0,0,4,4"
+                                        ToolTip="Create a click track from detected BPM" />
+                            </WrapPanel>
+
+                            <Separator Background="#4A4A60" Margin="0,0,0,8" />
+
+                            <TextBlock Text="Downbeat (Beat 1):" FontSize="11"
+                                       Foreground="#B0B0C0" Margin="0,0,0,4" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBox x:Name="DownbeatTimecodeBox" Width="90" Height="24"
+                                         FontSize="11" Background="#2B2B3D" Foreground="White"
+                                         BorderBrush="#4A4A60" VerticalContentAlignment="Center"
+                                         Padding="4,0" ToolTip="Position of beat 1 (M:SS:MMM or ms)" />
+                                <Button Content="Set" Style="{StaticResource TransportButton}"
+                                        Click="SetDownbeat_Click" Margin="4,0,0,0"
+                                        ToolTip="Set where beat 1 falls" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <Button Content="◀ Nudge" Style="{StaticResource TransportButton}"
+                                        Click="NudgeDownbeatLeft_Click" Margin="0,0,4,0"
+                                        ToolTip="Move downbeat earlier by one beat" />
+                                <Button Content="Nudge ▶" Style="{StaticResource TransportButton}"
+                                        Click="NudgeDownbeatRight_Click" Margin="0,0,0,0"
+                                        ToolTip="Move downbeat later by one beat" />
+                            </StackPanel>
+                            <TextBlock x:Name="DownbeatDisplayText" Text="" FontSize="10"
+                                       Foreground="#7ED321" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ═══ RIGHT PANEL: Section List & Management ═══ -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Section List (full height) -->
+                <DataGrid x:Name="SectionsGrid" Grid.Row="0"
+                          AutoGenerateColumns="False"
+                          Background="#2B2B3D"
+                          Foreground="White"
+                          RowBackground="#2B2B3D"
+                          AlternatingRowBackground="#363650"
+                          GridLinesVisibility="Horizontal"
+                          HorizontalGridLinesBrush="#4A4A60"
+                          BorderThickness="1"
+                          BorderBrush="#4A4A60"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserReorderColumns="False"
+                          SelectionMode="Single"
+                          FontSize="12"
+                          RowHeight="26"
+                          HeadersVisibility="Column"
+                          AllowDrop="True"
+                          PreviewMouseLeftButtonDown="SectionsGrid_PreviewMouseLeftButtonDown"
+                          PreviewMouseMove="SectionsGrid_PreviewMouseMove"
+                          Drop="SectionsGrid_Drop"
+                          MouseDoubleClick="SectionsGrid_MouseDoubleClick">
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#4A90D9" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="FontWeight" Value="Bold" />
+                            <Setter Property="FontSize" Value="11" />
+                            <Setter Property="Padding" Value="6,4" />
+                            <Setter Property="BorderBrush" Value="#3A7BC0" />
+                            <Setter Property="BorderThickness" Value="0,0,1,1" />
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="FontSize" Value="11" />
+                            <Setter Property="Padding" Value="3,1" />
+                            <Setter Property="BorderBrush" Value="Transparent" />
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#4A90D9" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.CellStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="#" Width="30" IsReadOnly="True"
+                                            Binding="{Binding Index}" />
+                        <DataGridTextColumn Header="Section" Width="120"
+                                            Binding="{Binding Name}" />
+                        <DataGridTextColumn Header="Loop IN" Width="75"
+                                            Binding="{Binding LoopInTimecode}" />
+                        <DataGridTextColumn Header="Loop OUT" Width="75"
+                                            Binding="{Binding LoopOutTimecode}" />
+                        <DataGridTextColumn Header="Bars" Width="50"
+                                            Binding="{Binding BarRange}" />
+                        <DataGridTextColumn Header="Duration" Width="80" IsReadOnly="True"
+                                            Binding="{Binding DurationDisplay}" />
+                        <DataGridTextColumn Header="Color" Width="60"
+                                            Binding="{Binding Color}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Section Management -->
+                <Border Grid.Row="1" BorderBrush="#4A4A60" BorderThickness="1,0,1,1"
+                        Background="#252538" Padding="8,6">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="+ Add" Style="{StaticResource TransportButton}"
+                                Click="AddSection_Click" Margin="3,0" />
+                        <Button Content="Remove" Style="{StaticResource TransportButton}"
+                                Click="RemoveSection_Click" Margin="3,0" />
+                        <Button Content="▲ Up" Style="{StaticResource TransportButton}"
+                                Click="MoveUp_Click" Margin="3,0" />
+                        <Button Content="▼ Down" Style="{StaticResource TransportButton}"
+                                Click="MoveDown_Click" Margin="3,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Save & Exit -->
+                <Border Grid.Row="2" BorderBrush="#4A4A60" BorderThickness="1,0,1,1"
+                        Background="#252538" Padding="8,6" Margin="0,0,0,0">
+                    <WrapPanel HorizontalAlignment="Center">
+                        <Button x:Name="ApplyBtn" Content="APPLY" Style="{StaticResource TransportButton}"
+                                Click="Apply_Click" Margin="3,2"
+                                Background="#F5A623" Foreground="Black" FontWeight="ExtraBold" />
+                        <Button Content="SAVE + CLOSE" Style="{StaticResource TransportButton}"
+                                Click="Save_Click" Margin="3,2"
+                                Background="#7ED321" Foreground="Black" FontWeight="ExtraBold" />
+                        <Button Content="Restore Backup" Style="{StaticResource TransportButton}"
+                                Click="RestoreBackup_Click" Margin="3,2"
+                                ToolTip="Restore sections from a previous save" />
+                        <Button Content="Restore from Log" Style="{StaticResource TransportButton}"
+                                Click="RestoreFromLog_Click" Margin="3,2"
+                                ToolTip="Recover sections from AI training data logs" />
+                        <Button Content="Cancel" Style="{StaticResource TransportButton}"
+                                Click="Cancel_Click" Margin="3,2" />
+                    </WrapPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

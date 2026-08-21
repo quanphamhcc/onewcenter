@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-009",
+  "type": "feat",
+  "description": "Phase 9: NDI output for streaming/professional AV integration. Send the congregation output as an NDI stream that can be picked up by OBS, vMix, or professional AV switchers. Miracast research documented.",
+  "status": "completed",
+  "steps": [
+    "Add NuGet package to WorshipPlayer.Presenter.csproj: NewTek.NDI.Net or a compatible .NET NDI wrapper (LibNdi.Net or similar available package).",
+    "Create WorshipPlayer.Presenter/Services/NdiOutputService.cs: Manages NDI sender lifecycle. Methods: Initialize(string sourceName), Start(), Stop(), SendFrame(byte[] rgbaPixels, int width, int height), IsActive property. The source name should be configurable (default: 'OWC Presenter Output').",
+    "Create WorshipPlayer.Presenter/Services/OutputCaptureService.cs: Captures the WPF OutputWindow content as bitmap frames at configurable FPS (default 30). Uses RenderTargetBitmap to capture the visual. Converts to BGRA byte array for NDI. Provides Start(Visual target, int fps), Stop() methods.",
+    "Wire OutputCaptureService to NdiOutputService: when NDI is enabled, capture frames from OutputWindow and send them via NDI at the configured frame rate.",
+    "Add PresenterSettings fields: NdiEnabled (bool, false), NdiSourceName (string, 'OWC Presenter Output'), NdiFps (int, 30), NdiResolutionWidth (int, 1920), NdiResolutionHeight (int, 1080).",
+    "Add a toggle in OperatorWindow for NDI output (ON/OFF button in the right panel settings area) that starts/stops the NDI stream.",
+    "Create WorshipPlayer.Presenter/Docs/MiracastResearch.md documenting: Miracast limitations on Windows (requires hardware support, no programmatic API for arbitrary window casting), recommendation to use NDI as the primary wireless output protocol, alternative approaches (USB-C to HDMI wireless adapters, Chromecast via screen mirror).",
+    "Write unit tests for NdiOutputService (mock frame sending, state management)."
+  ],
+  "acceptance_criteria": [
+    "NdiOutputService compiles and has correct interface for frame sending",
+    "OutputCaptureService can capture WPF visual to byte array (compile-verified)",
+    "PresenterSettings has NDI configuration fields",
+    "OperatorWindow has NDI toggle button",
+    "MiracastResearch.md documents findings and recommendations",
+    "Solution builds with 0 errors"
+  ],
+  "verification": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj"
+  ],
+  "blocked_reason": null,
+  "findings": "All 216 tests pass (28 new NDI tests). Build succeeds with 0 errors. Used stub/interface pattern (matching IMidiCueOutput) since real NDI SDK requires native DLL. Added Settings property to PresenterEngine to expose PresenterSettings for NDI configuration in OperatorWindow. OutputCaptureService uses WPF-specific APIs (RenderTargetBitmap, DispatcherTimer) so it could not be tested without a WPF runtime, but it compiles correctly."
+}

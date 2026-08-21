@@ -1,0 +1,115 @@
+{
+  "title": "Open The Heavens",
+  "artist": "",
+  "bpm": 70.0742,
+  "timeSignatureNumerator": 4,
+  "timeSignatureDenominator": 4,
+  "beatInterval_ms": 856.236,
+  "barDuration_ms": 3424.943,
+  "gridAnchor_ms": 792.381,
+  "originalKey": "C",
+  "tracks": [
+    { "file": "01_Click.mp3", "label": "Click", "output": "IEM", "defaultVolume": 0.8, "defaultMute": false, "color": "#FF6B6B" },
+    { "file": "03_Drums.mp3", "label": "Drums", "output": "FOH", "defaultVolume": 1.0, "defaultMute": false, "color": "#F5A623" },
+    { "file": "05_Bass.mp3", "label": "Bass", "output": "FOH", "defaultVolume": 1.0, "defaultMute": false, "color": "#7ED321" },
+    { "file": "06_AcousticGuitar.mp3", "label": "Acoustic Guitar", "output": "FOH", "defaultVolume": 1.0, "defaultMute": false, "color": "#BD10E0" },
+    { "file": "07_ElectricGuitar1.mp3", "label": "Electric Guitar", "output": "FOH", "defaultVolume": 1.0, "defaultMute": false, "color": "#4A90D9" },
+    { "file": "11_Piano.mp3", "label": "Piano", "output": "FOH", "defaultVolume": 1.0, "defaultMute": false, "color": "#50E3C2" },
+    { "file": "13_Keys1.mp3", "label": "Keys", "output": "FOH", "defaultVolume": 1.0, "defaultMute": false, "color": "#9B59B6" },
+    { "file": "17_LeadVocal.mp3", "label": "Lead Vocal", "output": "FOH", "defaultVolume": 1.0, "defaultMute": false, "color": "#E74C3C" }
+  ],
+  "sections": [
+    {
+      "name": "INTRO",
+      "loopIn_ms": 792.381,
+      "loopOut_ms": 17937.415,
+      "startBar": 1,
+      "endBar": 5,
+      "color": "#4A90D9",
+      "lightingPresetIndex": 0
+    },
+    {
+      "name": "VERSE 1",
+      "loopIn_ms": 17937.415,
+      "loopOut_ms": 48793.832,
+      "startBar": 6,
+      "endBar": 14,
+      "color": "#7ED321",
+      "lightingPresetIndex": 1
+    },
+    {
+      "name": "VERSE 2",
+      "loopIn_ms": 48793.832,
+      "loopOut_ms": 79650.249,
+      "startBar": 15,
+      "endBar": 23,
+      "color": "#7ED321",
+      "lightingPresetIndex": 2
+    },
+    {
+      "name": "PRE-CHORUS",
+      "loopIn_ms": 79650.249,
+      "loopOut_ms": 110506.667,
+      "startBar": 24,
+      "endBar": 32,
+      "color": "#F5A623",
+      "lightingPresetIndex": 3
+    },
+    {
+      "name": "CHORUS 1",
+      "loopIn_ms": 110506.667,
+      "loopOut_ms": 168791.655,
+      "startBar": 33,
+      "endBar": 49,
+      "color": "#E74C3C",
+      "lightingPresetIndex": 4
+    },
+    {
+      "name": "BRIDGE",
+      "loopIn_ms": 168791.655,
+      "loopOut_ms": 179078.095,
+      "startBar": 50,
+      "endBar": 52,
+      "color": "#9B59B6",
+      "lightingPresetIndex": 5
+    },
+    {
+      "name": "VERSE 3",
+      "loopIn_ms": 179078.095,
+      "loopOut_ms": 206506.667,
+      "startBar": 53,
+      "endBar": 60,
+      "color": "#7ED321",
+      "lightingPresetIndex": 6
+    },
+    {
+      "name": "CHORUS 2 (FINAL)",
+      "loopIn_ms": 206506.667,
+      "loopOut_ms": 278505.941,
+      "startBar": 61,
+      "endBar": 81,
+      "color": "#E74C3C",
+      "lightingPresetIndex": 7
+    },
+    {
+      "name": "OUTRO / ENDING",
+      "loopIn_ms": 278505.941,
+      "loopOut_ms": 302503.764,
+      "startBar": 82,
+      "endBar": 88,
+      "color": "#4A90D9",
+      "lightingPresetIndex": 8
+    }
+  ],
+  "lightingPresets": [
+    { "name": "Intro", "paletteIndex": 0, "intensity": 0.3, "excitement": 0.2, "snapshotName": "", "color": "#4A90D9", "midiNote": 60, "midiChannel": 1, "midiVelocity": 100 },
+    { "name": "Verse 1", "paletteIndex": 1, "intensity": 0.4, "excitement": 0.3, "snapshotName": "", "color": "#7ED321", "midiNote": 62, "midiChannel": 1, "midiVelocity": 100 },
+    { "name": "Verse 2", "paletteIndex": 1, "intensity": 0.5, "excitement": 0.4, "snapshotName": "", "color": "#7ED321", "midiNote": 64, "midiChannel": 1, "midiVelocity": 110 },
+    { "name": "Pre-Chorus", "paletteIndex": 2, "intensity": 0.6, "excitement": 0.5, "snapshotName": "", "color": "#F5A623", "midiNote": 65, "midiChannel": 1, "midiVelocity": 120 },
+    { "name": "Chorus", "paletteIndex": 3, "intensity": 0.9, "excitement": 0.8, "snapshotName": "", "color": "#E74C3C", "midiNote": 67, "midiChannel": 1, "midiVelocity": 127 },
+    { "name": "Bridge", "paletteIndex": 4, "intensity": 0.5, "excitement": 0.3, "snapshotName": "", "color": "#9B59B6", "midiNote": 69, "midiChannel": 1, "midiVelocity": 90 },
+    { "name": "Verse 3", "paletteIndex": 1, "intensity": 0.4, "excitement": 0.3, "snapshotName": "", "color": "#7ED321", "midiNote": 62, "midiChannel": 1, "midiVelocity": 100 },
+    { "name": "Chorus Final", "paletteIndex": 3, "intensity": 0.95, "excitement": 0.9, "snapshotName": "", "color": "#E74C3C", "midiNote": 67, "midiChannel": 1, "midiVelocity": 127 },
+    { "name": "Outro", "paletteIndex": 0, "intensity": 0.2, "excitement": 0.1, "snapshotName": "", "color": "#4A90D9", "midiNote": 71, "midiChannel": 1, "midiVelocity": 80 }
+  ]
+}

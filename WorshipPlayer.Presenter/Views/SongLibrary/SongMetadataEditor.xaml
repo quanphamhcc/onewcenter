@@ -1,0 +1,104 @@
+<UserControl x:Class="WorshipPlayer.Presenter.Views.SongLibrary.SongMetadataEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource OwcPanelBorder}" Padding="14">
+        <DockPanel>
+            <!-- Header -->
+            <TextBlock DockPanel.Dock="Top" Text="Song Metadata"
+                       FontSize="14" FontWeight="SemiBold"
+                       Foreground="{StaticResource OwcTextPrimaryBrush}"
+                       Margin="0,0,0,12"/>
+
+            <!-- Bottom buttons -->
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                        HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button Content="Cancel" Style="{StaticResource OwcButtonBase}"
+                        Click="Cancel_Click" Margin="0,0,8,0" MinWidth="80"/>
+                <Button Content="Save" Style="{StaticResource OwcAccentButton}"
+                        Click="Save_Click" MinWidth="80"/>
+            </StackPanel>
+
+            <!-- Form fields -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                <StackPanel>
+                    <!-- Title -->
+                    <TextBlock Text="Title" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TitleTextBox"
+                             Background="{StaticResource OwcSurfaceBrush}"
+                             Foreground="{StaticResource OwcTextPrimaryBrush}"
+                             BorderBrush="{StaticResource OwcBorderBrush}"
+                             FontSize="13" Padding="8,6" Margin="0,0,0,12"/>
+
+                    <!-- Artist -->
+                    <TextBlock Text="Artist" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox x:Name="ArtistTextBox"
+                             Background="{StaticResource OwcSurfaceBrush}"
+                             Foreground="{StaticResource OwcTextPrimaryBrush}"
+                             BorderBrush="{StaticResource OwcBorderBrush}"
+                             FontSize="13" Padding="8,6" Margin="0,0,0,12"/>
+
+                    <!-- Key -->
+                    <TextBlock Text="Key" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="KeyComboBox" Margin="0,0,0,12"
+                              Background="{StaticResource OwcSurfaceBrush}"
+                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              FontSize="12" Padding="8,6">
+                        <ComboBoxItem Content="C"/><ComboBoxItem Content="C#"/>
+                        <ComboBoxItem Content="D"/><ComboBoxItem Content="D#"/>
+                        <ComboBoxItem Content="E"/><ComboBoxItem Content="F"/>
+                        <ComboBoxItem Content="F#"/><ComboBoxItem Content="G"/>
+                        <ComboBoxItem Content="G#"/><ComboBoxItem Content="A"/>
+                        <ComboBoxItem Content="A#"/><ComboBoxItem Content="B"/>
+                        <ComboBoxItem Content="Cm"/><ComboBoxItem Content="C#m"/>
+                        <ComboBoxItem Content="Dm"/><ComboBoxItem Content="D#m"/>
+                        <ComboBoxItem Content="Em"/><ComboBoxItem Content="Fm"/>
+                        <ComboBoxItem Content="F#m"/><ComboBoxItem Content="Gm"/>
+                        <ComboBoxItem Content="G#m"/><ComboBoxItem Content="Am"/>
+                        <ComboBoxItem Content="A#m"/><ComboBoxItem Content="Bm"/>
+                    </ComboBox>
+
+                    <!-- BPM -->
+                    <TextBlock Text="BPM" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox x:Name="BpmTextBox"
+                             Background="{StaticResource OwcSurfaceBrush}"
+                             Foreground="{StaticResource OwcTextPrimaryBrush}"
+                             BorderBrush="{StaticResource OwcBorderBrush}"
+                             FontSize="13" Padding="8,6" Margin="0,0,0,12"
+                             PreviewTextInput="BpmTextBox_PreviewTextInput"/>
+
+                    <!-- CCLI Number -->
+                    <TextBlock Text="CCLI Number" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox x:Name="CcliTextBox"
+                             Background="{StaticResource OwcSurfaceBrush}"
+                             Foreground="{StaticResource OwcTextPrimaryBrush}"
+                             BorderBrush="{StaticResource OwcBorderBrush}"
+                             FontSize="13" Padding="8,6" Margin="0,0,0,12"/>
+
+                    <!-- Tags -->
+                    <TextBlock Text="Tags (comma-separated)" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TagsTextBox"
+                             Background="{StaticResource OwcSurfaceBrush}"
+                             Foreground="{StaticResource OwcTextPrimaryBrush}"
+                             BorderBrush="{StaticResource OwcBorderBrush}"
+                             FontSize="13" Padding="8,6" Margin="0,0,0,12"/>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</UserControl>

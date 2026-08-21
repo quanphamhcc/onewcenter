@@ -1,0 +1,7 @@
+{
+  "task_id": "task-presenter-feature-groups",
+  "task_description": "Build all remaining feature groups (C, D, E, F, G, J, L) for the OWC Presenter module. Creates core models, service interfaces, business logic services, unit tests, and all WPF views for Service Builder, Song/Lyrics Management, Scripture, Media Library, Template System, Tools, and Settings Panel.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null
+}

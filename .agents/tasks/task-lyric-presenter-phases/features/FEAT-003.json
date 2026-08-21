@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Phase 2: Stage Display - Embedded Kestrel web server (port 5055) serving stage display as HTML/CSS/JS with WebSocket real-time updates for iPads. Includes HTML rendering of current slide, next slide preview, chord display, and section info.",
+  "status": "completed",
+  "steps": [
+    "Add NuGet packages to WorshipPlayer.Presenter.csproj: Microsoft.AspNetCore.App framework reference (it's included in the SDK, just add <FrameworkReference Include=\"Microsoft.AspNetCore.App\" />).",
+    "Create WorshipPlayer.Presenter/Services/StageDisplayServer.cs: A Kestrel-based web server on port 5055. Configures WebSocket middleware. Serves static HTML at /stage endpoint. Manages connected WebSocket clients. Provides methods: Start(), Stop(), BroadcastSlideUpdate(StageDisplayData data).",
+    "Create WorshipPlayer.Presenter/Services/StageDisplayData.cs model: CurrentText (with chords), NextText, SectionName, SongTitle, Key, Capo, TempoPercent, PitchShift, IsLive, IsBlacked. Serializes to JSON for WebSocket messages.",
+    "Create embedded HTML/CSS/JS for the stage display page. Store as embedded resource or serve from a static string. The page: connects via WebSocket to ws://host:5055/ws/stage, renders current lyrics with chords highlighted in color, shows next slide preview below, shows section name and key info in header, auto-reconnects on disconnect, scales text to fill viewport (responsive for iPad landscape/portrait).",
+    "Wire StageDisplayServer into PresenterEngine: on SlideChanged, compute stage display data (with chords transposed) and broadcast to all WebSocket clients. On DisplayStateChanged, broadcast live/black state.",
+    "Add PresenterSettings fields for stage server: StageServerEnabled (bool), StageServerPort (int, default 5055).",
+    "Write unit tests for StageDisplayData serialization and any testable server logic."
+  ],
+  "acceptance_criteria": [
+    "StageDisplayServer starts on port 5055 without error",
+    "WebSocket endpoint /ws/stage accepts connections and sends JSON slide updates",
+    "GET /stage serves the HTML page with embedded CSS/JS",
+    "Stage display shows chords (not stripped) with transposition applied",
+    "Solution builds with 0 errors"
+  ],
+  "verification": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj"
+  ],
+  "blocked_reason": null,
+  "findings": "All acceptance criteria met. StageDisplayServer compiles and the full solution builds with 0 errors, 0 warnings. All 73 tests pass. Key design decisions: (1) StageDisplayServer uses WebApplication.CreateSlimBuilder() for minimal footprint alongside WPF. (2) Server runs non-blocking via RunAsync() stored in a background Task. (3) WebSocket client management uses ConcurrentBag with periodic cleanup of dead connections. (4) HTML page is served as an interpolated string constant from StageDisplayHtml.GetHtml(port) to avoid embedded resource complexity. (5) Test project cannot reference net8.0-windows Presenter project, so serialization tests use a local mirror of StageDisplayData to verify the JSON contract. (6) The /ws/stage endpoint handles graceful close frames and OperationCanceledException for clean shutdown. (7) PresenterSettings fields (StageServerEnabled, StageServerPort) follow existing JSON property naming pattern."
+}

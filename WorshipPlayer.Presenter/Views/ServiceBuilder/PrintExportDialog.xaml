@@ -1,0 +1,57 @@
+<Window x:Class="WorshipPlayer.Presenter.Views.ServiceBuilder.PrintExportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Print / Export Service Order"
+        Width="600" Height="500"
+        MinWidth="400" MinHeight="350"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F1117"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <DockPanel Margin="16">
+        <!-- Bottom buttons -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="Close" Style="{StaticResource OwcButtonBase}"
+                    Click="Close_Click" Margin="0,0,8,0" MinWidth="80"/>
+            <Button Content="Export as Text" Style="{StaticResource OwcButtonBase}"
+                    Click="Export_Click" Margin="0,0,8,0" MinWidth="100"/>
+            <Button Content="Print" Style="{StaticResource OwcAccentButton}"
+                    Click="Print_Click" MinWidth="80"/>
+        </StackPanel>
+
+        <!-- Options -->
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <TextBlock Text="Service Order Preview" FontSize="14" FontWeight="SemiBold"
+                       Foreground="{StaticResource OwcTextPrimaryBrush}"
+                       Margin="0,0,0,8"/>
+            <CheckBox x:Name="IncludeLyricsCheckBox" IsChecked="True"
+                      Foreground="{StaticResource OwcTextPrimaryBrush}"
+                      FontSize="12" Content="Include Lyrics"
+                      Checked="IncludeLyrics_Changed"
+                      Unchecked="IncludeLyrics_Changed"/>
+        </StackPanel>
+
+        <!-- Preview -->
+        <TextBox x:Name="PreviewTextBox"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 VerticalScrollBarVisibility="Auto"
+                 Background="{StaticResource OwcSurfaceBrush}"
+                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                 BorderBrush="{StaticResource OwcBorderBrush}"
+                 FontFamily="Consolas"
+                 FontSize="12"
+                 Padding="12"/>
+    </DockPanel>
+</Window>

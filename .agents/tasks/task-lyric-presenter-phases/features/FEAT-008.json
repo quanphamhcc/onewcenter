@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-008",
+  "type": "feat",
+  "description": "Phase 8: Presenter Remote - Extend the web server with /remote endpoint for phone/tablet browser control. PIN security, multi-remote WebSocket sync, slide navigation, go live/black/logo, service order navigation.",
+  "status": "completed",
+  "steps": [
+    "Add PresenterSettings fields: RemoteEnabled (bool), RemotePin (string, 4-digit default '1234'), RemoteAllowSlideAdvance (bool, true), RemoteAllowItemNavigation (bool, true), RemoteAllowDisplayControl (bool, true).",
+    "Extend StageDisplayServer with /remote endpoint that serves a mobile-optimized HTML/CSS/JS control page. The page shows: current slide text, next slide preview, transport buttons (Prev Slide, Next Slide, Prev Item, Next Item), display buttons (Go Live, Black, Logo), service order list with tap-to-navigate.",
+    "Add /remote/auth POST endpoint: accepts JSON {pin: '1234'}, returns a session token (JWT or simple random token) stored in localStorage. All WebSocket connections from /remote require valid token.",
+    "Create WebSocket endpoint /ws/remote that: authenticates via token query param, receives commands (nextSlide, prevSlide, nextItem, prevItem, goLive, goBlack, showLogo, goToItem:N, goToSlide:N), sends state updates to all connected remotes (current slide, item, live/black state).",
+    "Create WorshipPlayer.Presenter/Services/RemoteCommandHandler.cs that processes incoming WebSocket commands and calls the appropriate PresenterEngine methods. Validates permissions against RemoteAllow* settings.",
+    "The remote HTML page must: (a) prompt for PIN on first visit, (b) store token in localStorage, (c) show real-time slide content updates, (d) have large touch-friendly buttons, (e) work in both portrait and landscape, (f) show a 'connected' indicator and disconnect warning.",
+    "Add /remote/status GET endpoint that returns JSON with connected remote count and their names.",
+    "Write unit tests for RemoteCommandHandler (command parsing, permission checks)."
+  ],
+  "acceptance_criteria": [
+    "GET /remote serves mobile-optimized HTML control page",
+    "PIN authentication works via /remote/auth endpoint",
+    "WebSocket /ws/remote accepts authenticated commands",
+    "Commands (nextSlide, prevSlide, goLive, etc.) execute on PresenterEngine",
+    "Multiple remotes sync in real-time via WebSocket broadcast",
+    "Permission settings respected (RemoteAllow* flags)",
+    "Unit tests pass for RemoteCommandHandler",
+    "Solution builds with 0 errors"
+  ],
+  "verification": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj"
+  ],
+  "blocked_reason": null,
+  "findings": "All 188 tests pass (39 new RemoteCommandHandler tests). Build succeeds with 0 errors. ServiceOrderManager requires a path argument - tests use /tmp/test-service-orders as a dummy path with CreateNew/AddItem for in-memory setup. PresenterEngine.cs was linked into the test project alongside RemoteCommandHandler.cs since both are in net8.0-windows Presenter project."
+}

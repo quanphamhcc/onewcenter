@@ -1,0 +1,26 @@
+# .NET
+bin/
+obj/
+publish/
+*.user
+*.suo
+*.userprefs
+.vs/
+
+# IDE
+.idea/
+.vscode/
+
+# NuGet
+*.nupkg
+packages/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Audio files (large - don't commit stems to git)
+# Uncomment below if you don't want audio in repo:
+# *.mp3
+# *.wav
+# *.flac

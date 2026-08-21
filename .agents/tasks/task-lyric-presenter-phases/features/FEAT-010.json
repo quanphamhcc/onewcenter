@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-010",
+  "type": "feat",
+  "description": "Phase 10: Cloud Sync preparation - Song library API models, desktop sync service interface, download workflow models. These are interface/model definitions that prepare for future cloud integration without implementing the actual cloud backend.",
+  "status": "completed",
+  "steps": [
+    "Create WorshipPlayer.Core/Models/Cloud/SongLibraryItem.cs: Model for a song in the cloud library. Fields: Id, Title, Artist, Key, Bpm, Tags, CcliNumber, HasBacktracks, HasLyrics, ThumbnailUrl, CreatedAt, UpdatedAt, Version.",
+    "Create WorshipPlayer.Core/Models/Cloud/SyncStatus.cs: Enum (UpToDate, LocalChanges, RemoteChanges, Conflict, Downloading, Uploading). Also SyncInfo class with: LastSyncTime, Status, ConflictDetails.",
+    "Create WorshipPlayer.Core/Models/Cloud/DownloadRequest.cs: Model for requesting song downloads. Fields: SongId, IncludeBacktracks (bool), IncludeLyrics (bool), IncludeChordChart (bool), TargetFolder.",
+    "Create WorshipPlayer.Core/Models/Cloud/ServicePlanDto.cs: DTO for cloud service plans (maps to ServiceOrder). Fields: Id, Name, Date, ServiceType, Items (list of ServicePlanItemDto with SongId, KeyShift, TempoPercent, Notes, CustomSlides).",
+    "Create WorshipPlayer.Core/Services/Cloud/ISongLibraryApi.cs interface: SearchSongs(query, filters), GetSong(id), GetSongVersions(id), DownloadSong(request), UploadSong(song), CheckForUpdates(localSongs).",
+    "Create WorshipPlayer.Core/Services/Cloud/ISyncService.cs interface: SyncAll(), SyncSong(songId), GetSyncStatus(), ResolveConflict(songId, resolution), SetAutoSync(enabled).",
+    "Create WorshipPlayer.Core/Services/Cloud/IServicePlanApi.cs interface: GetUpcomingPlans(), GetPlan(id), SyncPlan(planId), CreatePlan(dto), UpdatePlan(dto).",
+    "Create WorshipPlayer.Core/Services/Cloud/DesktopSyncService.cs: Stub implementation of ISyncService that tracks local state, detects which songs have been modified since last sync, and provides the sync workflow (check -> download -> merge -> confirm). Does not make actual HTTP calls (no backend yet), but has the full workflow logic stubbed.",
+    "Write unit tests for DesktopSyncService stub: verify sync status tracking, conflict detection logic, download request construction."
+  ],
+  "acceptance_criteria": [
+    "All Cloud model classes compile and have proper JSON serialization attributes",
+    "ISongLibraryApi, ISyncService, IServicePlanApi interfaces defined with full method signatures",
+    "DesktopSyncService implements ISyncService with stub logic",
+    "Unit tests verify sync status tracking and conflict detection",
+    "Solution builds with 0 errors",
+    "All tests pass"
+  ],
+  "verification": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj"
+  ],
+  "blocked_reason": null,
+  "findings": "All Cloud models, interfaces, and DesktopSyncService implemented in WorshipPlayer.Core (net8.0). 17 new tests added covering sync tracking, conflict resolution, auto-sync preference, progress events, and JSON serialization round-trips for all models. Total test count now 233 (all passing). Build succeeds with 0 errors."
+}

@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Phase 1 & 6: Core Engine rework - section-aware PresenterEngine with backtrack integration events, dual rendering pipeline (congregation strips chords, stage shows chords transposed), Nashville number system, and capo display. Also add NashvilleNumberService to ChordProParserService.",
+  "status": "completed",
+  "steps": [
+    "Add Nashville number conversion to WorshipPlayer.Core/Services/ChordProParserService.cs: method ConvertToNashvilleNumbers(string text, string key) that replaces [C] -> [1], [Am] -> [6m], etc. based on key. Support all 12 keys and common qualities (m, 7, maj7, dim, aug, sus).",
+    "Add CapoTranspose(string text, int capoFret) method to ChordProParserService that transposes chords DOWN by capoFret semitones (shows what shape to play with capo).",
+    "Create WorshipPlayer.Core/Models/BacktrackState.cs with a class that holds: IsPlaying, CurrentSongTitle, CurrentSectionIndex, CurrentSectionName, CurrentPositionMs, PitchShiftSemitones, TempoPercent, IsLooping, QueuedSectionName. This is the shared state the presenter reads from the backtrack.",
+    "Rework WorshipPlayer.Presenter/Services/PresenterEngine.cs to be section-aware: (a) Add Song? _currentSong field. (b) Add LoadSong(Song song) method that generates slides from sections using LyricSlideGenerator with ChartSlide timing. (c) Add OnSectionLooped(string sectionName) that re-shows the first slide for that section. (d) Add OnPitchShiftChanged(int semitones) and OnTempoChanged(double percent) that update transposition state. (e) Add OnSongLoaded(Song song) and OnSongEnded(). (f) Add dual rendering: GetCongregationText(Slide slide) strips chords, GetStageText(Slide slide, int transposeSemitones) keeps chords transposed. (g) Add support for songs without backtrack (manual advance mode via ServiceItem.UseBacktrack=false).",
+    "Update WorshipPlayer.Presenter/Services/MidiPresenterSync.cs to handle new events: OnSectionLooped, OnPitchShiftChanged, OnTempoChanged, enhanced OnSongLoaded that passes Song object.",
+    "Add PresenterEngine methods for Nashville/Capo display: GetNashvilleText(Slide slide, string key), GetCapoText(Slide slide, int capoFret). These use ChordProParserService internally.",
+    "Update LyricSlideGenerator to assign TimestampMs from ChartSlide timing data when available: when generating slides from a Song, if song.ChordChart?.Slides has entries matching the section/slideIndex, set slide.TimestampMs from ChartSlide.StartMs.",
+    "Write unit tests in WorshipPlayer.Tests for: Nashville number conversion (all intervals, multiple keys), Capo transpose, section-aware slide generation, dual rendering (congregation vs stage text)."
+  ],
+  "acceptance_criteria": [
+    "ChordProParserService.ConvertToNashvilleNumbers('[C]Amazing [Am]grace', 'C') returns '[1]Amazing [6m]grace'",
+    "ChordProParserService.CapoTranspose('[G]text', 2) returns '[F]text' (capo 2 means play F shape)",
+    "PresenterEngine.GetCongregationText returns text with chords stripped",
+    "PresenterEngine.GetStageText returns text with chords transposed by pitch shift amount",
+    "LyricSlideGenerator assigns TimestampMs from ChartSlide data",
+    "All unit tests pass via dotnet test",
+    "Full solution builds with 0 errors"
+  ],
+  "verification": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj"
+  ],
+  "blocked_reason": null,
+  "findings": "All acceptance criteria met. Nashville conversion, capo transpose, section-aware PresenterEngine, and dual rendering all compile and pass tests. Key design decisions: (1) PresenterEngine rendering methods are thin wrappers over ChordProParserService, keeping the parsing logic centralized. (2) Test project remains at net8.0 TFM (cannot reference net8.0-windows Presenter project directly), so Presenter integration tests verify the underlying Core logic and model behavior. The Presenter-level code is verified by the full solution build. (3) Nashville suffix format uses dash separator for extensions (e.g., 5-7, 6m-7, 4-sus) following common Nashville notation. (4) BacktrackState model uses -1 for CurrentSectionIndex default to indicate no section active."
+}

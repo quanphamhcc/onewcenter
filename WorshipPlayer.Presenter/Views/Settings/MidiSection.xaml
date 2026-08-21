@@ -1,0 +1,227 @@
+<UserControl x:Class="WorshipPlayer.Presenter.Views.Settings.MidiSection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="4">
+            <!-- Section Title -->
+            <TextBlock Text="MIDI Control" FontSize="18" FontWeight="SemiBold"
+                       Foreground="{StaticResource OwcTextPrimaryBrush}"
+                       Margin="0,0,0,16"/>
+
+            <!-- MIDI Device -->
+            <Border Style="{StaticResource OwcSurfaceBorder}" Padding="12" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="MIDI Device" FontSize="11"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="MidiDeviceComboBox"
+                              Background="{StaticResource OwcSurfaceBrush}"
+                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              FontSize="12" Padding="8,6">
+                        <ComboBoxItem Content="No devices found" IsSelected="True" FontStyle="Italic"/>
+                    </ComboBox>
+                    <TextBlock Text="Connect a MIDI device to map controls to presenter commands."
+                               FontSize="11" Foreground="{StaticResource OwcTextMutedBrush}"
+                               TextWrapping="Wrap" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Command Mapping Table -->
+            <Border Style="{StaticResource OwcSurfaceBorder}" Padding="12" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Command Mapping" FontSize="11"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,8"/>
+
+                    <!-- Header Row -->
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Command" FontSize="10"
+                                   Foreground="{StaticResource OwcTextMutedBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="1" Text="Note (0-127)" FontSize="10"
+                                   Foreground="{StaticResource OwcTextMutedBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="2" Text="Channel (1-16)" FontSize="10"
+                                   Foreground="{StaticResource OwcTextMutedBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="3" Text="Test" FontSize="10"
+                                   Foreground="{StaticResource OwcTextMutedBrush}" FontWeight="SemiBold"/>
+                    </Grid>
+
+                    <!-- NextSlide Row -->
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Next Slide" FontSize="12"
+                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" x:Name="NextSlideNote" Text="0"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="3"/>
+                        <TextBox Grid.Column="2" x:Name="NextSlideChannel" Text="1"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="2"/>
+                        <Button Grid.Column="3" Content="Test"
+                                Style="{StaticResource OwcButtonBase}"
+                                FontSize="9" Padding="6,2"
+                                Click="TestButton_Click" Tag="NextSlide"/>
+                    </Grid>
+
+                    <!-- PrevSlide Row -->
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Previous Slide" FontSize="12"
+                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" x:Name="PrevSlideNote" Text="1"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="3"/>
+                        <TextBox Grid.Column="2" x:Name="PrevSlideChannel" Text="1"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="2"/>
+                        <Button Grid.Column="3" Content="Test"
+                                Style="{StaticResource OwcButtonBase}"
+                                FontSize="9" Padding="6,2"
+                                Click="TestButton_Click" Tag="PrevSlide"/>
+                    </Grid>
+
+                    <!-- NextItem Row -->
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Next Item" FontSize="12"
+                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" x:Name="NextItemNote" Text="2"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="3"/>
+                        <TextBox Grid.Column="2" x:Name="NextItemChannel" Text="1"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="2"/>
+                        <Button Grid.Column="3" Content="Test"
+                                Style="{StaticResource OwcButtonBase}"
+                                FontSize="9" Padding="6,2"
+                                Click="TestButton_Click" Tag="NextItem"/>
+                    </Grid>
+
+                    <!-- PrevItem Row -->
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Previous Item" FontSize="12"
+                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" x:Name="PrevItemNote" Text="3"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="3"/>
+                        <TextBox Grid.Column="2" x:Name="PrevItemChannel" Text="1"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="2"/>
+                        <Button Grid.Column="3" Content="Test"
+                                Style="{StaticResource OwcButtonBase}"
+                                FontSize="9" Padding="6,2"
+                                Click="TestButton_Click" Tag="PrevItem"/>
+                    </Grid>
+
+                    <!-- GoBlack Row -->
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Go Black" FontSize="12"
+                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" x:Name="GoBlackNote" Text="4"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="3"/>
+                        <TextBox Grid.Column="2" x:Name="GoBlackChannel" Text="1"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="2"/>
+                        <Button Grid.Column="3" Content="Test"
+                                Style="{StaticResource OwcButtonBase}"
+                                FontSize="9" Padding="6,2"
+                                Click="TestButton_Click" Tag="GoBlack"/>
+                    </Grid>
+
+                    <!-- GoLive Row -->
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Go Live" FontSize="12"
+                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" x:Name="GoLiveNote" Text="5"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="3"/>
+                        <TextBox Grid.Column="2" x:Name="GoLiveChannel" Text="1"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="11" Padding="4,3" Margin="0,0,4,0" MaxLength="2"/>
+                        <Button Grid.Column="3" Content="Test"
+                                Style="{StaticResource OwcButtonBase}"
+                                FontSize="9" Padding="6,2"
+                                Click="TestButton_Click" Tag="GoLive"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

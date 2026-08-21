@@ -1,0 +1,90 @@
+<Window x:Class="WorshipPlayer.Presenter.Views.SongLibrary.ChordProImportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Import ChordPro File"
+        Width="550" Height="500"
+        MinWidth="400" MinHeight="350"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F1117"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <DockPanel Margin="16">
+        <!-- Bottom buttons -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="Cancel" Style="{StaticResource OwcButtonBase}"
+                    Click="Cancel_Click" Margin="0,0,8,0" MinWidth="80"/>
+            <Button x:Name="ImportButton" Content="Import" IsEnabled="False"
+                    Style="{StaticResource OwcAccentButton}"
+                    Click="Import_Click" MinWidth="100"/>
+        </StackPanel>
+
+        <!-- Top area -->
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <TextBlock Text="Import ChordPro File" FontSize="14" FontWeight="SemiBold"
+                       Foreground="{StaticResource OwcTextPrimaryBrush}"
+                       Margin="0,0,0,10"/>
+
+            <!-- File picker -->
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="FilePathTextBox" IsReadOnly="True"
+                         Background="{StaticResource OwcSurfaceBrush}"
+                         Foreground="{StaticResource OwcTextPrimaryBrush}"
+                         BorderBrush="{StaticResource OwcBorderBrush}"
+                         Padding="8,6" FontSize="12"/>
+                <Button Content="Browse..." Grid.Column="1"
+                        Style="{StaticResource OwcButtonBase}"
+                        Click="Browse_Click" Margin="8,0,0,0"/>
+            </Grid>
+
+            <!-- Detected metadata -->
+            <Border Style="{StaticResource OwcSurfaceBorder}" Padding="10" Margin="0,0,0,8">
+                <StackPanel>
+                    <TextBlock Text="Detected Metadata" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               Margin="0,0,0,6"/>
+                    <TextBlock x:Name="DetectedTitleText" FontSize="12"
+                               Foreground="{StaticResource OwcTextPrimaryBrush}">
+                        <Run Text="Title: "/><Run x:Name="TitleValue" Text="(none)"/>
+                    </TextBlock>
+                    <TextBlock x:Name="DetectedArtistText" FontSize="12"
+                               Foreground="{StaticResource OwcTextPrimaryBrush}">
+                        <Run Text="Artist: "/><Run x:Name="ArtistValue" Text="(none)"/>
+                    </TextBlock>
+                    <TextBlock x:Name="DetectedKeyText" FontSize="12"
+                               Foreground="{StaticResource OwcTextPrimaryBrush}">
+                        <Run Text="Key: "/><Run x:Name="KeyValue" Text="(none)"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Preview area -->
+        <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="Parsed Output Preview"
+                       Foreground="{StaticResource OwcTextSecondaryBrush}"
+                       FontSize="11" Margin="0,0,0,4"/>
+            <TextBox x:Name="PreviewTextBox"
+                     IsReadOnly="True" AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     Background="{StaticResource OwcSurfaceBrush}"
+                     Foreground="{StaticResource OwcTextPrimaryBrush}"
+                     BorderBrush="{StaticResource OwcBorderBrush}"
+                     FontFamily="Consolas" FontSize="12" Padding="10"/>
+        </DockPanel>
+    </DockPanel>
+</Window>

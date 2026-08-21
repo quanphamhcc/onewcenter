@@ -1,0 +1,46 @@
+{
+  "id": "FEAT-005",
+  "type": "feat",
+  "description": "WPF Views Part 2 - Template System (G), Tools (J), Settings Panel (L). Template editor window with 3 tabs and live preview. Alert and Countdown tool dialogs. Global search. CCLI report. Full settings window with 9 navigation sections. All must use OwcDesignSystem.xaml resources.",
+  "status": "completed",
+  "steps": [
+    "Create WorshipPlayer.Presenter/Views/Templates/TemplateEditorWindow.xaml + .cs - Full window with 3 TabControl tabs (Formatting, Advanced, Margins). Left side: settings, Right side: live preview with placeholder text 'Amazing Grace how sweet the sound'. Title bar shows template name. Save/Cancel at bottom. Resizable, MinWidth=800, MinHeight=600.",
+    "Create WorshipPlayer.Presenter/Views/Templates/FormattingTab.xaml + .cs - UserControl tab: Font Family ComboBox (system fonts), Font Size slider (12-120), Weight toggle (Normal/Bold), Color picker (hex TextBox + preview swatch), Italic toggle, H-Align (Left/Center/Right radio buttons), V-Align (Top/Center/Bottom radio buttons), Shadow toggle + shadow color, Outline toggle + outline color.",
+    "Create WorshipPlayer.Presenter/Views/Templates/AdvancedTab.xaml + .cs - UserControl tab: Text Transform ComboBox (None/Uppercase/Lowercase), Letter Spacing slider (0-10), Line Height slider (1.0-3.0), Line Background toggle + color picker (for 'Trendy Line' style).",
+    "Create WorshipPlayer.Presenter/Views/Templates/MarginsTab.xaml + .cs - UserControl tab: Top/Left/Right/Bottom margin sliders (0-200px each) with numeric readout. Border style ComboBox (None/Solid/Dashed). Visual margin indicator showing the text area within margins.",
+    "Create WorshipPlayer.Presenter/Views/Templates/TemplateManagerPanel.xaml + .cs - UserControl panel: ListBox of templates (showing name + preview swatch). Toolbar: New, Duplicate, Delete, Rename buttons. Built-in templates shown with lock icon (non-deletable). Empty state if no custom templates: 'Create a template to customize your slide appearance.'",
+    "Create WorshipPlayer.Presenter/Views/Tools/AlertToolDialog.xaml + .cs - Modal dialog: Text input TextBox (multi-line), Font Size slider (24-200), Font Family ComboBox, Color picker, Shadow toggle, Outline toggle. 'Show Alert' button (fires overlay on outputs). 'Stage Display Alert' checkbox. Template save/load section at bottom (ComboBox of saved templates + Save Template button). ResizeMode=CanResize.",
+    "Create WorshipPlayer.Presenter/Views/Tools/CountdownToolDialog.xaml + .cs - Modal dialog: Type selector (Countdown to Zero / Countdown to Time / Count Up), Duration input (HH:MM:SS masked TextBox or 3 separate fields), Location checkboxes (Audience, Stage), Font size/family/color settings. 'Start' button (accent style), 'Stop' button, 'Pause' button. Live preview of countdown format.",
+    "Create WorshipPlayer.Presenter/Views/Tools/GlobalSearchPanel.xaml + .cs - UserControl or floating panel: Search TextBox at top with magnifying glass icon. Results grouped by type (Songs, Services, Slides) with headers. Each result shows title + subtitle + Edit/Delete action buttons. Empty state: 'Type to search across songs, services, and slides.' ScrollViewer with MaxHeight.",
+    "Create WorshipPlayer.Presenter/Views/Tools/CcliReportDialog.xaml + .cs - Dialog: Date range pickers (From/To DatePicker controls), 'Generate Report' button. DataGrid showing songs used (Title, Artist, Times Played, Last Played). 'Export CSV' button (SaveFileDialog *.csv). Empty state: 'Select a date range and click Generate to view song usage.'",
+    "Create WorshipPlayer.Presenter/Views/Settings/SettingsWindow.xaml + .cs - Full-screen window with left sidebar navigation (ListBox with section names: Defaults, Footer, Interface, Bibles, Screen Config, Stage Display, Library, MIDI, Updates). Right side: ContentControl that swaps UserControls based on selection. Dark background. Close button top-right. Resizable. MinWidth=900, MinHeight=650.",
+    "Create WorshipPlayer.Presenter/Views/Settings/DefaultsSection.xaml + .cs - UserControl: Fade time slider (0-3000ms), Aspect Ratio ComboBox (16:9, 4:3, Custom), Default Template ComboBox, Auto-fire toggle, Auto-advance toggle, Media defaults section.",
+    "Create WorshipPlayer.Presenter/Views/Settings/FooterSection.xaml + .cs - UserControl: CCLI License # TextBox, Footer Location ComboBox (Bottom Left/Bottom Center/Bottom Right), Font Family, Font Size, Font Color picker, Checkboxes: Show on Lyrics, Show on Scripture, Show on All.",
+    "Create WorshipPlayer.Presenter/Views/Settings/InterfaceSection.xaml + .cs - UserControl: Editor Background Color picker (hex), Media Load Behavior ComboBox (Copy to Library / Link in Place).",
+    "Create WorshipPlayer.Presenter/Views/Settings/BiblesSection.xaml + .cs - UserControl: ListBox of installed translations (KJV, WEB shown by default), Import Bible XML button (OpenFileDialog *.xml), Set Default button, Remove button (disabled for bundled). Status text showing storage size.",
+    "Create WorshipPlayer.Presenter/Views/Settings/ScreenConfigSection.xaml + .cs - UserControl: ListBox of configured displays (showing index, name, purpose). Add Screen / Remove Screen buttons. Per-screen: Name TextBox, Purpose ComboBox (Audience/Stage/Operator), GPU Acceleration toggle. Multi-monitor info text.",
+    "Create WorshipPlayer.Presenter/Views/Settings/StageDisplaySection.xaml + .cs - UserControl: Visual layout editor (Canvas with draggable rectangles representing blocks: Current Lyrics, Next Slide, Clock, Chords). Aspect Ratio selector. Foreground options ComboBox (Current Slide/Next Slide/Clock/Custom).",
+    "Create WorshipPlayer.Presenter/Views/Settings/LibrarySection.xaml + .cs - UserControl: Media Library Path TextBox + Browse button (FolderBrowserDialog), Storage info (file count, total size), Reset Library button (with confirmation).",
+    "Create WorshipPlayer.Presenter/Views/Settings/MidiSection.xaml + .cs - UserControl: MIDI Device ComboBox (populated at runtime, shows 'No devices found' if empty). Command mapping DataGrid with 6 rows (NextSlide, PrevSlide, NextItem, PrevItem, GoBlack, GoLive) each with Note number (0-127) and Channel (1-16) inputs. 'Test' button per row.",
+    "Create WorshipPlayer.Presenter/Views/Settings/UpdatesCacheSection.xaml + .cs - UserControl: Version display (TextBlock), Auto-update toggle, Cache section: 'Clear Thumbnail Cache' button, 'Clear Temp Files' button, cache size display."
+  ],
+  "acceptance_criteria": [
+    "All XAML files reference OwcDesignSystem.xaml via MergedDictionaries",
+    "Template editor window has live preview that updates as settings change",
+    "Settings window sidebar navigation works (switching sections swaps content)",
+    "All windows/dialogs are resizable with appropriate MinWidth/MinHeight",
+    "All buttons use Cursor=Hand",
+    "Alert dialog has 'Show Alert' and 'Stage Display Alert' functionality wired to events",
+    "Countdown dialog supports all 3 countdown types",
+    "Global search shows grouped results with headers",
+    "CCLI report shows DataGrid with song usage data",
+    "Settings MIDI section shows 6-command mapping table",
+    "All sections have appropriate empty states"
+  ],
+  "verification": [
+    "dotnet build WorshipPlayer.Core --nologo",
+    "dotnet test WorshipPlayer.Tests --nologo"
+  ],
+  "blocked_reason": null,
+  "findings": "All 20 XAML+.cs file pairs created (10 XAML, 10 code-behind = 20 pairs for 39 files total). Had to resolve namespace conflicts between System.Windows.TextAlignment/VerticalAlignment and WorshipPlayer.Core.Models.TextAlignment/VerticalAlignment using type aliases. SongLibraryItem uses 'Id' not 'SongId'. ServiceOrder uses 'Date' (string) not 'ServiceDate'. Slide.Content is SlideContent type (use .Text property). Slide.Type not SlideType. Build passes with 0 errors, 2 pre-existing warnings (MediaLibraryPanel). All 411 tests pass."
+}

@@ -1,0 +1,37 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Core Services Implementation - Implement all business logic services for Groups C, D, E, F, G, J, L. These are platform-independent services in WorshipPlayer.Core/Services/ and WorshipPlayer.Presenter/Services/. Includes: BibleDatabaseService (SQLite with KJV+WEB schema and seed SQL), ScriptureSlideGenerator, MediaLibraryService, SongLibraryService, TemplateService (with built-in templates), AlertService, CountdownService, GlobalSearchService, SongUsageService, ExportService (print/text export), CcliReportService.",
+  "status": "completed",
+  "steps": [
+    "Create WorshipPlayer.Core/Services/Bible/BibleDatabaseService.cs implementing IBibleProvider - uses Microsoft.Data.Sqlite to query a local .db file. Methods: InitializeAsync (create tables if not exist + seed), SearchAsync (full-text search on verse text), GetVersesAsync (by book/chapter/verse range), GetBooksAsync, GetTranslationsAsync. Include schema: Books(id,name,abbreviation,testament,translationId), Verses(id,bookId,chapter,verse,text,translationId), Translations(id,name,abbreviation). Parse reference strings like 'John 3:16-18' into book/chapter/verse.",
+    "Create WorshipPlayer.Core/Services/Bible/BibleSeedData.cs - static class with SQL INSERT statements for KJV and WEB translations (just the schema + first few books as a pattern, with a comment noting full data is loaded from bundled .sql files at runtime). Include a method GenerateSchemaSQL() and SeedTranslationsSQL().",
+    "Create WorshipPlayer.Core/Services/Bible/ScriptureReferenceParser.cs - parses strings like 'John 3:16', '1 Corinthians 13:4-7', 'Psalm 23' into ScriptureReference objects. Handle book name aliases (1 John, I John, 1John).",
+    "Create WorshipPlayer.Core/Services/ScriptureSlideGenerator.cs - takes scripture text and splits into slides based on configurable lines per slide. Handles verse number display, reference display options (show/hide reference, show/hide translation).",
+    "Create WorshipPlayer.Core/Services/MediaLibraryService.cs implementing IMediaLibraryService - manages a media library folder. Import copies files to library folder (with path sanitization). Stores metadata as JSON sidecar files. Search by name/tags/type. Supported types: .png, .jpg, .jpeg, .gif, .webp, .mp4, .mov, .webm, .avi.",
+    "Create WorshipPlayer.Core/Services/SongLibraryService.cs implementing ISongLibraryService - wraps SongManager with search/filter/sort capabilities. Search by title/artist/key. Sort alphabetically or by date. Returns SongLibraryItem list with metadata. Includes song usage tracking (log plays, query usage by date range).",
+    "Create WorshipPlayer.Core/Services/SongUsageService.cs - stores usage records as JSON file. LogUsage(songTitle, songId, serviceName, serviceDate). GetUsageByDateRange(from, to). ExportToCsv(from, to, outputPath).",
+    "Create WorshipPlayer.Presenter/Services/TemplateService.cs implementing ITemplateService - manages SlideTemplate objects. CRUD operations. Built-in templates: 'Default Centered' (center/center, white on black, Segoe UI 60pt), 'Lower Third' (bottom-left, white on transparent with gradient, Segoe UI 48pt), 'Trendy Line' (center, with LineBackgroundEnabled, semi-transparent line backgrounds). Load/save from Themes/ folder.",
+    "Create WorshipPlayer.Presenter/Services/AlertService.cs implementing IAlertService - manages alert templates (CRUD). ShowAlert fires an event with alert data. StageDisplayAlert flag. Save/load templates from JSON file.",
+    "Create WorshipPlayer.Presenter/Services/CountdownService.cs implementing ICountdownService - manages countdown state. Start/Stop/Pause. Fires tick events. Supports Countdown (to zero), CountdownToTime (to specific time of day), CountUp (elapsed). Location targeting (audience/stage).",
+    "Create WorshipPlayer.Core/Services/GlobalSearchService.cs implementing ISearchService - searches across songs, services, slides. Returns grouped results (SearchResult with Source enum Song/Service/Slide, Title, Subtitle, Id). Calls into SongManager and ServiceOrderManager.",
+    "Create WorshipPlayer.Core/Services/ExportService.cs implementing IExportService - exports service order as printable text (with/without lyrics). Generates formatted text file. Also supports generating a simplified print view string.",
+    "Create WorshipPlayer.Core/Services/CcliReportService.cs - generates CCLI song usage report from SongUsageService data. GetReport(fromDate, toDate) returns list of songs with play counts. ExportCsv(fromDate, toDate, outputPath)."
+  ],
+  "acceptance_criteria": [
+    "dotnet build WorshipPlayer.Core succeeds",
+    "dotnet build WorshipPlayer.Tests succeeds (with linked Presenter services)",
+    "BibleDatabaseService can create SQLite schema and query verses",
+    "ScriptureReferenceParser correctly parses 'John 3:16', '1 Corinthians 13:4-7', 'Psalm 23'",
+    "MediaLibraryService sanitizes file paths (rejects ../ and absolute paths outside library)",
+    "TemplateService provides 3 built-in templates that cannot be deleted",
+    "All services use async/await for I/O operations",
+    "All services work offline with local file/SQLite storage"
+  ],
+  "verification": [
+    "dotnet build WorshipPlayer.Core --nologo",
+    "dotnet test WorshipPlayer.Tests --nologo"
+  ],
+  "blocked_reason": null,
+  "findings": "All 13 services implemented successfully. Core builds with 0 warnings. All 233 existing tests pass. Bible services use Microsoft.Data.Sqlite with schema creation and LIKE queries. ScriptureReferenceParser handles numbered books (1/2/3, I/II/III prefixes) and common abbreviations. MediaLibraryService validates paths by rejecting .., null bytes, and destinations outside library folder. TemplateService has 3 built-in templates with IsBuiltIn flag preventing deletion. CountdownService implements full state machine (Stopped->Running->Paused) using System.Timers.Timer. Presenter services linked to Tests via Compile Include and compile without WPF dependencies. ChordProParserService.Parse() returns ParseResult with Sections and Directives dictionary (not direct Title/Artist properties)."
+}

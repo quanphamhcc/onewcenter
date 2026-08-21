@@ -1,0 +1,92 @@
+<UserControl x:Class="WorshipPlayer.Presenter.Views.ServiceBuilder.ServiceGroupPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource OwcPanelBorder}" Padding="12">
+        <DockPanel>
+            <!-- Header -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Service Groups" FontSize="14" FontWeight="SemiBold"
+                           Foreground="{StaticResource OwcTextPrimaryBrush}"
+                           VerticalAlignment="Center"/>
+                <Button x:Name="AddGroupButton" Grid.Column="1"
+                        Content="+ Add Group" Style="{StaticResource OwcAccentButton}"
+                        FontSize="11" Padding="10,5"
+                        Click="AddGroup_Click"/>
+            </Grid>
+
+            <!-- Groups List -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                <StackPanel>
+                    <!-- Empty State -->
+                    <TextBlock x:Name="EmptyStateText"
+                               Text="Click + Add Group to create a section group like 'Opening Worship', 'Message', or 'Response'."
+                               Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="12" TextWrapping="Wrap"
+                               Margin="4,12" HorizontalAlignment="Center"
+                               Visibility="Visible"/>
+
+                    <!-- Groups ItemsControl -->
+                    <ItemsControl x:Name="GroupsItemsControl">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource OwcSurfaceBorder}"
+                                        Margin="0,4" Padding="10,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Expand/Collapse Toggle -->
+                                        <Button Content="▼" FontSize="10"
+                                                Style="{StaticResource OwcButtonBase}"
+                                                Padding="4,2" Margin="0,0,6,0"
+                                                Click="ToggleGroup_Click"
+                                                Tag="{Binding Name}"/>
+
+                                        <!-- Group Name -->
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                                   FontSize="13" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"/>
+
+                                        <!-- Rename Button -->
+                                        <Button Grid.Column="2" Content="Rename"
+                                                Style="{StaticResource OwcButtonBase}"
+                                                FontSize="10" Padding="6,3" Margin="4,0"
+                                                Click="RenameGroup_Click"
+                                                Tag="{Binding Name}"/>
+
+                                        <!-- Delete Button -->
+                                        <Button Grid.Column="3" Content="X"
+                                                Style="{StaticResource OwcButtonBase}"
+                                                FontSize="10" Padding="6,3"
+                                                Foreground="{StaticResource OwcLiveBrush}"
+                                                Click="DeleteGroup_Click"
+                                                Tag="{Binding Name}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</UserControl>

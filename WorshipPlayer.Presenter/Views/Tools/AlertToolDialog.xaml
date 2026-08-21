@@ -1,0 +1,165 @@
+<Window x:Class="WorshipPlayer.Presenter.Views.Tools.AlertToolDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Alert Tool" Width="600" Height="550"
+        MinWidth="500" MinHeight="450"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F1117"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" Text="Alert Overlay"
+                   FontSize="16" FontWeight="SemiBold"
+                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                   Margin="0,0,0,12"/>
+
+        <!-- Alert Text Input -->
+        <Border Grid.Row="1" Style="{StaticResource OwcSurfaceBorder}" Padding="8" Margin="0,0,0,12">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Alert Text" FontSize="11"
+                           Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+                <TextBox x:Name="AlertTextBox"
+                         Background="{StaticResource OwcSurfaceBrush}"
+                         Foreground="{StaticResource OwcTextPrimaryBrush}"
+                         BorderBrush="{StaticResource OwcBorderBrush}"
+                         FontSize="14" Padding="8"
+                         AcceptsReturn="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Font Settings -->
+        <Border Grid.Row="2" Style="{StaticResource OwcSurfaceBorder}" Padding="12" Margin="0,0,0,12">
+            <StackPanel>
+                <!-- Font Size Slider -->
+                <TextBlock Text="Font Size" FontSize="11"
+                           Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="50"/>
+                    </Grid.ColumnDefinitions>
+                    <Slider x:Name="FontSizeSlider" Grid.Column="0"
+                            Minimum="24" Maximum="200" Value="48"
+                            Style="{StaticResource OwcSlider}"
+                            ValueChanged="FontSizeSlider_ValueChanged"/>
+                    <TextBlock Grid.Column="1" x:Name="FontSizeDisplay" Text="48"
+                               Foreground="{StaticResource OwcTextPrimaryBrush}"
+                               FontSize="12" HorizontalAlignment="Right"
+                               VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- Font Family / Color row -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="120"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Font Family" FontSize="11"
+                                   Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="FontFamilyComboBox"
+                                  Background="{StaticResource OwcSurfaceBrush}"
+                                  Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                  FontSize="12" Padding="6,4">
+                            <ComboBoxItem Content="Segoe UI" IsSelected="True"/>
+                            <ComboBoxItem Content="Arial"/>
+                            <ComboBoxItem Content="Impact"/>
+                            <ComboBoxItem Content="Georgia"/>
+                            <ComboBoxItem Content="Verdana"/>
+                            <ComboBoxItem Content="Calibri"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Color" FontSize="11"
+                                   Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox x:Name="ColorHexTextBox" Text="#FFFFFF"
+                                     Background="{StaticResource OwcSurfaceBrush}"
+                                     Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                     BorderBrush="{StaticResource OwcBorderBrush}"
+                                     FontSize="12" Padding="4,4" Width="70"/>
+                            <Border x:Name="ColorSwatch" Width="24" Height="24"
+                                    Background="#FFFFFF" CornerRadius="4" Margin="6,0,0,0"
+                                    BorderBrush="{StaticResource OwcBorderBrush}" BorderThickness="1"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Effects -->
+                <StackPanel Orientation="Horizontal">
+                    <CheckBox x:Name="ShadowToggle" Content="Shadow"
+                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              FontSize="12" Margin="0,0,16,0" IsChecked="True"/>
+                    <CheckBox x:Name="OutlineToggle" Content="Outline"
+                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              FontSize="12" Margin="0,0,16,0"/>
+                    <CheckBox x:Name="StageDisplayCheckBox" Content="Stage Display Alert"
+                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              FontSize="12" IsChecked="True"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Template Save/Load -->
+        <Border Grid.Row="3" Style="{StaticResource OwcSurfaceBorder}" Padding="12" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Alert Templates" FontSize="11"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="TemplateComboBox"
+                              Background="{StaticResource OwcSurfaceBrush}"
+                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              FontSize="12" Padding="6,4"
+                              SelectionChanged="TemplateComboBox_SelectionChanged">
+                        <ComboBoxItem Content="(No template)" IsSelected="True"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <Button Grid.Column="1" x:Name="SaveTemplateButton" Content="Save Template"
+                        Style="{StaticResource OwcButtonBase}"
+                        FontSize="11" Padding="10,6" Margin="8,18,0,0"
+                        VerticalAlignment="Bottom"
+                        Click="SaveTemplateButton_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- Action Buttons -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="CloseButton" Content="Close"
+                    Style="{StaticResource OwcButtonBase}"
+                    Padding="16,8" Margin="0,0,8,0"
+                    Click="CloseButton_Click"/>
+            <Button x:Name="ShowAlertButton" Content="Show Alert"
+                    Style="{StaticResource OwcAccentButton}"
+                    Padding="16,8"
+                    Click="ShowAlertButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

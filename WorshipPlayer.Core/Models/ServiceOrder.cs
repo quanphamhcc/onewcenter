@@ -1,0 +1,208 @@
+using System.Text.Json.Serialization;
+
+namespace WorshipPlayer.Core.Models;
+
+/// <summary>
+/// Represents a complete Sunday service order — the master timeline that
+/// drives both the Backtrack Player (audio) and Presenter (display).
+/// 
+/// This is the SINGLE SOURCE OF TRUTH for the service flow.
+/// In the future, this is created via the cloud Service Planning module
+/// and synced down to the desktop app for Sunday execution.
+/// </summary>
+public class ServiceOrder
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "Untitled Service";
+
+    [JsonPropertyName("date")]
+    public string Date { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
+
+    [JsonPropertyName("serviceType")]
+    public string ServiceType { get; set; } = "Sunday Morning";
+
+    [JsonPropertyName("items")]
+    public List<ServiceItem> Items { get; set; } = new();
+
+    [JsonPropertyName("notes")]
+    public string Notes { get; set; } = "";
+
+    [JsonPropertyName("createdAt")]
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+    [JsonPropertyName("updatedAt")]
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+
+    [JsonPropertyName("groups")]
+    public List<ServiceGroup> Groups { get; set; } = new();
+
+    [JsonPropertyName("organizationId")]
+    public string OrganizationId { get; set; } = "";
+}
+
+/// <summary>
+/// A single item in the service order (song, scripture, announcement, etc.).
+/// Each item can have associated slides for the Presenter to display.
+/// </summary>
+public class ServiceItem
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    [JsonPropertyName("type")]
+    public ServiceItemType Type { get; set; } = ServiceItemType.Song;
+
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = "";
+
+    [JsonPropertyName("subtitle")]
+    public string Subtitle { get; set; } = "";
+
+    [JsonPropertyName("notes")]
+    public string Notes { get; set; } = "";
+
+    [JsonPropertyName("duration_minutes")]
+    public double DurationMinutes { get; set; } = 0;
+
+    [JsonPropertyName("order")]
+    public int Order { get; set; } = 0;
+
+    // ─── Song-specific properties ──────────────────────────────────
+    /// <summary>
+    /// Path to the song folder (for backtrack audio stems).
+    /// Only used when Type = Song.
+    /// </summary>
+    [JsonPropertyName("songFolder")]
+    public string SongFolder { get; set; } = "";
+
+    /// <summary>
+    /// Key override for this service (e.g., original is G, but this week we play in A).
+    /// 0 = original key. +2 = two semitones up, etc.
+    /// </summary>
+    [JsonPropertyName("keyShift")]
+    public int KeyShift { get; set; } = 0;
+
+    /// <summary>
+    /// Tempo override as percentage (100 = original).
+    /// </summary>
+    [JsonPropertyName("tempoPercent")]
+    public double TempoPercent { get; set; } = 100.0;
+
+    /// <summary>
+    /// Whether to use backtrack audio for this song, or it's played live (no audio).
+    /// If false, Presenter still shows lyrics but Backtrack doesn't play.
+    /// </summary>
+    [JsonPropertyName("useBacktrack")]
+    public bool UseBacktrack { get; set; } = true;
+
+    // ─── Scripture-specific properties ─────────────────────────────
+    [JsonPropertyName("scriptureReference")]
+    public string ScriptureReference { get; set; } = "";
+
+    [JsonPropertyName("scriptureTranslation")]
+    public string ScriptureTranslation { get; set; } = "NIV";
+
+    [JsonPropertyName("scriptureText")]
+    public string ScriptureText { get; set; } = "";
+
+    // ─── Media-specific properties ─────────────────────────────────
+    [JsonPropertyName("mediaPath")]
+    public string MediaPath { get; set; } = "";
+
+    [JsonPropertyName("mediaType")]
+    public MediaItemType MediaType { get; set; } = MediaItemType.Image;
+
+    // ─── Slides (Presenter content for this item) ──────────────────
+    /// <summary>
+    /// The slides to display for this item. For songs, these are auto-generated
+    /// from lyrics. For scripture/announcements, manually defined.
+    /// </summary>
+    [JsonPropertyName("slides")]
+    public List<Slide> Slides { get; set; } = new();
+
+    // ─── Theme/Styling ─────────────────────────────────────────────
+    /// <summary>
+    /// Override theme for this item. If null, uses the service-level default theme.
+    /// </summary>
+    [JsonPropertyName("themeId")]
+    public string? ThemeId { get; set; }
+
+    // ─── Per-item Settings ─────────────────────────────────────────
+    /// <summary>
+    /// Auto-advance and transition settings for this item.
+    /// </summary>
+    [JsonPropertyName("autoAdvanceSettings")]
+    public ServiceItemSettings? AutoAdvanceSettings { get; set; }
+
+    /// <summary>
+    /// Background type for this item (overrides theme).
+    /// </summary>
+    [JsonPropertyName("backgroundType")]
+    public BackgroundType? BackgroundType { get; set; }
+
+    /// <summary>
+    /// Foreground type for this item.
+    /// </summary>
+    [JsonPropertyName("foregroundType")]
+    public ForegroundType ForegroundType { get; set; } = ForegroundType.Lyrics;
+
+    /// <summary>
+    /// Transition fade time in milliseconds for this item.
+    /// </summary>
+    [JsonPropertyName("transitionTimeMs")]
+    public int TransitionTimeMs { get; set; } = 500;
+
+    /// <summary>
+    /// Path to an attached audio file for this item (e.g., background music for announcements).
+    /// </summary>
+    [JsonPropertyName("audioAttachmentPath")]
+    public string AudioAttachmentPath { get; set; } = "";
+}
+
+/// <summary>
+/// Types of service items. The Presenter displays all types.
+/// The Backtrack Player only acts on Song items.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ServiceItemType
+{
+    Song,           // Worship song (backtrack + lyrics)
+    Scripture,      // Bible reading
+    Announcement,   // Text/image announcement
+    Sermon,         // Sermon points/outline
+    Video,          // Video playback
+    Image,          // Static image (logo, artwork)
+    Prayer,         // Prayer text/prompt
+    Offering,       // Giving moment (QR code, instructions)
+    AltarCall,      // Response/altar call
+    Blank,          // Black screen or logo
+    Custom          // User-defined (flexible)
+}
+
+/// <summary>
+/// Types of media that can be attached to a service item.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum MediaItemType
+{
+    Image,
+    Video,
+    Audio,
+    Document
+}
+
+/// <summary>
+/// Types of foreground content for a service item.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ForegroundType
+{
+    Lyrics,
+    Scripture,
+    Text,
+    Media,
+    Blank
+}

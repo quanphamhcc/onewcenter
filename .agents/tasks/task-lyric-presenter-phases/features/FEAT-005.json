@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-005",
+  "type": "feat",
+  "description": "Phase 5: Integration with Backtrack MainWindow - Add Presenter launch button to MainWindow, wire up AudioEngine events (SectionChanged, PositionChanged, PlaybackStopped) to MidiPresenterSync/PresenterEngine, shared Song loading, ServiceOrder drives entire flow.",
+  "status": "completed",
+  "steps": [
+    "Add a 'Presenter' button to WorshipPlayer.UI/Views/MainWindow.xaml in the toolbar area. Clicking it launches the OperatorWindow.",
+    "Create WorshipPlayer.UI/Services/PresenterIntegration.cs - a service that: (a) creates and holds PresenterEngine, MidiPresenterSync, ServiceOrderManager, DisplayManager, StageDisplayServer instances; (b) subscribes to AudioEngine.SectionChanged and forwards to MidiPresenterSync.OnBacktrackSectionChanged; (c) subscribes to AudioEngine.PositionChanged and forwards to MidiPresenterSync.OnPlaybackPositionUpdate; (d) subscribes to AudioEngine.PlaybackStopped and calls MidiPresenterSync.OnSongEnded; (e) when a song is loaded in the backtrack, calls PresenterEngine.OnSongLoaded; (f) provides pitch/tempo change forwarding.",
+    "Update WorshipPlayer.UI/Views/MainWindow.xaml.cs to instantiate PresenterIntegration on load, pass it the AudioEngine reference, and wire up the Presenter button to open OperatorWindow.",
+    "Add project reference from WorshipPlayer.UI to WorshipPlayer.Presenter in the UI csproj.",
+    "Ensure ServiceOrder drives the flow: when ServiceOrderManager.ItemChanged fires for a Song item, auto-load that song in the backtrack player AND load its slides in the presenter. For non-song items, only update the presenter.",
+    "Update MainWindow.xaml.cs to support loading a ServiceOrder that pre-populates the song list (existing setlist functionality migrated to ServiceOrder)."
+  ],
+  "acceptance_criteria": [
+    "MainWindow has a Presenter button that opens the OperatorWindow",
+    "AudioEngine section changes are forwarded to PresenterEngine",
+    "AudioEngine position updates drive timestamp-based slide advance",
+    "Song loading in backtrack triggers slide generation in presenter",
+    "ServiceOrder items drive both backtrack and presenter",
+    "Solution builds with 0 errors"
+  ],
+  "verification": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj"
+  ],
+  "blocked_reason": null,
+  "findings": "Build succeeds with 0 errors (2 pre-existing warnings). All 93 tests pass. PresenterIntegration requires System.IO using directive. The PresenterSettings is instantiated with defaults since AppSettings does not have a PresenterSettings field yet - if needed later, it can be deserialized from settings.json. The stage server start is fire-and-forget since it runs on Kestrel background thread."
+}

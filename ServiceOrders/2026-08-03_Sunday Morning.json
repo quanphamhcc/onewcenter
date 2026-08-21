@@ -1,0 +1,204 @@
+{
+  "id": "so-001",
+  "name": "Sunday Morning Worship",
+  "date": "2026-08-03",
+  "serviceType": "Sunday Morning",
+  "items": [
+    {
+      "id": "item-001",
+      "type": "Song",
+      "title": "Open The Heavens",
+      "subtitle": "Opening Worship",
+      "notes": "Start with keys pad, build into full band at Chorus 1",
+      "duration_minutes": 5.5,
+      "order": 0,
+      "songFolder": "Songs/Open The Heavens",
+      "keyShift": 0,
+      "tempoPercent": 100.0,
+      "useBacktrack": true,
+      "slides": [
+        {
+          "id": "s001",
+          "type": "Title",
+          "content": { "text": "Open The Heavens", "subtitle": "", "header": "", "footer": "CCLI License #12345", "backgroundImage": "", "foregroundImage": "" },
+          "order": 0,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 700
+        },
+        {
+          "id": "s002",
+          "type": "Lyrics",
+          "content": { "text": "Open the heavens\nPour down on us", "subtitle": "VERSE 1", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 1,
+          "sectionName": "VERSE 1",
+          "timestamp_ms": 17937.0,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "s003",
+          "type": "Lyrics",
+          "content": { "text": "Your glory and Your goodness\nWe thirst for nothing else", "subtitle": "VERSE 1", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 2,
+          "sectionName": "VERSE 1",
+          "timestamp_ms": 28000.0,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "s004",
+          "type": "Lyrics",
+          "content": { "text": "Open the heavens\nLet Your glory fall", "subtitle": "CHORUS 1", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 3,
+          "sectionName": "CHORUS 1",
+          "timestamp_ms": 110506.0,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        }
+      ]
+    },
+    {
+      "id": "item-002",
+      "type": "Scripture",
+      "title": "John 3:16-17",
+      "subtitle": "Scripture Reading",
+      "notes": "Pastor reads, congregation follows on screen",
+      "duration_minutes": 2.0,
+      "order": 1,
+      "scriptureReference": "John 3:16-17",
+      "scriptureTranslation": "NIV",
+      "scriptureText": "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life. For God did not send his Son into the world to condemn the world, but to save the world through him.",
+      "slides": [
+        {
+          "id": "s010",
+          "type": "Scripture",
+          "content": { "text": "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.", "subtitle": "John 3:16 (NIV)", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 0,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 600
+        },
+        {
+          "id": "s011",
+          "type": "Scripture",
+          "content": { "text": "For God did not send his Son into the world to condemn the world, but to save the world through him.", "subtitle": "John 3:17 (NIV)", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 1,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 600
+        }
+      ]
+    },
+    {
+      "id": "item-003",
+      "type": "Announcement",
+      "title": "Church Potluck",
+      "subtitle": "Announcements",
+      "notes": "Next Sunday after service, bring a dish to share",
+      "duration_minutes": 1.0,
+      "order": 2,
+      "slides": [
+        {
+          "id": "s020",
+          "type": "Announcement",
+          "content": { "text": "Church Potluck\nNext Sunday after service\nBring a dish to share!", "subtitle": "Fellowship Hall", "header": "ANNOUNCEMENTS", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 0,
+          "sectionName": "",
+          "transition": "Dissolve",
+          "transitionDuration_ms": 600
+        }
+      ]
+    },
+    {
+      "id": "item-004",
+      "type": "Offering",
+      "title": "Tithes & Offerings",
+      "subtitle": "",
+      "notes": "Display QR code for online giving",
+      "duration_minutes": 3.0,
+      "order": 3,
+      "slides": [
+        {
+          "id": "s030",
+          "type": "Offering",
+          "content": { "text": "Tithes & Offerings\n\n\"Each of you should give what you have decided in your heart to give, not reluctantly or under compulsion, for God loves a cheerful giver.\"\n— 2 Corinthians 9:7", "subtitle": "Scan to give online", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "Resources/giving-qr-code.png" },
+          "order": 0,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 700
+        }
+      ]
+    },
+    {
+      "id": "item-005",
+      "type": "Sermon",
+      "title": "Faith Over Fear - Week 3",
+      "subtitle": "Pastor Mike",
+      "notes": "Main passage: Isaiah 41:10",
+      "duration_minutes": 35.0,
+      "order": 4,
+      "slides": [
+        {
+          "id": "s040",
+          "type": "Title",
+          "content": { "text": "Faith Over Fear\nWeek 3: Walking in Boldness", "subtitle": "Pastor Mike", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 0,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 700
+        },
+        {
+          "id": "s041",
+          "type": "SermonPoint",
+          "content": { "text": "1. Fear is a response,\nbut faith is a CHOICE", "subtitle": "", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 1,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "s042",
+          "type": "Scripture",
+          "content": { "text": "So do not fear, for I am with you; do not be dismayed, for I am your God. I will strengthen you and help you; I will uphold you with my righteous right hand.", "subtitle": "Isaiah 41:10 (NIV)", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 2,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "s043",
+          "type": "SermonPoint",
+          "content": { "text": "2. Boldness comes from\nKNOWING who walks with you", "subtitle": "", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 3,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        }
+      ]
+    },
+    {
+      "id": "item-006",
+      "type": "Blank",
+      "title": "Logo",
+      "subtitle": "End of Service",
+      "notes": "Display church logo while congregation dismisses",
+      "duration_minutes": 0,
+      "order": 5,
+      "slides": [
+        {
+          "id": "s050",
+          "type": "Blank",
+          "content": { "text": "", "subtitle": "", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 0,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 1000
+        }
+      ]
+    }
+  ],
+  "notes": "Sound check at 8:30 AM. Worship team rehearsal at 9:00 AM.",
+  "createdAt": "2026-07-30T10:00:00",
+  "updatedAt": "2026-07-30T10:00:00"
+}

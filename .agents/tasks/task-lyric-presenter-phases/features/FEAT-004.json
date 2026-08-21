@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Phase 3 & 4: Congregation Output Window enhancements and Operator Window completion - crossfade transitions (Cut/Fade/Dissolve), theme system with backgrounds/fonts/shadows/logo, chord display toggle, operator service order panel, live/next preview, slide thumbnails, backtrack status, transport controls, and keyboard shortcuts.",
+  "status": "completed",
+  "steps": [
+    "Enhance WorshipPlayer.Presenter/Views/OutputWindow.xaml.cs: Add chord display toggle (property ShowChords, when false strips chords from displayed text using ChordProParserService). Add ThemeManager integration that reads SlideTheme and applies all properties (background image/color, font family/size/bold/italic, text shadow, gradient overlay, line spacing, margins, logo).",
+    "Add a ThemeManager service in WorshipPlayer.Presenter/Services/ThemeManager.cs that loads/saves SlideTheme objects from a Themes/ folder, provides default themes, and notifies on theme change.",
+    "Enhance WorshipPlayer.Presenter/Views/OperatorWindow.xaml and .xaml.cs: Complete the operator window with full functionality - service order list with drag/drop reorder, per-item icons and type indicators, live/next slide preview panels that render actual slide content (not just text), slide thumbnail strip that highlights current slide, backtrack status panel showing song/section/position/tempo/pitch in real-time, transport controls (next/prev slide/item, go live, black, logo). Add all keyboard shortcuts from PresenterSettings (configurable).",
+    "Add slide thumbnail rendering as small preview boxes in the OperatorWindow showing first line of each slide text, with section name labels above groups.",
+    "Create WorshipPlayer.Presenter/Controls/SlidePreviewControl.xaml + .xaml.cs - a reusable WPF UserControl that renders a miniature slide preview (background + text + theme applied at small scale).",
+    "Wire the chord display toggle to the output: add a toolbar button in OperatorWindow that toggles ShowChords on/off for the congregation output (stage always shows chords)."
+  ],
+  "acceptance_criteria": [
+    "OutputWindow applies full SlideTheme properties (background, fonts, shadow, logo, gradient)",
+    "OutputWindow supports chord display toggle (strips or shows chords)",
+    "OperatorWindow shows complete service order with icons",
+    "OperatorWindow shows live/next preview panels",
+    "OperatorWindow shows slide thumbnail strip",
+    "OperatorWindow shows backtrack sync status",
+    "Keyboard shortcuts work for navigation",
+    "Solution builds with 0 errors"
+  ],
+  "verification": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj"
+  ],
+  "blocked_reason": null,
+  "findings": "ThemeManager source file is linked into the test project via Compile Include since the Presenter project (net8.0-windows) cannot be referenced from the test project (net8.0). All 93 tests pass (73 pre-existing + 20 new ThemeManager tests). The Song model uses OriginalKey (not Key) and has no direct Capo property. Backtrack info (key/capo/tempo/pitch) is shown in operator window and updated via PresenterEngine events."
+}

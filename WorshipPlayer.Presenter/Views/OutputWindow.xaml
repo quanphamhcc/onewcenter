@@ -1,0 +1,211 @@
+<Window x:Class="WorshipPlayer.Presenter.Views.OutputWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="OWC Presenter Output"
+        WindowStyle="SingleBorderWindow"
+        ResizeMode="CanResize"
+        AllowsTransparency="False"
+        Background="Black"
+        WindowState="Normal"
+        Topmost="False"
+        ShowInTaskbar="True"
+        Width="960" Height="540">
+
+    <!-- 
+    OUTPUT WINDOW — Full-screen display for the congregation.
+    
+    This window is placed on the output monitor (projector/TV) and displays:
+    - Lyrics (with transitions)
+    - Scripture text
+    - Announcements
+    - Media (images/videos)
+    - Blank/logo when nothing is active
+    
+    The rendering uses a double-buffer approach:
+    - Two overlapping grids (SlideA and SlideB) for crossfade transitions
+    - Opacity animations handle fade/dissolve transitions
+    - Cut transitions simply swap visibility instantly
+    -->
+
+    <Grid x:Name="RootGrid">
+        <!-- Background layer (image or solid color) -->
+        <Grid x:Name="BackgroundLayer">
+            <Image x:Name="BackgroundImage"
+                   Stretch="UniformToFill"
+                   Opacity="0.6" />
+
+            <!-- Motion background video placeholder (filled programmatically if VLC available) -->
+            <ContentControl x:Name="BackgroundVideoView"
+                           Visibility="Collapsed"
+                           Panel.ZIndex="0" />
+
+            <Rectangle x:Name="GradientOverlay">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="Transparent" Offset="0.3" />
+                        <GradientStop Color="#80000000" Offset="1.0" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+        </Grid>
+
+        <!-- Slide A (current or outgoing) -->
+        <Grid x:Name="SlideA" Opacity="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <TextBlock x:Name="SlideAHeader"
+                       Grid.Row="0"
+                       FontSize="28"
+                       Foreground="#CCCCCC"
+                       HorizontalAlignment="Center"
+                       Margin="0,30,0,0"
+                       FontFamily="Segoe UI" />
+
+            <!-- Main Content -->
+            <Viewbox Grid.Row="1" Margin="80,20">
+                <TextBlock x:Name="SlideAText"
+                           FontSize="60"
+                           FontWeight="Bold"
+                           Foreground="White"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontFamily="Segoe UI"
+                           MaxWidth="1600">
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="Black"
+                                          BlurRadius="6"
+                                          ShadowDepth="2"
+                                          Opacity="0.8" />
+                    </TextBlock.Effect>
+                </TextBlock>
+            </Viewbox>
+
+            <!-- Footer (Copyright/CCLI) -->
+            <TextBlock x:Name="SlideAFooter"
+                       Grid.Row="2"
+                       FontSize="16"
+                       Foreground="#666666"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,20"
+                       FontFamily="Segoe UI" />
+        </Grid>
+
+        <!-- Slide B (incoming during transition) -->
+        <Grid x:Name="SlideB" Opacity="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <TextBlock x:Name="SlideBHeader"
+                       Grid.Row="0"
+                       FontSize="28"
+                       Foreground="#CCCCCC"
+                       HorizontalAlignment="Center"
+                       Margin="0,30,0,0"
+                       FontFamily="Segoe UI" />
+
+            <!-- Main Content -->
+            <Viewbox Grid.Row="1" Margin="80,20">
+                <TextBlock x:Name="SlideBText"
+                           FontSize="60"
+                           FontWeight="Bold"
+                           Foreground="White"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontFamily="Segoe UI"
+                           MaxWidth="1600">
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="Black"
+                                          BlurRadius="6"
+                                          ShadowDepth="2"
+                                          Opacity="0.8" />
+                    </TextBlock.Effect>
+                </TextBlock>
+            </Viewbox>
+
+            <!-- Footer -->
+            <TextBlock x:Name="SlideBFooter"
+                       Grid.Row="2"
+                       FontSize="16"
+                       Foreground="#666666"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,20"
+                       FontFamily="Segoe UI" />
+        </Grid>
+
+        <!-- Logo watermark (always on top, low opacity) -->
+        <Image x:Name="LogoWatermark"
+               HorizontalAlignment="Right"
+               VerticalAlignment="Bottom"
+               Margin="0,0,30,30"
+               Opacity="0.3"
+               MaxHeight="60" />
+
+        <!-- Foreground image (QR code for offering, etc.) -->
+        <Image x:Name="ForegroundImage"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               Opacity="0"
+               MaxHeight="400"
+               MaxWidth="400" />
+
+        <!-- Full-screen video playback placeholder (filled programmatically if VLC available) -->
+        <ContentControl x:Name="FullScreenVideoView"
+                       Visibility="Collapsed"
+                       Panel.ZIndex="100" />
+
+        <!-- Alert overlay (high ZIndex, shown temporarily on top of everything) -->
+        <Grid Panel.ZIndex="200" IsHitTestVisible="False">
+            <TextBlock x:Name="AlertOverlay"
+                       Visibility="Collapsed"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Bottom"
+                       Margin="40,0,40,80"
+                       FontSize="48"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       FontFamily="Segoe UI">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="Black"
+                                      BlurRadius="8"
+                                      ShadowDepth="3"
+                                      Opacity="0.9" />
+                </TextBlock.Effect>
+            </TextBlock>
+        </Grid>
+
+        <!-- Countdown overlay (high ZIndex, centered) -->
+        <Grid Panel.ZIndex="201" IsHitTestVisible="False">
+            <TextBlock x:Name="CountdownOverlay"
+                       Visibility="Collapsed"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontSize="96"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       TextAlignment="Center"
+                       FontFamily="Segoe UI">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="Black"
+                                      BlurRadius="10"
+                                      ShadowDepth="4"
+                                      Opacity="0.9" />
+                </TextBlock.Effect>
+            </TextBlock>
+        </Grid>
+    </Grid>
+</Window>

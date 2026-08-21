@@ -1,0 +1,122 @@
+<UserControl x:Class="WorshipPlayer.Presenter.Views.SongLibrary.SongLibraryPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource OwcPanelBorder}" Padding="12">
+        <DockPanel>
+            <!-- Header -->
+            <TextBlock DockPanel.Dock="Top" Text="Song Library"
+                       FontSize="14" FontWeight="SemiBold"
+                       Foreground="{StaticResource OwcTextPrimaryBrush}"
+                       Margin="0,0,0,10"/>
+
+            <!-- Search bar -->
+            <TextBox x:Name="SearchTextBox" DockPanel.Dock="Top"
+                     Background="{StaticResource OwcSurfaceBrush}"
+                     Foreground="{StaticResource OwcTextPrimaryBrush}"
+                     BorderBrush="{StaticResource OwcBorderBrush}"
+                     FontSize="12" Padding="8,6"
+                     Margin="0,0,0,8"
+                     TextChanged="SearchTextBox_TextChanged">
+                <TextBox.Style>
+                    <Style TargetType="TextBox">
+                        <Setter Property="Tag" Value="Search songs..."/>
+                    </Style>
+                </TextBox.Style>
+            </TextBox>
+
+            <!-- Filters -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <ComboBox x:Name="KeyFilterComboBox" Grid.Column="0"
+                          Background="{StaticResource OwcSurfaceBrush}"
+                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          FontSize="11" Padding="6,4"
+                          SelectionChanged="Filter_Changed">
+                    <ComboBoxItem Content="All Keys" IsSelected="True"/>
+                    <ComboBoxItem Content="C"/><ComboBoxItem Content="C#"/>
+                    <ComboBoxItem Content="D"/><ComboBoxItem Content="D#"/>
+                    <ComboBoxItem Content="E"/><ComboBoxItem Content="F"/>
+                    <ComboBoxItem Content="F#"/><ComboBoxItem Content="G"/>
+                    <ComboBoxItem Content="G#"/><ComboBoxItem Content="A"/>
+                    <ComboBoxItem Content="A#"/><ComboBoxItem Content="B"/>
+                    <ComboBoxItem Content="Cm"/><ComboBoxItem Content="Dm"/>
+                    <ComboBoxItem Content="Em"/><ComboBoxItem Content="Fm"/>
+                    <ComboBoxItem Content="Gm"/><ComboBoxItem Content="Am"/>
+                    <ComboBoxItem Content="Bm"/>
+                </ComboBox>
+
+                <ComboBox x:Name="ArtistFilterComboBox" Grid.Column="2"
+                          Background="{StaticResource OwcSurfaceBrush}"
+                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          FontSize="11" Padding="6,4"
+                          SelectionChanged="Filter_Changed">
+                    <ComboBoxItem Content="All Artists" IsSelected="True"/>
+                </ComboBox>
+
+                <StackPanel Grid.Column="4" Orientation="Horizontal">
+                    <Button x:Name="SortAZButton" Content="A-Z"
+                            Style="{StaticResource OwcButtonBase}"
+                            FontSize="10" Padding="8,4" Margin="0,0,4,0"
+                            Click="SortAZ_Click"/>
+                    <Button x:Name="SortDateButton" Content="Date"
+                            Style="{StaticResource OwcButtonBase}"
+                            FontSize="10" Padding="8,4"
+                            Click="SortDate_Click"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Song List -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                <StackPanel>
+                    <!-- Empty state -->
+                    <TextBlock x:Name="EmptyStateText"
+                               Text="No songs found. Import songs to get started."
+                               Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="12" TextWrapping="Wrap"
+                               Margin="4,20" HorizontalAlignment="Center"
+                               Visibility="Visible"/>
+
+                    <!-- Song list -->
+                    <ListBox x:Name="SongListBox"
+                             Style="{StaticResource OwcServiceListBox}"
+                             SelectionChanged="SongList_SelectionChanged"
+                             Visibility="Collapsed">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="Transparent" Padding="8,6">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}"
+                                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                                   FontSize="13" FontWeight="SemiBold"/>
+                                        <TextBlock Foreground="{StaticResource OwcTextSecondaryBrush}"
+                                                   FontSize="11">
+                                            <Run Text="{Binding Artist}"/>
+                                            <Run Text=" | Key: "/><Run Text="{Binding Key}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</UserControl>

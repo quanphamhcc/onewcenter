@@ -1,0 +1,22 @@
+{
+  "audioDevice": "",
+  "sampleRate": 44100,
+  "bufferSize": 256,
+  "outputMode": "PanSplit",
+  "wasapiExclusive": false,
+  "songsFolder": "Songs",
+  "setlistsFolder": "Setlists",
+  "oscEnabled": false,
+  "oscHost": "192.168.1.100",
+  "oscPort": 8000,
+  "midiEnabled": false,
+  "midiDeviceName": "",
+  "midiChannel": 1,
+  "midiInputEnabled": false,
+  "midiInputDeviceName": "",
+  "defaultJumpTiming": "EndOfSection",
+  "darkTheme": true,
+  "touchMode": false,
+  "clickSound": 0,
+  "pythonPath": "C:\\AI\\Python3-13-13\\python.exe"
+}

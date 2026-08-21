@@ -1,0 +1,107 @@
+<UserControl x:Class="WorshipPlayer.Presenter.Views.Scripture.ScriptureSlidePreview"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource OwcPanelBorder}" Padding="12">
+        <DockPanel>
+            <!-- Header -->
+            <TextBlock DockPanel.Dock="Top" Text="Scripture Slide Preview"
+                       FontSize="14" FontWeight="SemiBold"
+                       Foreground="{StaticResource OwcTextPrimaryBrush}"
+                       Margin="0,0,0,10"/>
+
+            <!-- Options -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Lines per slide -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Lines per slide:"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="LinesPerSlideComboBox"
+                              Background="{StaticResource OwcSurfaceBrush}"
+                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              FontSize="12" Padding="6,4"
+                              SelectionChanged="Options_Changed">
+                        <ComboBoxItem Content="2"/>
+                        <ComboBoxItem Content="3"/>
+                        <ComboBoxItem Content="4" IsSelected="True"/>
+                        <ComboBoxItem Content="5"/>
+                        <ComboBoxItem Content="6"/>
+                        <ComboBoxItem Content="7"/>
+                        <ComboBoxItem Content="8"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Show Reference -->
+                <CheckBox x:Name="ShowReferenceCheckBox" Grid.Column="2"
+                          IsChecked="True" Content="Show Reference"
+                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          FontSize="12" VerticalAlignment="Center"
+                          Checked="Options_Changed" Unchecked="Options_Changed"/>
+
+                <!-- Show Translation -->
+                <CheckBox x:Name="ShowTranslationCheckBox" Grid.Column="4"
+                          IsChecked="True" Content="Show Translation"
+                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          FontSize="12" VerticalAlignment="Center"
+                          Checked="Options_Changed" Unchecked="Options_Changed"/>
+            </Grid>
+
+            <!-- Slide preview area -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                <StackPanel>
+                    <!-- Empty state -->
+                    <TextBlock x:Name="EmptyStateText"
+                               Text="Look up a scripture passage to preview how it will be split across slides."
+                               Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="12" TextWrapping="Wrap"
+                               Margin="4,20" HorizontalAlignment="Center"
+                               Visibility="Visible"/>
+
+                    <!-- Slides preview -->
+                    <ItemsControl x:Name="SlidesPreviewControl" Visibility="Collapsed">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource OwcSurfaceBorder}"
+                                        Margin="0,4" Padding="12,10" MinHeight="80">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Top"
+                                                   Text="{Binding SlideNumber}"
+                                                   Foreground="{StaticResource OwcTextMutedBrush}"
+                                                   FontSize="10" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{Binding Content}"
+                                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                                   FontSize="14" TextWrapping="Wrap"
+                                                   LineHeight="20"/>
+                                        <TextBlock DockPanel.Dock="Bottom"
+                                                   Text="{Binding FooterText}"
+                                                   Foreground="{StaticResource OwcTextSecondaryBrush}"
+                                                   FontSize="11" Margin="0,6,0,0"
+                                                   HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</UserControl>

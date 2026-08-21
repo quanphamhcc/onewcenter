@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Unit Tests - Comprehensive unit tests for all new services created in FEAT-001 and FEAT-002. Tests should cover: ScriptureReferenceParser, BibleDatabaseService, MediaLibraryService path sanitization, SongLibraryService search/filter, TemplateService built-ins, ExportService formatting, SongUsageService logging, GlobalSearchService, CountdownService state machine, AlertService, CcliReportService, ScriptureSlideGenerator splitting logic.",
+  "status": "completed",
+  "steps": [
+    "Create WorshipPlayer.Tests/ScriptureReferenceParserTests.cs - test parsing: 'John 3:16' (single verse), 'John 3:16-18' (range), '1 Corinthians 13:4-7' (numbered book), 'Psalm 23' (whole chapter), 'Genesis 1:1' (first book). Test edge cases: invalid references, empty strings, null.",
+    "Create WorshipPlayer.Tests/BibleDatabaseServiceTests.cs - test schema creation, verse insertion and querying, search functionality, translation listing. Use in-memory SQLite for testing.",
+    "Create WorshipPlayer.Tests/MediaLibraryServiceTests.cs - test path sanitization (reject '../../../etc/passwd', 'C:\\Windows\\system32', paths with null bytes). Test file type validation. Test search by name and type filter.",
+    "Create WorshipPlayer.Tests/SongLibraryServiceTests.cs - test search by title (case-insensitive), filter by key, sort A-Z, sort by date.",
+    "Create WorshipPlayer.Tests/TemplateServiceTests.cs - test built-in templates exist (Default Centered, Lower Third, Trendy Line), test create/update/delete custom templates, test cannot delete built-in templates.",
+    "Create WorshipPlayer.Tests/ExportServiceTests.cs - test export with lyrics produces text containing song lyrics, test export without lyrics produces just titles/structure, test empty service order produces valid output.",
+    "Create WorshipPlayer.Tests/SongUsageServiceTests.cs - test log usage, query by date range (0 results, multiple results), CSV export format.",
+    "Create WorshipPlayer.Tests/GlobalSearchServiceTests.cs - test search across songs returns grouped results, test empty search returns empty, test search with no matches.",
+    "Create WorshipPlayer.Tests/CountdownServiceTests.cs - test countdown state transitions (start, pause, stop), test countdown type configurations.",
+    "Create WorshipPlayer.Tests/ScriptureSlideGeneratorTests.cs - test splitting long passage into multiple slides, test configurable lines per slide (2, 4, 6), test reference display options.",
+    "Create WorshipPlayer.Tests/CcliReportServiceTests.cs - test report generation with song usage data, test CSV export format, test empty date range.",
+    "Update WorshipPlayer.Tests/WorshipPlayer.Tests.csproj to add <Compile Include> links for any new Presenter service files that need testing, and add Microsoft.Data.Sqlite package reference for Bible tests."
+  ],
+  "acceptance_criteria": [
+    "dotnet test WorshipPlayer.Tests passes all tests (existing 233 + new tests)",
+    "ScriptureReferenceParser tests cover at least 5 different reference formats",
+    "MediaLibraryService tests verify path traversal attacks are rejected",
+    "TemplateService tests verify built-in templates cannot be deleted",
+    "All test classes follow the existing xunit pattern (public class with [Fact] methods)",
+    "No test uses external network or file system outside temp directories"
+  ],
+  "verification": [
+    "dotnet test WorshipPlayer.Tests --nologo"
+  ],
+  "blocked_reason": null,
+  "findings": "All 411 tests pass (233 existing + 178 new). Microsoft.Data.Sqlite 8.0.0 added to tests csproj. The Compile Include links for TemplateService, AlertService, and CountdownService were already added during FEAT-002. The BibleDatabaseService GetVersesAsync method uses StartVerse=0 (not 1) to trigger the whole-chapter query path. No pre-existing test failures found."
+}

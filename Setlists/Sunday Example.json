@@ -1,0 +1,13 @@
+{
+  "name": "Sunday Example",
+  "date": "2026-06-22",
+  "entries": [
+    {
+      "songFolder": "Open The Heavens",
+      "keyShift": 0,
+      "tempoPercent": 100.0,
+      "transition": "Stop",
+      "transitionDuration_ms": 3000.0
+    }
+  ]
+}

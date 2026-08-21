@@ -1,0 +1,41 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Core Models and Service Interfaces - Create all new data models and service interfaces needed by Groups C, D, E, F, G, J, L. This includes: ServiceGroup model (for sidebar sections), MediaLibraryItem model, BibleVerse/BibleBook models, SlideTemplate (extended from SlideTheme), AlertTemplate model, CountdownConfig model, SongUsageRecord model, PresenterSettings extensions. Also create interfaces: IBibleProvider, IMediaLibraryService, ISongLibraryService, ITemplateService, IAlertService, ICountdownService, ISearchService, IExportService. Add Microsoft.Data.Sqlite NuGet package to Core.",
+  "status": "completed",
+  "steps": [
+    "Add Microsoft.Data.Sqlite NuGet package to WorshipPlayer.Core.csproj",
+    "Create WorshipPlayer.Core/Models/ServiceGroup.cs - model for collapsible section groups in service builder sidebar (Id, Name, Order, Items list, IsCollapsed, OrganizationId)",
+    "Create WorshipPlayer.Core/Models/ServiceItemSettings.cs - per-item settings (AutoAdvanceGoTo enum, AutoAdvanceAfterCondition, TransitionFadeTimeMs, GoToItemId)",
+    "Create WorshipPlayer.Core/Models/MediaLibraryItem.cs - media item model (Id, Name, FilePath, MediaType enum, ThumbnailPath, Tags list, FileSize, DateAdded, OrganizationId)",
+    "Create WorshipPlayer.Core/Models/Bible/ directory with BibleBook.cs, BibleVerse.cs, BibleTranslation.cs, ScriptureReference.cs models",
+    "Create WorshipPlayer.Core/Models/SlideTemplate.cs - extends SlideTheme with additional fields (TextTransform, LetterSpacing, LineHeight, LineBackgroundEnabled, LineBackgroundColor, BorderStyle, MarginTop/Left/Right/Bottom as pixel values, IsBuiltIn flag, TemplateCategory)",
+    "Create WorshipPlayer.Core/Models/AlertTemplate.cs - (Id, Text, FontSize, FontFamily, FontColor, HasShadow, HasOutline, ShadowColor, OutlineColor, OrganizationId)",
+    "Create WorshipPlayer.Core/Models/CountdownConfig.cs - (Id, Type enum CountdownToZero/CountdownToTime/CountUp, DurationMs, TargetTime, ShowOnAudience bool, ShowOnStage bool, FontSize, FontFamily, FontColor, OrganizationId)",
+    "Create WorshipPlayer.Core/Models/SongUsageRecord.cs - (Id, SongTitle, SongId, ServiceName, ServiceDate, DatePlayed, OrganizationId)",
+    "Create WorshipPlayer.Core/Models/FooterSettings.cs - (CcliLicenseNumber, FooterLocation enum, FontFamily, FontSize, FontColor, ShowOnLyrics, ShowOnScripture, ShowOnAll)",
+    "Create WorshipPlayer.Core/Models/InterfaceSettings.cs - (EditorBackgroundColor, MediaLoadBehavior enum)",
+    "Create WorshipPlayer.Core/Models/ScreenConfig.cs - (Id, DisplayIndex, Name, IsEnabled, UseGpuAcceleration, Purpose enum Audience/Stage/Operator)",
+    "Create WorshipPlayer.Core/Models/StageDisplayLayout.cs - (AspectRatio, Blocks list with position/size/content-type, ForegroundOption enum)",
+    "Create WorshipPlayer.Core/Models/MidiCommandMapping.cs - (Command enum with 6 commands: NextSlide/PrevSlide/NextItem/PrevItem/GoBlack/GoLive, MidiNote int, MidiChannel int)",
+    "Create WorshipPlayer.Core/Services/Interfaces/ directory with IBibleProvider.cs, IMediaLibraryService.cs, ISongLibraryService.cs, ITemplateService.cs, IAlertService.cs, ICountdownService.cs, ISearchService.cs, IExportService.cs",
+    "Update ServiceOrder.cs to add Groups property (List<ServiceGroup>) and OrganizationId field",
+    "Update ServiceItem to add AutoAdvanceSettings (ServiceItemSettings), BackgroundType, ForegroundType, TransitionTimeMs, AudioAttachmentPath fields",
+    "Ensure all new models have System.Text.Json serialization attributes and OrganizationId where specified"
+  ],
+  "acceptance_criteria": [
+    "dotnet build WorshipPlayer.Core succeeds with no errors",
+    "All new models have [JsonPropertyName] attributes on all public properties",
+    "All models that represent user data have an OrganizationId string property",
+    "IBibleProvider interface has methods: SearchAsync, GetVerseAsync, GetVersesAsync, GetBooksAsync, GetTranslationsAsync",
+    "IMediaLibraryService interface has methods: ImportAsync, GetAllAsync, SearchAsync, DeleteAsync, GetByTagAsync",
+    "All enum types have [JsonConverter(typeof(JsonStringEnumConverter))] attribute",
+    "Microsoft.Data.Sqlite package reference exists in Core .csproj"
+  ],
+  "verification": [
+    "dotnet build WorshipPlayer.Core --nologo",
+    "dotnet test WorshipPlayer.Tests --nologo"
+  ],
+  "blocked_reason": null,
+  "findings": "All 233 existing tests pass. Core builds successfully with the new Microsoft.Data.Sqlite package. Bible models placed in Bible/ subdirectory. ServiceOrder.cs updated with Groups and OrganizationId. ServiceItem updated with per-item settings fields. ForegroundType enum added. All interfaces created in Services/Interfaces/ directory."
+}

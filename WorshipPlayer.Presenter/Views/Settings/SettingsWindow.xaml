@@ -1,0 +1,70 @@
+<Window x:Class="WorshipPlayer.Presenter.Views.Settings.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Width="1000" Height="700"
+        MinWidth="900" MinHeight="650"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F1117"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Sidebar Navigation -->
+        <Border Grid.Column="0" Background="{StaticResource OwcPanelBrush}"
+                BorderBrush="{StaticResource OwcBorderBrush}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <!-- Settings Title -->
+                <TextBlock DockPanel.Dock="Top" Text="Settings"
+                           FontSize="16" FontWeight="SemiBold"
+                           Foreground="{StaticResource OwcTextPrimaryBrush}"
+                           Margin="16,16,16,12"/>
+
+                <!-- Close Button -->
+                <Button DockPanel.Dock="Bottom" x:Name="CloseButton" Content="Close"
+                        Style="{StaticResource OwcButtonBase}"
+                        Padding="12,8" Margin="16,4,16,16"
+                        Click="CloseButton_Click"/>
+
+                <!-- Save Button -->
+                <Button DockPanel.Dock="Bottom" x:Name="SaveButton" Content="Save Settings"
+                        Style="{StaticResource OwcAccentButton}"
+                        Padding="12,8" Margin="16,8,16,4"
+                        Click="SaveButton_Click"/>
+
+                <!-- Navigation List -->
+                <ListBox x:Name="NavListBox"
+                         Style="{StaticResource OwcServiceListBox}"
+                         SelectionChanged="NavListBox_SelectionChanged"
+                         Margin="8,0">
+                    <ListBoxItem Content="Defaults" IsSelected="True"/>
+                    <ListBoxItem Content="Footer"/>
+                    <ListBoxItem Content="Interface"/>
+                    <ListBoxItem Content="Bibles"/>
+                    <ListBoxItem Content="Screen Config"/>
+                    <ListBoxItem Content="Stage Display"/>
+                    <ListBoxItem Content="Library"/>
+                    <ListBoxItem Content="MIDI"/>
+                    <ListBoxItem Content="Updates"/>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Right Content Area -->
+        <Border Grid.Column="1" Padding="16">
+            <ContentControl x:Name="ContentArea"/>
+        </Border>
+    </Grid>
+</Window>

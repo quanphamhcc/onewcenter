@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Setup: Create WorshipPlayer.Tests project, fix existing build errors, update solution file structure, and verify baseline compiles on Linux.",
+  "status": "completed",
+  "steps": [
+    "Fix existing build error in WorshipPlayer.Presenter/Views/OperatorWindow.xaml.cs - add 'using WorshipPlayer.Core.Services;' to resolve ServiceItemChangedEventArgs.",
+    "Create WorshipPlayer.Tests/WorshipPlayer.Tests.csproj targeting net8.0 (NOT net8.0-windows so tests can run on Linux) with xUnit, referencing WorshipPlayer.Core and a new WorshipPlayer.Presenter.Core project or directly reference Core services.",
+    "Add WorshipPlayer.Tests to WorshipBacktrackPlayer.sln with a new GUID.",
+    "Verify: dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true succeeds with 0 errors.",
+    "Verify: dotnet test WorshipPlayer.Tests passes (even if empty initially)."
+  ],
+  "acceptance_criteria": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true completes with 0 errors",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj runs successfully",
+    "WorshipPlayer.Tests.csproj exists and references WorshipPlayer.Core"
+  ],
+  "verification": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj"
+  ],
+  "blocked_reason": null,
+  "findings": "Fixed additional build errors beyond the one documented in the briefing: (1) CS0176 VerticalAlignment property/type ambiguity in OutputWindow.xaml.cs (3 occurrences) and OperatorWindow.xaml.cs (1 occurrence) - resolved by fully qualifying as System.Windows.VerticalAlignment. (2) CS0104 TextAlignment ambiguity in MainWindow.xaml.cs - resolved by fully qualifying as System.Windows.TextAlignment. (3) The documented ServiceItemChangedEventArgs fix in OperatorWindow.xaml.cs was correct. Build succeeds with 0 errors, 2 warnings (nullable ref and unused field - pre-existing). Tests pass (1 placeholder test)."
+}

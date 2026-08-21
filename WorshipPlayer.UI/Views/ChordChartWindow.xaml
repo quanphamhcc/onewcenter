@@ -1,0 +1,63 @@
+<Window x:Class="WorshipPlayer.UI.Views.ChordChartWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Chord Chart"
+        Height="600" Width="900"
+        Background="#0D0D1A"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Normal">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header: Section name + song info -->
+        <Border Grid.Row="0" Background="#1A1A2E" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock x:Name="SectionNameText" Text="INTRO"
+                               FontSize="28" FontWeight="ExtraBold"
+                               Foreground="#4A90D9" />
+                    <TextBlock x:Name="SongTitleText" Text=""
+                               FontSize="13" Foreground="#6C6C80" Margin="0,2,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock x:Name="SlideCountText" Text="1 / 1"
+                               FontSize="14" Foreground="#6C6C80"
+                               HorizontalAlignment="Right" />
+                    <TextBlock x:Name="KeyBpmText" Text=""
+                               FontSize="12" Foreground="#4A4A60"
+                               HorizontalAlignment="Right" Margin="0,2,0,0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main content: Lyrics with chords -->
+        <Border Grid.Row="1" Padding="40,30">
+            <StackPanel x:Name="LyricsPanel" VerticalAlignment="Center">
+                <!-- Lyric lines with chords are built dynamically -->
+            </StackPanel>
+        </Border>
+
+        <!-- Footer: Next section preview -->
+        <Border Grid.Row="2" Background="#1A1A2E" Padding="20,10">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="NEXT: " FontSize="14" FontWeight="Bold"
+                           Foreground="#4A4A60" VerticalAlignment="Center" />
+                <TextBlock x:Name="NextSectionText" Text=""
+                           FontSize="14" FontWeight="Bold"
+                           Foreground="#F5A623" VerticalAlignment="Center" />
+                <TextBlock x:Name="NextChordText" Text=""
+                           FontSize="14" Foreground="#7ED321"
+                           VerticalAlignment="Center" Margin="12,0,0,0" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

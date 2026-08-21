@@ -1,0 +1,29 @@
+{
+  "project_type": "C# .NET 8 WPF desktop application - Worship Presenter module",
+  "language": "C#",
+  "build_system": "dotnet CLI with -p:EnableWindowsTargeting=true flag needed (running on Linux). Solution file: WorshipBacktrackPlayer.sln. Only the Presenter project needs to build for this task.",
+  "test_framework": "xUnit via dotnet test (WorshipPlayer.Tests project). 233 tests currently passing.",
+  "build_command": "dotnet build WorshipPlayer.Presenter/WorshipPlayer.Presenter.csproj -p:EnableWindowsTargeting=true",
+  "test_command": "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj -p:EnableWindowsTargeting=true --no-restore",
+  "verification_instructions": "1. Run dotnet build on the Presenter project with EnableWindowsTargeting=true. 2. Run dotnet test on the Tests project. 3. Verify all 233+ tests still pass.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "dotnet restore with EnableWindowsTargeting=true",
+  "environment_constraints": "Running on Linux - WPF apps target net8.0-windows so need -p:EnableWindowsTargeting=true for cross-compilation. Cannot run the WPF app GUI. The WorshipPlayer.UI project has pre-existing build errors (ambiguous type references) unrelated to this task - ignore it.",
+  "contribution_requirements": "Keep all existing functionality working - PresenterEngine, MidiPresenterSync, StageDisplayServer, OutputWindow must not be broken. The OperatorWindow.xaml and .xaml.cs are being completely rewritten.",
+  "key_patterns": "Code-behind pattern (no MVVM). OperatorWindow receives PresenterEngine and OutputWindow via Initialize() method. Engine events (SlideChanged, ItemChanged, DisplayStateChanged, PitchShiftChanged, TempoChanged, SongLoaded) drive UI updates via Dispatcher.Invoke. Button click handlers call engine methods directly. Public methods UpdateBacktrackStatus() and UpdateConnectedDevices() are called externally by integration layer.",
+  "relevant_files": [
+    "WorshipPlayer.Presenter/Views/OperatorWindow.xaml",
+    "WorshipPlayer.Presenter/Views/OperatorWindow.xaml.cs",
+    "WorshipPlayer.Presenter/Services/PresenterEngine.cs",
+    "WorshipPlayer.Presenter/Services/MidiPresenterSync.cs",
+    "WorshipPlayer.Presenter/Controls/SlidePreviewControl.xaml",
+    "WorshipPlayer.Presenter/Controls/SlidePreviewControl.xaml.cs",
+    "WorshipPlayer.Core/Models/ServiceOrder.cs",
+    "WorshipPlayer.Core/Models/Slide.cs",
+    "WorshipPlayer.Core/Models/PresenterSettings.cs",
+    "WorshipPlayer.Core/Services/ServiceOrderManager.cs",
+    ".tasks/design-identity.md",
+    ".tasks/presenter-module-v2.md"
+  ],
+  "directory_structure": "WorshipPlayer.Presenter/ has Views/ (OperatorWindow, OutputWindow, DisplaySettingsWindow), Services/ (PresenterEngine, MidiPresenterSync, etc.), Controls/ (SlidePreviewControl), Themes/ (empty), Resources/ (empty), Models/ (VideoLibrary). WorshipPlayer.Core/ has Models/ and Services/ shared across modules."
+}

@@ -1,0 +1,47 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Wire PresenterIntegration to create all services and pass them to OperatorWindow, wire OperatorWindow.SwitchToTab() to pass services to panels, wire OutputWindow alert/countdown overlay support, connect AddServiceItemDialog, and connect ExportService. This is the central wiring feature that connects all 11 partially-built features.",
+  "status": "completed",
+  "steps": [
+    "Step 1 - Modify PresenterIntegration.cs to create instances of: SongLibraryService, MediaLibraryService, GlobalSearchService, ExportService, AlertService, CountdownService, SongUsageService, BibleDatabaseService. These should be instantiated in the constructor using appropriate paths (appFolder-relative). BibleDatabaseService should call InitializeAsync() and seed KJV verses for Genesis 1, John 3, Psalms 23, Romans 8 (the user needs testable data). Add a method SeedBibleVersesAsync() that inserts these verse records into the SQLite database.",
+    "Step 2 - Add public properties on PresenterIntegration for: SongLibraryService, MediaLibraryService, GlobalSearchService, ExportService, AlertService, CountdownService, SongUsageService, BibleDatabaseService (as IBibleProvider).",
+    "Step 3 - Modify OperatorWindow to accept these services (either via Initialize() or new public properties). Add fields: ISongLibraryService, IMediaLibraryService, ISearchService, IAlertService, ICountdownService, IBibleProvider, SongUsageService, ExportService, ServiceOrderManager, SongManager.",
+    "Step 4 - In OperatorWindow.SwitchToTab('Songs'): when creating _songLibraryPanel, set its SongLibraryService property. Wire SongSelected event to load that song into the backtrack (fire an event or call PresenterEngine.LoadSong). Implement RefreshSongs() to actually call GetAllAsync() and populate the Songs ObservableCollection with SongListItem objects (title, artist, key, dateAdded from file modified time).",
+    "Step 5 - In OperatorWindow.SwitchToTab('Scripture'): when creating _scriptureBrowserPanel, set its BibleProvider property.",
+    "Step 6 - In OperatorWindow.SwitchToTab('Media'): when creating _mediaLibraryPanel, set its MediaLibraryService property. Wire ImportRequested to open OpenFileDialog and call MediaLibraryService.ImportAsync(). Implement RefreshMedia() to call GetAllAsync() and populate Items.",
+    "Step 7 - In OperatorWindow tools handlers: ToolAlert_Click - create AlertToolDialog and set its AlertService property. Wire AlertFired event to show alert overlay on OutputWindow. ToolCountdown_Click - create CountdownToolDialog and set its CountdownService property. ToolSearch_Click - create GlobalSearchPanel and set its SearchService property. ToolCcliReport_Click - create CcliReportDialog and connect it to SongUsageService (call GetAllAsync, group by song title, populate report items).",
+    "Step 8 - Modify OutputWindow.xaml to add an overlay Grid (Panel.ZIndex=200) at the bottom of RootGrid containing: an 'AlertOverlay' TextBlock (Visibility=Collapsed) for alerts, and a 'CountdownOverlay' TextBlock (Visibility=Collapsed, centered) for countdown. NO implicit styles, NO resource dictionaries.",
+    "Step 9 - Add public methods to OutputWindow: ShowAlert(AlertTemplate template, int durationMs) that shows the AlertOverlay TextBlock with the alert text/font/color, then auto-hides after duration using DispatcherTimer. ShowCountdown(string timeText) that updates CountdownOverlay text. HideCountdown() that hides it. HideAlert() that hides it.",
+    "Step 10 - Wire AlertService.AlertShown event in OperatorWindow to call _outputWindow?.ShowAlert(). Wire AlertService.AlertDismissed to call _outputWindow?.HideAlert(). Wire CountdownService.Tick event to call _outputWindow?.ShowCountdown() with formatted time. Wire CountdownService.Completed to call _outputWindow?.HideCountdown().",
+    "Step 11 - Modify AddServiceItemDialog: add a public property for ServiceOrderManager. In AddItem_Click after Confirmed=true, create a ServiceItem from the dialog fields (type, title from a new TitleTextBox or default based on type, etc.) and call ServiceOrderManager.AddItem(). Fire an event ItemAdded so OperatorWindow can refresh the sidebar.",
+    "Step 12 - Wire NewService_Click in OperatorWindow: pass ServiceOrderManager to the AddServiceItemDialog, subscribe to ItemAdded event, refresh service order list on ItemAdded.",
+    "Step 13 - Add export functionality: in OperatorWindow, add a method or wire a button to call ExportService.ExportServiceOrderTextAsync() with the current service order. Use SaveFileDialog to get output path.",
+    "Step 14 - Wire ThemeSelector: the ThemeSelector_SelectionChanged already calls _themeManager.SetCurrentTheme(), and OnThemeChanged already forwards to _outputWindow.ApplyTheme(). Verify this pipeline works end-to-end. The ThemeManager is already passed to OperatorWindow.Initialize().",
+    "Step 15 - Verify OutputWindow is fully connected: OnSlideChanged already calls _outputWindow.ShowSlide(). GoLive_Click calls _outputWindow.Unblack(). GoBlack_Click triggers OnDisplayStateChanged which calls _outputWindow.ShowBlack(). Verify these paths in the code are complete.",
+    "Step 16 - Wire SongUsageService: In PresenterIntegration, when a song is loaded (OnSongLoaded), log usage via SongUsageService.LogUsageAsync() with song title, song folder as ID, and current service order name/date.",
+    "Step 17 - Seed Bible database with actual KJV text. Add a SeedKjvVersesAsync() method to BibleDatabaseService (or a helper in BibleSeedData) that inserts the actual KJV text for: Genesis 1:1-31, Psalms 23:1-6, John 3:1-21, Romans 8:1-39. This gives the user testable lookup data.",
+    "Step 18 - Ensure build passes (0 errors) and all tests pass."
+  ],
+  "acceptance_criteria": [
+    "dotnet build WorshipPlayer.Presenter --nologo produces 0 errors",
+    "dotnet test WorshipPlayer.Tests --nologo passes all 411+ tests",
+    "OperatorWindow.SwitchToTab('Songs') creates SongLibraryPanel with SongLibraryService wired",
+    "OperatorWindow.SwitchToTab('Scripture') creates ScriptureBrowserPanel with BibleProvider wired",
+    "OperatorWindow.SwitchToTab('Media') creates MediaLibraryPanel with MediaLibraryService wired",
+    "AlertToolDialog shows alerts on OutputWindow as overlay text",
+    "CountdownToolDialog shows countdown on OutputWindow as overlay text",
+    "GlobalSearchPanel is connected to GlobalSearchService",
+    "CcliReportDialog shows usage data from SongUsageService",
+    "AddServiceItemDialog adds items to ServiceOrderManager",
+    "OutputWindow has alert and countdown overlay TextBlocks",
+    "ThemeManager changes propagate to OutputWindow",
+    "Song usage is logged when songs are loaded"
+  ],
+  "verification": [
+    "dotnet build WorshipPlayer.Presenter --nologo",
+    "dotnet test WorshipPlayer.Tests --nologo"
+  ],
+  "blocked_reason": null,
+  "findings": "All 11 features wired successfully. Key decisions: (1) SeedKjvVersesAsync is separate from InitializeAsync to avoid breaking existing Bible tests that control their own data. (2) SongManager passed from MainWindow to PresenterIntegration constructor. (3) Alert/Countdown events are subscribed in SetServices and forwarded to OutputWindow via Dispatcher.Invoke. (4) Export uses SaveFileDialog from OperatorWindow. (5) The UI project requires EnableWindowsTargeting to build on non-Windows but the Presenter project builds fine. Build command: dotnet build WorshipPlayer.Presenter. All 411 tests pass."
+}

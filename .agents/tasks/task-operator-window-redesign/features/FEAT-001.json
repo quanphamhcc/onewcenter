@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create OWC Design System resource dictionary and completely rewrite OperatorWindow.xaml with the new command center layout implementing all B1-B10 features from the design spec.",
+  "status": "completed",
+  "steps": [
+    "Create WorshipPlayer.Presenter/Themes/OwcDesignSystem.xaml resource dictionary with all design tokens: colors (#0F1117 Background, #1A1D27 Panel, #252A36 Surface, #00D4FF Electric Cyan accent, #FF3366 Live, #00E676 Connected, #FFAB00 Warning, #F0F2F5 Text Primary, #8B92A5 Text Secondary, #4A5068 Text Muted, #2A2E3A Border), button styles (rounded 8px corners, hover effects), panel styles (corner radius 8-10px), and typography (Segoe UI font family).",
+    "Completely rewrite WorshipPlayer.Presenter/Views/OperatorWindow.xaml with the new layout structure: (1) TOP ROW - Live preview hero boxes (Audience left with #FF3366 LIVE glow border, Stage right with #00E676 CONNECTED indicator), (2) HEADER BAR - OWC logo text, search placeholder (Ctrl+K), Tools dropdown, account icon, settings gear, (3) LEFT SIDEBAR - slim collapsible service order with group headers, icons per item type, active item highlighted with #00D4FF cyan accent left border, + Add button at bottom, (4) CENTER - slide grid using WrapPanel in ScrollViewer with thumbnail tiles showing background + text preview + section label + slide number, active slide with glowing cyan border, click to fire live, (5) BOTTOM-RIGHT of grid area - Zoom slider controlling thumbnail size, (6) TOP-RIGHT of grid area - Edit mode toggle button, (7) TRANSPORT BAR at very bottom - large Prev/Next buttons, BLACK button, LOGO button, CHORDS toggle, slide counter text, current song/section info, (8) RIGHT SECTION of transport bar - backtrack status (song title, section, position, key, tempo).",
+    "Ensure the XAML uses proper Grid layout with RowDefinitions and ColumnDefinitions. The Window should be Background=#0F1117, FontFamily=Segoe UI, with merged resource dictionary pointing to the OwcDesignSystem.xaml. Use x:Name attributes matching the code-behind field names that will be needed.",
+    "Include all named elements that the code-behind references: ServiceOrderList (ListBox), CurrentItemTitle, CurrentItemSubtitle, SlideCounterText, CurrentSlidePreview, NextSlidePreview, SlideThumbnailsPanel (WrapPanel for slide grid), LiveButton, ChordsToggleBtn, BacktrackStatusText, BacktrackSongText, BacktrackSectionText, KeyInfoText, CapoInfoText, TempoInfoText, PitchInfoText, ConnectedDevicesCount, NdiStatusText, NdiStatusDot, NdiToggleButton, NdiToggleStatusText, ThemeSelector, ChordToggleCheckBox, NotesBox, ZoomSlider.",
+    "The live preview hero boxes should use large Border elements with 16:9 aspect ratio containers, dark backgrounds, centered text previews showing current slide content. The Audience box gets a pink/magenta glow effect (outer border or drop shadow) when live. The Stage box gets a small green dot indicator with CONNECTED text.",
+    "The slide grid thumbnails should be generated programmatically (WrapPanel named SlideThumbnailsPanel), but include a placeholder empty state message. The zoom slider should be a WPF Slider control at the bottom-right corner of the grid area.",
+    "Transport bar should be a fixed-height panel at the very bottom spanning full width with: left section (current item info), center (navigation buttons), right section (display controls + backtrack info). Buttons should use the design system styles with rounded corners and appropriate accent colors."
+  ],
+  "acceptance_criteria": [
+    "WorshipPlayer.Presenter/Themes/OwcDesignSystem.xaml exists with all OWC design colors, brush resources, and button/panel styles",
+    "OperatorWindow.xaml is completely rewritten with the new command center layout",
+    "Layout has: hero preview boxes at top, header bar, left sidebar, center slide grid, transport bar at bottom",
+    "All color values match the OWC Design Identity spec exactly",
+    "All x:Name elements needed by the code-behind are present in the XAML",
+    "The XAML is valid WPF targeting net8.0-windows (no UWP or WinUI syntax)",
+    "OwcDesignSystem.xaml is properly referenced as a merged resource dictionary in OperatorWindow.xaml"
+  ],
+  "verification": [
+    "Run: dotnet build WorshipPlayer.Presenter/WorshipPlayer.Presenter.csproj -p:EnableWindowsTargeting=true",
+    "Confirm build succeeds with 0 errors",
+    "Run: dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj -p:EnableWindowsTargeting=true --no-restore",
+    "Confirm all existing tests still pass"
+  ],
+  "blocked_reason": null,
+  "findings": "Build and all 233 tests pass. SectionName is on Slide object, not SlideContent. VerticalAlignment needed full qualification (System.Windows.VerticalAlignment) due to ambiguity with the using statements. Review fix: button hover trigger changed from OwcSurfaceBrush to new OwcSurfaceHoverBrush (#2F3544) for visible feedback."
+}

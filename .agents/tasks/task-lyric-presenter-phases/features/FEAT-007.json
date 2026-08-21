@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-007",
+  "type": "feat",
+  "description": "Phase 7: Motion Backgrounds and Video Playback using LibVLCSharp. Looping video backgrounds behind lyrics, video playback as service item type, hardware-accelerated rendering.",
+  "status": "completed",
+  "steps": [
+    "Add NuGet packages to WorshipPlayer.Presenter.csproj: LibVLCSharp (4.x) and LibVLCSharp.WPF.",
+    "Create WorshipPlayer.Presenter/Services/VideoBackgroundService.cs: Manages LibVLC instance lifecycle. Methods: Initialize(), PlayBackground(string videoPath, bool loop), StopBackground(), SetOpacity(double opacity). Uses LibVLCSharp MediaPlayer for playback. Supports common formats (MP4, MOV, WebM).",
+    "Create WorshipPlayer.Presenter/Services/VideoPlaybackService.cs: Full video playback for 'Video' service items. Methods: Play(string path), Pause(), Stop(), Seek(double ms), GetDuration(), GetPosition(). Events: PlaybackEnded, PositionChanged.",
+    "Update SlideTheme model to add: MotionBackgroundPath (string), MotionBackgroundOpacity (double, 0.3-1.0 default 0.5). When BackgroundType is Video, the OutputWindow plays the video in a loop behind the lyrics.",
+    "Update WorshipPlayer.Presenter/Views/OutputWindow.xaml to add a VideoView element from LibVLCSharp.WPF below the BackgroundLayer for motion backgrounds, and another VideoView for full-screen video playback mode.",
+    "Update OutputWindow.xaml.cs: On theme apply, if BackgroundType==Video and MotionBackgroundPath is set, start looping video via VideoBackgroundService. On service item with Type==Video, switch to full video playback mode (hide lyrics, show video full screen).",
+    "Create WorshipPlayer.Presenter/Models/VideoLibrary.cs: Model for organizing video backgrounds by category (Nature, Abstract, Worship, etc.). Methods to scan a configured folder for video files.",
+    "Add PresenterSettings fields: VideoLibraryPath (string), DefaultMotionBackgroundPath (string)."
+  ],
+  "acceptance_criteria": [
+    "LibVLCSharp NuGet packages referenced correctly in csproj",
+    "VideoBackgroundService can initialize LibVLC and control playback (loop, opacity)",
+    "VideoPlaybackService handles full video playback for Video service items",
+    "OutputWindow XAML includes VideoView elements for background and playback",
+    "SlideTheme supports Video BackgroundType with motion background path",
+    "VideoLibrary model scans folders for video files by category",
+    "Solution builds with 0 errors"
+  ],
+  "verification": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj"
+  ],
+  "blocked_reason": null,
+  "findings": "LibVLCSharp 3.8.5 packages restore and compile successfully on Linux with EnableWindowsTargeting. VideoView elements in XAML compile with the vlc namespace. VideoLibrary model uses System.IO and System.Linq imports explicitly since the Presenter project ImplicitUsings does not include them for all file types. 16 new unit tests pass (149 total). The native VLC runtime is not available on Linux but compilation succeeds."
+}

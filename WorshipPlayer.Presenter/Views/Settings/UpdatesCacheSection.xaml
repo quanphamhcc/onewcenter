@@ -1,0 +1,88 @@
+<UserControl x:Class="WorshipPlayer.Presenter.Views.Settings.UpdatesCacheSection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="4">
+            <!-- Section Title -->
+            <TextBlock Text="Updates &amp; Cache" FontSize="18" FontWeight="SemiBold"
+                       Foreground="{StaticResource OwcTextPrimaryBrush}"
+                       Margin="0,0,0,16"/>
+
+            <!-- Version Info -->
+            <Border Style="{StaticResource OwcSurfaceBorder}" Padding="12" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Application Version" FontSize="11"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="VersionText" Text="1.0.0"
+                               Foreground="{StaticResource OwcTextPrimaryBrush}"
+                               FontSize="16" FontWeight="SemiBold"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Auto-update -->
+            <Border Style="{StaticResource OwcSurfaceBorder}" Padding="12" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Updates" FontSize="11"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,8"/>
+                    <CheckBox x:Name="AutoUpdateToggle" Content="Automatically check for updates"
+                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              FontSize="12" IsChecked="True"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Cache Management -->
+            <Border Style="{StaticResource OwcSurfaceBorder}" Padding="12" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Cache Management" FontSize="11"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,8"/>
+
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Thumbnail Cache" FontSize="12"
+                                       Foreground="{StaticResource OwcTextPrimaryBrush}"/>
+                            <TextBlock x:Name="ThumbnailCacheSizeText" Text="0 MB"
+                                       FontSize="11" Foreground="{StaticResource OwcTextSecondaryBrush}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" x:Name="ClearThumbnailCacheButton"
+                                Content="Clear Thumbnail Cache"
+                                Style="{StaticResource OwcButtonBase}"
+                                FontSize="11" Padding="10,6"
+                                Click="ClearThumbnailCacheButton_Click"/>
+                    </Grid>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Temporary Files" FontSize="12"
+                                       Foreground="{StaticResource OwcTextPrimaryBrush}"/>
+                            <TextBlock x:Name="TempFilesSizeText" Text="0 MB"
+                                       FontSize="11" Foreground="{StaticResource OwcTextSecondaryBrush}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" x:Name="ClearTempFilesButton"
+                                Content="Clear Temp Files"
+                                Style="{StaticResource OwcButtonBase}"
+                                FontSize="11" Padding="10,6"
+                                Click="ClearTempFilesButton_Click"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

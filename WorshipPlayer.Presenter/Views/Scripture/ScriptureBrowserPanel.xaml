@@ -1,0 +1,89 @@
+<UserControl x:Class="WorshipPlayer.Presenter.Views.Scripture.ScriptureBrowserPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource OwcPanelBorder}" Padding="12">
+        <DockPanel>
+            <!-- Header -->
+            <TextBlock DockPanel.Dock="Top" Text="Scripture"
+                       FontSize="14" FontWeight="SemiBold"
+                       Foreground="{StaticResource OwcTextPrimaryBrush}"
+                       Margin="0,0,0,10"/>
+
+            <!-- Reference input -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="ReferenceTextBox"
+                         Background="{StaticResource OwcSurfaceBrush}"
+                         Foreground="{StaticResource OwcTextPrimaryBrush}"
+                         BorderBrush="{StaticResource OwcBorderBrush}"
+                         FontSize="13" Padding="8,6"
+                         KeyDown="ReferenceTextBox_KeyDown"/>
+                <ComboBox x:Name="TranslationComboBox" Grid.Column="2"
+                          Background="{StaticResource OwcSurfaceBrush}"
+                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          FontSize="12" Padding="6,4" MinWidth="70">
+                    <ComboBoxItem Content="KJV" IsSelected="True"/>
+                    <ComboBoxItem Content="WEB"/>
+                </ComboBox>
+                <Button Content="Look Up" Grid.Column="4"
+                        Style="{StaticResource OwcAccentButton}"
+                        Click="LookUp_Click" MinWidth="80"/>
+            </Grid>
+
+            <!-- Hint text -->
+            <TextBlock DockPanel.Dock="Top"
+                       Text="Type a reference like John 3:16 or Romans 8:28-30"
+                       Foreground="{StaticResource OwcTextMutedBrush}"
+                       FontSize="11" Margin="0,0,0,8"/>
+
+            <!-- Add to service button -->
+            <Button x:Name="AddToServiceButton" DockPanel.Dock="Bottom"
+                    Content="Add to Service" IsEnabled="False"
+                    Style="{StaticResource OwcAccentButton}"
+                    HorizontalAlignment="Right" Margin="0,12,0,0"
+                    Click="AddToService_Click"/>
+
+            <!-- Results area -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                <StackPanel>
+                    <!-- Empty state -->
+                    <TextBlock x:Name="EmptyStateText"
+                               Text="Enter a Bible reference above to look up scripture."
+                               Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="12" TextWrapping="Wrap"
+                               Margin="4,20" HorizontalAlignment="Center"
+                               Visibility="Visible"/>
+
+                    <!-- Results -->
+                    <TextBlock x:Name="ResultsText"
+                               Foreground="{StaticResource OwcTextPrimaryBrush}"
+                               FontSize="13" TextWrapping="Wrap"
+                               LineHeight="22"
+                               Visibility="Collapsed"/>
+
+                    <!-- Error message -->
+                    <TextBlock x:Name="ErrorText"
+                               Foreground="{StaticResource OwcLiveBrush}"
+                               FontSize="12" TextWrapping="Wrap"
+                               Visibility="Collapsed"/>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</UserControl>

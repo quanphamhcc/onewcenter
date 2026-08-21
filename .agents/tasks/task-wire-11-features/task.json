@@ -1,0 +1,7 @@
+{
+  "task_id": "task-wire-11-features",
+  "task_description": "Wire all 11 partially-built features (Songs, Scripture, Media, Alert, Countdown, Search, CCLI Report, Template Editor, Add Service Item, Export, Output Window) so they are fully connected to their backing services and functional end-to-end.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

@@ -1,0 +1,29 @@
+{
+  "id": "FEAT-006",
+  "type": "feat",
+  "description": "Phase 6 continued: Per-musician web views via URL params, one-column/two-column chord chart views served by the stage web server. Musicians connect to /stage?capo=2&nashville=true&view=twocol for personalized display.",
+  "status": "completed",
+  "steps": [
+    "Extend StageDisplayServer to serve different views based on URL query parameters: /stage?capo=N (show chords transposed for capo), /stage?nashville=true (show Nashville numbers), /stage?view=onecol|twocol (layout mode), /stage?name=Guitar1 (identifies the connection for the operator to see who's connected).",
+    "Create a two-column chord chart HTML layout: left column shows current section lyrics+chords, right column shows next section preview. One-column layout shows current lyrics full width with next section below.",
+    "Add StageDisplayServer endpoint GET /stage/connections that returns JSON list of connected clients (name, IP, their params) so the operator can see who's connected.",
+    "Create WorshipPlayer.Presenter/Services/MusicianViewRenderer.cs that takes a slide, capo value, nashville flag, and key to produce the correct chord text for each musician's personal view.",
+    "Update StageDisplayData to include per-view fields: NashvilleText, CapoText (pre-computed for common capo values), CurrentKey, OriginalKey.",
+    "Write unit tests for MusicianViewRenderer covering: capo 0-7, Nashville in all 12 keys, combined capo+nashville.",
+    "Update the stage HTML/JS to read URL params and request the appropriate text variant from the WebSocket data."
+  ],
+  "acceptance_criteria": [
+    "/stage?capo=2 shows chords transposed for capo 2",
+    "/stage?nashville=true shows Nashville numbers based on current key",
+    "/stage?view=twocol renders two-column layout",
+    "/stage/connections returns JSON of connected devices",
+    "MusicianViewRenderer unit tests pass for all key/capo combinations",
+    "Solution builds with 0 errors"
+  ],
+  "verification": [
+    "dotnet build WorshipBacktrackPlayer.sln -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj"
+  ],
+  "blocked_reason": null,
+  "findings": "Build succeeds with 0 errors (2 pre-existing warnings). All 133 tests pass (40 new MusicianViewRenderer tests added). StageDisplayServer now uses ConcurrentDictionary<string, ClientInfo> instead of ConcurrentBag<WebSocket>. MusicianViewRenderer is included via source link in test project (same pattern as ThemeManager). The constructor for StageDisplayServer is backward-compatible with the existing PresenterIntegration code since ChordProParserService parameter is optional."
+}

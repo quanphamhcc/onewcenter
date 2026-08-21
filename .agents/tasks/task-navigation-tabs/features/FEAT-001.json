@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Add navigation tab row to OperatorWindow with tab switching between Services, Songs, Scripture, Media panels, Tools dropdown, Settings opener, and AddServiceItem dialog wiring.",
+  "status": "completed",
+  "steps": [
+    "Add Row 2 (Height 36) for navigation tabs between Header (Row 1) and Content (now Row 3)",
+    "Update existing content from Row 2 to Row 3, transport bar from Row 3 to Row 4",
+    "Add tab buttons: Services, Songs, Scripture, Media, Tools (dropdown), Settings gear",
+    "Add ContentPresenter/frames for Songs, Scripture, Media panels with Visibility toggling",
+    "Add code-behind tab switching logic, Tools dropdown ContextMenu, Settings/AddItem dialog opening",
+    "Handle errors gracefully when loading panels"
+  ],
+  "acceptance_criteria": [
+    "Tab bar visible between header and content area",
+    "Active tab highlighted with #00D4FF underline",
+    "Clicking Services shows slide grid, Songs shows SongLibraryPanel, Scripture shows ScriptureBrowserPanel, Media shows MediaLibraryPanel",
+    "Tools button shows dropdown with Alert, Countdown, Search, CCLI Report",
+    "Settings gear opens SettingsWindow",
+    "+ Add Item opens AddServiceItemDialog",
+    "Project builds without errors",
+    "All tests pass"
+  ],
+  "verification": [
+    "dotnet build WorshipPlayer.Presenter/WorshipPlayer.Presenter.csproj -p:EnableWindowsTargeting=true",
+    "dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj -p:EnableWindowsTargeting=true --no-restore"
+  ],
+  "blocked_reason": null,
+  "findings": "Build succeeds with 0 errors (only pre-existing CS0414 warning in MediaLibraryPanel). All 411 tests pass. DisplaySettings_Click was changed from opening DisplaySettingsWindow (which required engine/displayManager) to opening SettingsWindow directly. The ThemeSettings_Click handler remains as an unused placeholder in code-behind (harmless). Panels are lazy-loaded on first tab click to avoid startup cost. GlobalSearchPanel is a UserControl so it is wrapped in a Window for dialog display."
+}

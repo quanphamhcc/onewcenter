@@ -1,0 +1,39 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Completely rewrite OperatorWindow.xaml.cs code-behind to implement all B1-B10 interactive behavior: slide grid rendering with zoom, live preview updates, collapsible sidebar, transport controls, keyboard shortcuts, edit mode toggle, and backtrack status integration.",
+  "status": "completed",
+  "steps": [
+    "Rewrite WorshipPlayer.Presenter/Views/OperatorWindow.xaml.cs maintaining all existing public API methods (Initialize overloads, UpdateBacktrackStatus, UpdateConnectedDevices) and all engine event subscriptions (SlideChanged, ItemChanged, DisplayStateChanged, PitchShiftChanged, TempoChanged, SongLoaded).",
+    "Implement slide grid rendering in RefreshSlideThumbnails(): create Border elements inside the WrapPanel (SlideThumbnailsPanel) with thumbnail size controlled by ZoomSlider value (default ~140x85px, range 80-240px width). Each thumbnail shows: dark background (#1A1D27), slide text preview (white, centered), section label (top-left, #8B92A5 secondary text), slide number (bottom-right). Active slide gets a glowing cyan border (#00D4FF with 2px thickness). Clicking a thumbnail fires _engine.GoToSlide(index).",
+    "Implement ZoomSlider_ValueChanged handler that re-renders the slide grid thumbnails at the new size. Grid auto-reflows because WrapPanel handles layout automatically.",
+    "Implement live preview hero box updates in UpdatePreviews(): set CurrentSlidePreview.Text and NextSlidePreview.Text from engine state. Update the Audience preview border to show/hide the pink LIVE glow effect based on _engine.IsLive and !_engine.IsBlacked.",
+    "Implement collapsible sidebar: add a toggle button click handler that animates the left column width between 200px (expanded) and 48px (collapsed icon-only mode). Use ColumnDefinition width animation or direct width setting.",
+    "Implement service order list rendering with icons per item type (Song=musical note, Scripture=book, Announcement=megaphone, Sermon=mic, Video=film, etc.), active item highlighted with cyan left border, and group header support.",
+    "Implement keyboard shortcuts in Window_KeyDown: Right/Space/PageDown=NextSlide, Left/PageUp=PrevSlide, Down=NextItem, Up=PrevItem, B=Black, Escape=Black, Enter=GoLive, F1=Logo, number keys 1-9=GoToSlide(n-1). Also handle Ctrl+K for search focus (placeholder).",
+    "Implement transport bar button handlers: NextSlide_Click, PrevSlide_Click, NextItem_Click, PrevItem_Click, GoLive_Click, GoBlack_Click, ShowLogo_Click, ToggleChords_Click - these remain the same as the existing handlers but update the new UI elements with new color scheme.",
+    "Implement Edit mode toggle: EditModeToggle_Click switches between performance mode (clicking a slide fires it live immediately) and edit mode (clicking a slide selects it for editing without firing). Track state with _isEditMode boolean field.",
+    "Implement backtrack status display in the transport bar right section: update BacktrackSongText, BacktrackSectionText, KeyInfoText, TempoInfoText, PitchInfoText when engine events fire.",
+    "Implement NDI toggle button, theme selector, chord toggle checkbox, display settings button - preserve all existing functionality from the current code-behind.",
+    "Ensure the SlidePreviewControl in Controls/ still compiles (update its active border color from #4A90D9 to #00D4FF to match new design system)."
+  ],
+  "acceptance_criteria": [
+    "OperatorWindow.xaml.cs compiles with all XAML element references resolved",
+    "All existing public methods preserved: Initialize (3 overloads), UpdateBacktrackStatus, UpdateConnectedDevices",
+    "All engine event handlers preserved and functional: OnSlideChanged, OnItemChanged, OnDisplayStateChanged, OnPitchShiftChanged, OnTempoChanged, OnSongLoaded",
+    "Keyboard shortcuts implemented matching spec (Right/Space=next, Left=prev, B=black, Enter=live, Esc=black, 1-9=jump)",
+    "Zoom slider controls thumbnail size and grid reflows",
+    "Edit mode toggle switches between fire-on-click and select-on-click behavior",
+    "SlidePreviewControl updated to use #00D4FF active border color",
+    "Project builds without errors",
+    "All 233+ existing tests still pass"
+  ],
+  "verification": [
+    "Run: dotnet build WorshipPlayer.Presenter/WorshipPlayer.Presenter.csproj -p:EnableWindowsTargeting=true",
+    "Confirm build succeeds with 0 errors",
+    "Run: dotnet test WorshipPlayer.Tests/WorshipPlayer.Tests.csproj -p:EnableWindowsTargeting=true --no-restore",
+    "Confirm all 233+ tests pass"
+  ],
+  "blocked_reason": null,
+  "findings": "Build and all 233 tests pass. SectionName property is on the Slide class directly, not on SlideContent. VerticalAlignment requires explicit System.Windows. prefix in code-behind when using System.Windows.Shapes namespace. Review fixes applied: (1) _selectedSlideIndex tracks edit mode selection with distinct #0088AA border, (2) OnClosed unsubscribes all 6 engine events + theme + NDI handlers, (3) optimized slide navigation to only update border highlights not rebuild all children, (4) keyboard guard expanded to TextBoxBase and ComboBox, (5) stage indicator now dynamic via UpdateConnectedDevices and starts as DISCONNECTED."
+}

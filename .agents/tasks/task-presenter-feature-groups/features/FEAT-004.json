@@ -1,0 +1,39 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "WPF Views Part 1 - Service Builder (C), Song/Lyrics (D), Scripture (E), Media Library (F). All WPF XAML views and code-behind for the first 4 feature groups. These are panels/dialogs that integrate into the OperatorWindow or open as separate windows. All must use OwcDesignSystem.xaml resources, be resizable, have dark themed dropdowns, ScrollViewer+MaxHeight on lists, empty states, and visible Save/Close buttons.",
+  "status": "completed",
+  "steps": [
+    "Create WorshipPlayer.Presenter/Views/ServiceBuilder/AddServiceItemDialog.xaml + .cs - Modal dialog with: item type ComboBox (Song, Scripture, Announcement, Sermon, Video, Blank, Custom), background type picker, foreground type picker, auto-advance settings (GoTo + After conditions), transition time slider, optional audio attachment file picker. Uses OwcDesignSystem styles. SizeToContent=Height, MinWidth=500, ResizeMode=CanResize.",
+    "Create WorshipPlayer.Presenter/Views/ServiceBuilder/ServiceGroupPanel.xaml + .cs - UserControl for collapsible section headers in service sidebar. Named groups (Opening Worship, Message, Response). Each group has header with expand/collapse toggle, rename/delete context menu. Drag-and-drop reorder support. Empty state: 'Click + to add a group'.",
+    "Create WorshipPlayer.Presenter/Views/ServiceBuilder/BulkEditPanel.xaml + .cs - Panel that appears when multiple items are selected. Shows batch operations: apply background, set transition time, set auto-advance, delete selected. Checkboxes to select which properties to batch-apply. Confirm button with count ('Apply to 5 items').",
+    "Create WorshipPlayer.Presenter/Views/ServiceBuilder/ItemSettingsPanel.xaml + .cs - Right-side panel showing per-item settings. Auto-advance GoTo dropdown (Next Item, Specific Item, Loop), After condition (Time delay, End of media), Transition fade time slider (0-3000ms). Shows current item's title and type icon.",
+    "Create WorshipPlayer.Presenter/Views/ServiceBuilder/PrintExportDialog.xaml + .cs - Dialog with: preview TextBox (read-only, monospace font), toggle 'Include Lyrics' checkbox, 'Print' button, 'Export as Text' button (SaveFileDialog with *.txt filter). Preview updates live when toggle changes.",
+    "Create WorshipPlayer.Presenter/Views/SongLibrary/SongLibraryPanel.xaml + .cs - UserControl panel with: search TextBox at top, filter ComboBoxes (Key, Artist), sort toggle (A-Z / Date). ListBox with song items showing title, artist, key as secondary text. Empty state: 'No songs found. Import songs to get started.' ScrollViewer with MaxHeight.",
+    "Create WorshipPlayer.Presenter/Views/SongLibrary/SongSlideEditor.xaml + .cs - Editor for individual song slides. TextBox for lyrics (multi-line), background picker per slide, template selector ComboBox. Preview panel on right showing rendered slide. Save/Cancel buttons at bottom.",
+    "Create WorshipPlayer.Presenter/Views/SongLibrary/ChordProImportDialog.xaml + .cs - Dialog with: file picker button (*.chopro, *.chordpro, *.cho, *.txt filters), preview TextBox showing parsed output, Import button. Shows detected metadata (title, artist, key) after parsing.",
+    "Create WorshipPlayer.Presenter/Views/SongLibrary/SongMetadataEditor.xaml + .cs - Form with fields: Title, Artist, Key (ComboBox A-G# with m variants), BPM (numeric), CCLI Number, Tags (comma-separated TextBox). Save/Cancel buttons.",
+    "Create WorshipPlayer.Presenter/Views/Scripture/ScriptureBrowserPanel.xaml + .cs - UserControl with: reference TextBox at top ('Type a reference like John 3:16'), translation ComboBox (KJV, WEB), 'Look Up' button. Results area showing verse text with verse numbers. 'Add to Service' button. Empty state: 'Enter a Bible reference above to look up scripture.'",
+    "Create WorshipPlayer.Presenter/Views/Scripture/ScriptureSlidePreview.xaml + .cs - Shows how scripture will be split across slides. Lines per slide NumericUpDown (2-8), 'Show Reference' checkbox, 'Show Translation' checkbox. Live preview of slide splits.",
+    "Create WorshipPlayer.Presenter/Views/MediaLibrary/MediaLibraryPanel.xaml + .cs - UserControl with: toolbar (Import button, view toggle Grid/List/Compact, search TextBox, type filter checkboxes Image/Video). WrapPanel grid view with thumbnails (placeholder rectangles for videos). Empty state: 'No media files. Click Import to add images and videos.' ScrollViewer.",
+    "Create WorshipPlayer.Presenter/Views/MediaLibrary/ImportMediaDialog.xaml + .cs - OpenFileDialog wrapper with multi-select, filters (*.png;*.jpg;*.jpeg;*.gif;*.webp;*.mp4;*.mov;*.webm;*.avi). Progress indicator. Shows list of files being imported with status.",
+    "Create WorshipPlayer.Presenter/Views/MediaLibrary/MediaMetadataPanel.xaml + .cs - Right panel showing selected media details: name, type, file size, date added, tags editor (add/remove chips). Thumbnail preview."
+  ],
+  "acceptance_criteria": [
+    "All XAML files reference OwcDesignSystem.xaml via MergedDictionaries",
+    "All dialogs/windows have ResizeMode=CanResize or CanResizeWithGrip (never NoResize for dynamic content)",
+    "All ComboBox elements use dark theme styling from OwcDesignSystem",
+    "All ListBox/ItemsControl with dynamic items are wrapped in ScrollViewer with MaxHeight",
+    "All panels have empty state TextBlocks with secondary text color (#8B92A5)",
+    "All file dialogs have appropriate filter strings",
+    "All buttons have Cursor=Hand (via OwcButtonBase style or explicitly)",
+    "All dialogs have visible Save/Close/Cancel buttons that are never pushed off-screen",
+    "Code-behind uses the service interfaces (IBibleProvider, IMediaLibraryService, etc.) not concrete implementations"
+  ],
+  "verification": [
+    "dotnet build WorshipPlayer.Core --nologo",
+    "dotnet test WorshipPlayer.Tests --nologo"
+  ],
+  "blocked_reason": null,
+  "findings": "Added EnableWindowsTargeting to Presenter .csproj for Linux cross-build. Build succeeds with 1 warning (unused _currentView field in MediaLibraryPanel, harmless). All 411 tests still pass. IBibleProvider.GetVersesAsync takes ScriptureReference object, not string parameters - code uses ParseReferenceAsync first. IMediaLibraryService uses ImportAsync not ImportMediaAsync."
+}
