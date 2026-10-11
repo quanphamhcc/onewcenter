@@ -29,6 +29,7 @@
     <Compile Include="..\WorshipPlayer.Presenter\Services\StageDisplayData.cs" Link="StageDisplayData.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Services\RemoteCommandHandler.cs" Link="RemoteCommandHandler.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Services\PresenterEngine.cs" Link="PresenterEngine.cs" />
+    <Compile Include="..\WorshipPlayer.Presenter\Services\DisplayManager.cs" Link="DisplayManager.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Models\VideoLibrary.cs" Link="VideoLibrary.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Services\NdiOutputService.cs" Link="NdiOutputService.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Services\StubNdiOutput.cs" Link="StubNdiOutput.cs" />

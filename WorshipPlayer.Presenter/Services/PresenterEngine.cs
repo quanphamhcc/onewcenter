@@ -23,6 +23,11 @@ public class PresenterEngine : IDisposable
     private readonly PresenterSettings _settings;
     private readonly ChordProParserService _chordParser;
 
+    // Guards the mutable slide/song state so background threads (audio render
+    // thread raising SectionChanged/PositionChanged) can snapshot it without
+    // torn reads. All writers take this lock; SlideChanged is raised outside it.
+    private readonly object _stateLock = new();
+
     private List<Slide> _currentSlides = new();
     private int _currentSlideIndex = -1;
     private bool _isLive = false;
@@ -324,17 +329,32 @@ public class PresenterEngine : IDisposable
     /// </summary>
     public void LoadSong(Song song)
     {
-        _currentSong = song;
+        // F2/F3: ServiceItem slides are the single source of truth. If the current
+        // item already carries pre-baked slides, LoadSong must NOT regenerate them
+        // nor fire SlideChanged — OnServiceItemChanged already loaded + emitted them.
+        // GenerateSlidesFromSong is a fallback only (library/ChordPro songs with
+        // sections[].text and no item slides).
+        bool itemHasSlides = _serviceOrderManager.CurrentItem?.Slides?.Count > 0;
+
+        lock (_stateLock)
+        {
+            _currentSong = song;
+        }
         _pitchShiftSemitones = 0;
         _tempoPercent = 100.0;
 
-        // Generate slides from the song's sections[].text
-        GenerateSlidesFromSong(song);
+        if (!itemHasSlides)
+        {
+            // Fallback: generate slides from the song's sections[].text.
+            // GenerateSlidesFromSong resets _currentSlides/_currentSlideIndex under lock.
+            GenerateSlidesFromSong(song);
+        }
 
         SongLoaded?.Invoke(this, new SongLoadedEventArgs { Song = song });
 
-        // Fire slide changed if we have slides
-        if (_currentSlides.Count > 0 && _currentSlideIndex >= 0)
+        // Fire slide changed ONLY in the fallback case (slide 0). When the item
+        // already had slides, OnServiceItemChanged owns the SlideChanged emit.
+        if (!itemHasSlides && _currentSlides.Count > 0 && _currentSlideIndex >= 0)
         {
             SlideChanged?.Invoke(this, new SlideChangedEventArgs
             {
@@ -354,10 +374,17 @@ public class PresenterEngine : IDisposable
     /// </summary>
     private void GenerateSlidesFromSong(Song song)
     {
-        _currentSlides = new List<Slide>();
-        _currentSlideIndex = -1;
+        var generated = new List<Slide>();
 
-        if (song.Sections.Count == 0) return;
+        if (song.Sections == null || song.Sections.Count == 0)
+        {
+            lock (_stateLock)
+            {
+                _currentSlides = generated;
+                _currentSlideIndex = -1;
+            }
+            return;
+        }
 
         int order = 0;
 
@@ -395,7 +422,7 @@ public class PresenterEngine : IDisposable
                     }
                 }
 
-                _currentSlides.Add(new Slide
+                generated.Add(new Slide
                 {
                     Type = SlideType.Lyrics,
                     Content = new SlideContent
@@ -414,10 +441,11 @@ public class PresenterEngine : IDisposable
             }
         }
 
-        // Set to first slide if we have any
-        if (_currentSlides.Count > 0)
+        // Publish the generated slides under the state lock; set to first slide if any.
+        lock (_stateLock)
         {
-            _currentSlideIndex = 0;
+            _currentSlides = generated;
+            _currentSlideIndex = generated.Count > 0 ? 0 : -1;
         }
     }
 
@@ -525,6 +553,55 @@ public class PresenterEngine : IDisposable
         return _chordParser.CapoTranspose(slide.Content.Text, capoFret);
     }
 
+    // ─── Thread-Safe Snapshot ──────────────────────────────────────
+
+    /// <summary>
+    /// Build a fresh, internally consistent <see cref="StageDisplayData"/> from the
+    /// current engine state, read entirely under <c>_stateLock</c>. This exists so the
+    /// audio render thread (which raises SectionChanged/PositionChanged) can read the
+    /// slide/song state without torn reads (F12). Every dereference is null-guarded
+    /// (slide, Content and song may be null) and the returned instance is not mutated
+    /// after the lock is released.
+    /// </summary>
+    public StageDisplayData SnapshotStageData()
+    {
+        lock (_stateLock)
+        {
+            var slides = _currentSlides;
+            int index = _currentSlideIndex;
+            int total = slides?.Count ?? 0;
+
+            Slide? current = slides != null && index >= 0 && index < slides.Count
+                ? slides[index]
+                : null;
+            Slide? next = slides != null && index + 1 >= 0 && index + 1 < slides.Count
+                ? slides[index + 1]
+                : null;
+
+            string currentText = current?.Content?.Text ?? "";
+            string nextText = next?.Content?.Text ?? "";
+            string sectionName = current?.SectionName ?? "";
+
+            var song = _currentSong;
+            string songTitle = song?.Title ?? "";
+            string originalKey = song?.OriginalKey ?? "";
+
+            return new StageDisplayData
+            {
+                CurrentText = currentText,
+                NextText = nextText,
+                SectionName = sectionName,
+                SongTitle = songTitle,
+                Key = originalKey,
+                OriginalKey = originalKey,
+                IsLive = _isLive,
+                IsBlacked = _isBlacked,
+                CurrentSlideIndex = index,
+                TotalSlides = total
+            };
+        }
+    }
+
     // ─── State Accessors ───────────────────────────────────────────
 
     /// <summary>
@@ -554,20 +631,25 @@ public class PresenterEngine : IDisposable
         // Load slides for the new service item
         if (e.NewItem != null)
         {
-            _currentSlides = e.NewItem.Slides;
-            _currentSlideIndex = _currentSlides.Count > 0 ? 0 : -1;
+            Slide? firstSlide;
+            lock (_stateLock)
+            {
+                _currentSlides = e.NewItem.Slides ?? new List<Slide>();
+                _currentSlideIndex = _currentSlides.Count > 0 ? 0 : -1;
+                firstSlide = _currentSlideIndex >= 0 ? _currentSlides[0] : null;
+            }
 
             // Determine if this is a manual advance song (no backtrack)
             _isManualAdvanceMode = !e.NewItem.UseBacktrack;
 
             ItemChanged?.Invoke(this, e);
 
-            if (_currentSlideIndex >= 0)
+            if (firstSlide != null)
             {
                 SlideChanged?.Invoke(this, new SlideChangedEventArgs
                 {
                     PreviousSlide = null,
-                    NewSlide = _currentSlides[0],
+                    NewSlide = firstSlide,
                     Transition = SlideTransition.Fade,
                     TransitionDurationMs = 500,
                     IsLogo = false
@@ -578,9 +660,18 @@ public class PresenterEngine : IDisposable
 
     private void SetSlideIndex(int newIndex)
     {
-        var previousSlide = CurrentSlide;
-        _currentSlideIndex = newIndex;
-        var newSlide = CurrentSlide;
+        Slide? previousSlide;
+        Slide? newSlide;
+        lock (_stateLock)
+        {
+            previousSlide = _currentSlideIndex >= 0 && _currentSlideIndex < _currentSlides.Count
+                ? _currentSlides[_currentSlideIndex]
+                : null;
+            _currentSlideIndex = newIndex;
+            newSlide = _currentSlideIndex >= 0 && _currentSlideIndex < _currentSlides.Count
+                ? _currentSlides[_currentSlideIndex]
+                : null;
+        }
 
         var transition = newSlide?.Transition ?? SlideTransition.Fade;
         var duration = newSlide?.TransitionDurationMs ?? 500;
