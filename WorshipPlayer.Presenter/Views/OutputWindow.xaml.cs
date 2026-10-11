@@ -30,6 +30,13 @@ public partial class OutputWindow : Window
     private bool _showChords = false;
     private readonly ChordProParserService _chordParser = new();
 
+    // Live pitch-shift offset applied to shown chords (F5). 0 = no transposition.
+    private int _pitchSemitones = 0;
+    // The slide currently displayed, retained so SetPitchShift can re-render it.
+    private Slide? _currentSlide;
+    private SlideTransition _currentTransition = SlideTransition.Fade;
+    private int _currentDurationMs = 500;
+
     // Video services
     private readonly VideoBackgroundService _videoBackgroundService = new();
     private readonly VideoPlaybackService _videoPlaybackService = new();
@@ -107,11 +114,15 @@ public partial class OutputWindow : Window
     /// <summary>
     /// Go full-screen on the current monitor (used when going "Live" without a configured display).
     /// </summary>
-    public void GoFullScreen()
+    /// <param name="topmost">
+    /// Whether the full-screen window stays on top. Pass false on a single-monitor rig so the
+    /// operator can Alt-Tab back to the command center (F6).
+    /// </param>
+    public void GoFullScreen(bool topmost = true)
     {
         WindowStyle = WindowStyle.None;
         WindowState = WindowState.Maximized;
-        Topmost = true;
+        Topmost = topmost;
     }
 
     /// <summary>
@@ -147,11 +158,20 @@ public partial class OutputWindow : Window
 
             case BackgroundType.Image:
                 StopMotionBackground();
-                if (!string.IsNullOrEmpty(theme.BackgroundImage) && System.IO.File.Exists(theme.BackgroundImage))
+                var backgroundPath = ResolveImagePath(theme.BackgroundImage);
+                if (!string.IsNullOrEmpty(backgroundPath) && System.IO.File.Exists(backgroundPath))
                 {
-                    BackgroundImage.Source = new BitmapImage(new Uri(theme.BackgroundImage));
-                    BackgroundImage.Opacity = theme.BackgroundImageOpacity;
-                    BackgroundImage.Visibility = Visibility.Visible;
+                    try
+                    {
+                        BackgroundImage.Source = new BitmapImage(new Uri(backgroundPath));
+                        BackgroundImage.Opacity = theme.BackgroundImageOpacity;
+                        BackgroundImage.Visibility = Visibility.Visible;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[OutputWindow] Background image load failed: {ex.Message}");
+                        BackgroundImage.Visibility = Visibility.Collapsed;
+                    }
                 }
                 break;
 
@@ -170,27 +190,37 @@ public partial class OutputWindow : Window
             : Visibility.Collapsed;
 
         // Logo
-        if (!string.IsNullOrEmpty(theme.LogoPath) && System.IO.File.Exists(theme.LogoPath))
+        var logoPath = ResolveImagePath(theme.LogoPath);
+        bool logoShown = false;
+        if (!string.IsNullOrEmpty(logoPath) && System.IO.File.Exists(logoPath))
         {
-            LogoWatermark.Source = new BitmapImage(new Uri(theme.LogoPath));
-            LogoWatermark.Opacity = theme.LogoOpacity;
-            LogoWatermark.Visibility = Visibility.Visible;
+            try
+            {
+                LogoWatermark.Source = new BitmapImage(new Uri(logoPath));
+                LogoWatermark.Opacity = theme.LogoOpacity;
+                LogoWatermark.Visibility = Visibility.Visible;
 
-            // Position logo
-            LogoWatermark.HorizontalAlignment = theme.LogoPosition switch
+                // Position logo
+                LogoWatermark.HorizontalAlignment = theme.LogoPosition switch
+                {
+                    LogoPosition.TopLeft or LogoPosition.BottomLeft => HorizontalAlignment.Left,
+                    LogoPosition.TopRight or LogoPosition.BottomRight => HorizontalAlignment.Right,
+                    _ => HorizontalAlignment.Center
+                };
+                LogoWatermark.VerticalAlignment = theme.LogoPosition switch
+                {
+                    LogoPosition.TopLeft or LogoPosition.TopRight => System.Windows.VerticalAlignment.Top,
+                    LogoPosition.BottomLeft or LogoPosition.BottomRight => System.Windows.VerticalAlignment.Bottom,
+                    _ => System.Windows.VerticalAlignment.Center
+                };
+                logoShown = true;
+            }
+            catch (Exception ex)
             {
-                LogoPosition.TopLeft or LogoPosition.BottomLeft => HorizontalAlignment.Left,
-                LogoPosition.TopRight or LogoPosition.BottomRight => HorizontalAlignment.Right,
-                _ => HorizontalAlignment.Center
-            };
-            LogoWatermark.VerticalAlignment = theme.LogoPosition switch
-            {
-                LogoPosition.TopLeft or LogoPosition.TopRight => System.Windows.VerticalAlignment.Top,
-                LogoPosition.BottomLeft or LogoPosition.BottomRight => System.Windows.VerticalAlignment.Bottom,
-                _ => System.Windows.VerticalAlignment.Center
-            };
+                System.Diagnostics.Debug.WriteLine($"[OutputWindow] Logo image load failed: {ex.Message}");
+            }
         }
-        else
+        if (!logoShown)
         {
             LogoWatermark.Visibility = Visibility.Collapsed;
         }
@@ -202,6 +232,11 @@ public partial class OutputWindow : Window
     public void ShowSlide(Slide slide, SlideTransition transition, int durationMs)
     {
         if (_isBlacked || _isVideoMode) return;
+
+        // Remember the active slide so a later pitch change can re-render it (F5).
+        _currentSlide = slide;
+        _currentTransition = transition;
+        _currentDurationMs = durationMs;
 
         // Load content into the INACTIVE buffer
         if (_isSlideAActive)
@@ -216,6 +251,26 @@ public partial class OutputWindow : Window
         }
 
         _isSlideAActive = !_isSlideAActive;
+    }
+
+    /// <summary>
+    /// Set the live pitch-shift offset (semitones) and re-render the current slide so shown
+    /// chords reflect the new key (F5). +N transposes chords up by N; 0 shows the text unchanged.
+    /// When chords are hidden the pitch shift has no visible effect.
+    /// </summary>
+    public void SetPitchShift(int semitones)
+    {
+        _pitchSemitones = semitones;
+
+        // Re-render the active slide through the same buffer that is currently showing so the
+        // operator sees the transposed chords without a slide advance.
+        if (_currentSlide != null && !_isBlacked && !_isVideoMode)
+        {
+            if (_isSlideAActive)
+                LoadSlideIntoBuffer(_currentSlide, SlideAText, SlideAHeader, SlideAFooter);
+            else
+                LoadSlideIntoBuffer(_currentSlide, SlideBText, SlideBHeader, SlideBFooter);
+        }
     }
 
     /// <summary>
@@ -429,11 +484,23 @@ public partial class OutputWindow : Window
     private void LoadSlideIntoBuffer(Slide slide, System.Windows.Controls.TextBlock textBlock,
         System.Windows.Controls.TextBlock headerBlock, System.Windows.Controls.TextBlock footerBlock)
     {
-        // Apply chord display toggle: strip chords for congregation, keep for stage
-        var displayText = _showChords ? slide.Content.Text : _chordParser.StripChords(slide.Content.Text);
+        // Apply chord display toggle: strip chords for congregation, keep (and transpose by the
+        // live pitch offset) for stage. Mirrors PresenterEngine.GetStageText — +N up, 0 unchanged.
+        var slideText = slide.Content?.Text ?? "";
+        string displayText;
+        if (_showChords)
+        {
+            displayText = _pitchSemitones == 0
+                ? slideText
+                : _chordParser.Transpose(slideText, _pitchSemitones);
+        }
+        else
+        {
+            displayText = _chordParser.StripChords(slideText);
+        }
         textBlock.Text = displayText;
-        headerBlock.Text = slide.Content.Header;
-        footerBlock.Text = slide.Content.Footer;
+        headerBlock.Text = slide.Content?.Header ?? "";
+        footerBlock.Text = slide.Content?.Footer ?? "";
 
         // Apply theme fonts
         textBlock.FontFamily = new FontFamily(_currentTheme.PrimaryFontFamily);
@@ -461,17 +528,39 @@ public partial class OutputWindow : Window
         footerBlock.Foreground = new SolidColorBrush(
             (Color)ColorConverter.ConvertFromString(_currentTheme.FooterFontColor));
 
-        // Foreground image (QR code etc.)
-        if (!string.IsNullOrEmpty(slide.Content.ForegroundImage) &&
-            System.IO.File.Exists(slide.Content.ForegroundImage))
+        // Foreground image (QR code etc.) — resolve relative paths against the app base dir and
+        // never let a missing/corrupt image throw during render (F9/F10).
+        var foregroundPath = ResolveImagePath(slide.Content?.ForegroundImage);
+        bool foregroundShown = false;
+        if (!string.IsNullOrEmpty(foregroundPath) && System.IO.File.Exists(foregroundPath))
         {
-            ForegroundImage.Source = new BitmapImage(new Uri(slide.Content.ForegroundImage));
-            ForegroundImage.Opacity = 1;
+            try
+            {
+                ForegroundImage.Source = new BitmapImage(new Uri(foregroundPath));
+                ForegroundImage.Opacity = 1;
+                foregroundShown = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[OutputWindow] Foreground image load failed: {ex.Message}");
+            }
         }
-        else
+        if (!foregroundShown)
         {
             ForegroundImage.Opacity = 0;
         }
+    }
+
+    /// <summary>
+    /// Resolve a possibly-relative image path against <see cref="AppDomain.CurrentDomain.BaseDirectory"/>
+    /// so relative slide/theme image paths load regardless of the working directory (F9/F10).
+    /// Absolute paths are returned unchanged; null/empty returns null.
+    /// </summary>
+    private static string? ResolveImagePath(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        if (System.IO.Path.IsPathRooted(path)) return path;
+        return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
     }
 
     private void TransitionToA(SlideTransition transition, int durationMs)

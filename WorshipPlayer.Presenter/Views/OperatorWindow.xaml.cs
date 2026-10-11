@@ -38,6 +38,44 @@ public partial class OperatorWindow : Window
     private OutputCaptureService? _outputCaptureService;
     private DisplayManager? _displayManager;
     private Action<PresenterSettings>? _onSaveSettings;
+
+    // F6: single-monitor Go-Live hooks, supplied by the host (PresenterIntegration). The callback
+    // lazily creates/full-screens the output window on the sole monitor; the predicate reports
+    // whether the current output is a single-monitor full-screen (so Esc reclaims the screen).
+    private Action? _onGoLive;
+    private Func<bool>? _isSingleMonitorOutput;
+
+    /// <summary>
+    /// Register the single-monitor Go-Live callback and the single-monitor-output predicate (F6).
+    /// </summary>
+    public void SetGoLiveHandlers(Action? onGoLive, Func<bool>? isSingleMonitorOutput)
+    {
+        _onGoLive = onGoLive;
+        _isSingleMonitorOutput = isSingleMonitorOutput;
+    }
+
+    /// <summary>
+    /// Load a service order file via the shared ServiceOrderManager (F1). Null/exception degrade
+    /// to a non-fatal message box; never crashes. Separated out so LoadService_Click can await it.
+    /// </summary>
+    private async Task LoadServiceOrderAsync(string path)
+    {
+        if (_serviceOrderManager == null) return;
+        try
+        {
+            var loaded = await _serviceOrderManager.LoadAsync(path);
+            if (loaded == null)
+            {
+                MessageBox.Show(this, "The selected service order could not be loaded (missing or invalid file).",
+                    "Load Service", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not load the service order:\n{ex.Message}",
+                "Load Service", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
     private bool _ndiActive;
     private bool _isEditMode;
     private bool _isSidebarCollapsed;
@@ -319,6 +357,15 @@ public partial class OperatorWindow : Window
         Dispatcher.Invoke(() =>
         {
             PitchInfoText.Text = e.Semitones == 0 ? "0" : $"{e.Semitones:+#;-#;0}";
+
+            // F5: push the new pitch offset to the congregation output and re-render the current
+            // slide so shown chords transpose live.
+            _outputWindow?.SetPitchShift(e.Semitones);
+            var current = _engine?.CurrentSlide;
+            if (current != null)
+            {
+                _outputWindow?.ShowSlide(current, SlideTransition.Cut, 0);
+            }
         });
     }
 
@@ -360,6 +407,8 @@ public partial class OperatorWindow : Window
 
         if (_engine.IsBlacked || !_engine.IsLive)
         {
+            // F6: on a single-monitor rig this lazily creates/full-screens the output window.
+            _onGoLive?.Invoke();
             _engine.GoLive();
             _outputWindow?.Unblack();
         }
@@ -411,7 +460,7 @@ public partial class OperatorWindow : Window
         UpdatePreviews();
     }
 
-    private void LoadService_Click(object sender, RoutedEventArgs e)
+    private async void LoadService_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
@@ -421,7 +470,9 @@ public partial class OperatorWindow : Window
 
         if (dialog.ShowDialog() == true)
         {
-            // Engine will load and fire events
+            // F1: actually load the chosen file. ServiceOrderLoaded wiring (PresenterIntegration)
+            // sets the first item current and refreshes the operator list.
+            await LoadServiceOrderAsync(dialog.FileName);
         }
     }
 
@@ -682,14 +733,25 @@ public partial class OperatorWindow : Window
                 break;
 
             case Key.Escape:
-                if (_engine?.IsBlacked == false)
+                // F6: on a single-monitor full-screen output, Esc reclaims the screen by exiting
+                // full-screen (restores window chrome) rather than only content-blacking. On a
+                // dual-monitor rig Esc keeps its current content-black meaning.
+                if (_isSingleMonitorOutput?.Invoke() == true && _outputWindow != null)
+                {
+                    _outputWindow.ExitFullScreen();
+                }
+                else if (_engine?.IsBlacked == false)
+                {
                     _engine?.GoBlack();
+                }
                 e.Handled = true;
                 break;
 
             case Key.Enter:
                 if (_engine?.IsBlacked == true || !(_engine?.IsLive ?? false))
                 {
+                    // F6: single-monitor Go-Live lazy-create/full-screen (same as the button).
+                    _onGoLive?.Invoke();
                     _engine?.GoLive();
                     _outputWindow?.Unblack();
                 }
