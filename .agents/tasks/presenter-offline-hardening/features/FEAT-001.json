@@ -1,0 +1,23 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "F8 foundation types in WorshipPlayer.Core: a host-free port-bind probe and a bind-outcome result record, plus their unit tests. Placing them in Core (not inside StageDisplayServer.cs) is REQUIRED so WorshipPlayer.Tests can see them via its existing ProjectReference with NO new <Compile Include> entry and NO ASP.NET hosting dependency (design Fix F8 Decision 4). This feature is independent of FEAT-002/003 and must come first because FEAT-004's StageDisplayServer rewrite consumes these types.",
+  "status": "completed",
+  "steps": [
+    "Create WorshipPlayer.Core/Services/Stage/StageServerPortProbe.cs declaring, in namespace WorshipPlayer.Core.Services.Stage: public record StageServerStartResult(bool Started, string? Error); and public static class StageServerPortProbe with public static bool TryReserve(int port, out string? error).",
+    "TryReserve: attempt new System.Net.Sockets.TcpListener(System.Net.IPAddress.Any, port) then Start(); on success Stop() and return true with error = null; catch SocketException/IOException (and any bind-related exception), set error to a non-empty human-readable message that includes the port, return false. Pure BCL, cross-platform, no WebApplication/Kestrel reference.",
+    "Add WorshipPlayer.Tests/StageServerPortProbeTests.cs. Follow the inline/temp style of StageDisplayDataTests.cs. Tests: (a) occupy a port with a test-owned TcpListener bound to IPAddress.Any then assert TryReserve(thatPort, out err) == false and err is non-null/non-empty; (b) TryReserve on a known-free ephemeral port (bind TcpListener to port 0, read the assigned port, stop it, then probe) returns true with null error; (c) build StageServerStartResult from both outcomes and assert Started=false+non-empty Error on busy, Started=true on free. Use ephemeral/caller-supplied ports only, never the fixed 5055, so the test is not flaky.",
+    "Add `using WorshipPlayer.Core.Services.Stage;` to the test file."
+  ],
+  "acceptance_criteria": [
+    "StageServerPortProbe and StageServerStartResult exist in WorshipPlayer.Core.Services.Stage and compile with no new warnings.",
+    "WorshipPlayer.Tests compiles and the new StageServerPortProbe tests pass with NO new <Compile Include> entry added to WorshipPlayer.Tests.csproj.",
+    "No ASP.NET Core / Kestrel reference is introduced into WorshipPlayer.Core or WorshipPlayer.Tests."
+  ],
+  "verification": [
+    "dotnet build WorshipPlayer.Core --nologo (0 errors, no new warnings)",
+    "dotnet test WorshipPlayer.Tests --nologo (new StageServerPortProbe tests pass; suite green)"
+  ],
+  "blocked_reason": null,
+  "findings": "New file: WorshipPlayer.Core/Services/Stage/StageServerPortProbe.cs. Namespace: WorshipPlayer.Core.Services.Stage. Exact types FEAT-004 must consume: `public record StageServerStartResult(bool Started, string? Error)` and `public static class StageServerPortProbe` with `public static bool TryReserve(int port, out string? error)`. TryReserve binds `new TcpListener(IPAddress.Any, port)`, calls Start(), returns true/error=null on success (listener Stop() in finally so port is freed), and returns false with a non-empty message that includes the port on SocketException/IOException/any other bind exception. Pure BCL, no Kestrel/WebApplication reference. Tests: WorshipPlayer.Tests/StageServerPortProbeTests.cs (4 tests, all pass) added with `using WorshipPlayer.Core.Services.Stage;` and NO new <Compile Include> entry (resolved via existing Core ProjectReference). VERIFICATION: `dotnet build WorshipPlayer.Core` = 0 errors, no new warnings; the 4 new tests pass. CAVEAT on full `dotnet test WorshipPlayer.Tests`: 15 BibleDatabaseServiceTests fail on THIS Windows host with `System.IO.IOException: file ... .db is being used by another process` thrown from the test class Dispose (BibleDatabaseServiceTests.cs:26). This is a pre-existing environment flake (SQLite temp-db file still locked at dispose) — it reproduces 15/15 when the Bible tests run in isolation with none of my files changed (git shows my change only ADDED the Core Stage folder + the new test file). It is unrelated to FEAT-001 and must not be attributed to this feature; later features should expect this host-specific flake until the Bible test teardown is hardened."
+}

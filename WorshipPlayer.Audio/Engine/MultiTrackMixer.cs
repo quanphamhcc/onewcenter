@@ -81,6 +81,7 @@ public class MultiTrackMixer : IWaveProvider, IDisposable
     // Events
     public event EventHandler<PlaybackPositionEventArgs>? PositionChanged;
     public event EventHandler<SectionChangedEventArgs>? SectionChanged;
+    public event EventHandler<SectionLoopedEventArgs>? SectionLooped;
 
     // Position reporting
     private int _samplesUntilNextReport = 0;
@@ -267,6 +268,11 @@ public class MultiTrackMixer : IWaveProvider, IDisposable
             var currentSection = _song.Sections[_currentSectionIndex];
             SeekToMsWithVocalPickup(currentSection);
             _loopIterations++;
+            SectionLooped?.Invoke(this, new SectionLoopedEventArgs
+            {
+                SectionName = currentSection.Name,
+                SectionIndex = _currentSectionIndex
+            });
         }
         else if (_queuedSectionIndex >= 0)
         {
@@ -413,6 +419,11 @@ public class MultiTrackMixer : IWaveProvider, IDisposable
             {
                 SeekToMsWithVocalPickup(currentSection);
                 _loopIterations++;
+                SectionLooped?.Invoke(this, new SectionLoopedEventArgs
+                {
+                    SectionName = currentSection.Name,
+                    SectionIndex = _currentSectionIndex
+                });
             }
             else if (_queuedSectionIndex >= 0)
             {

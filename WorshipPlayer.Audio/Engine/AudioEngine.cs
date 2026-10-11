@@ -19,6 +19,7 @@ public class AudioEngine : IDisposable
     // Events
     public event EventHandler<PlaybackPositionEventArgs>? PositionChanged;
     public event EventHandler<SectionChangedEventArgs>? SectionChanged;
+    public event EventHandler<string>? SectionLooped;
     public event EventHandler? PlaybackStopped;
 
     public MultiTrackMixer? Mixer => _mixer;
@@ -75,6 +76,7 @@ public class AudioEngine : IDisposable
         _mixer = new MultiTrackMixer(song, _settings);
         _mixer.PositionChanged += (s, e) => PositionChanged?.Invoke(this, e);
         _mixer.SectionChanged += (s, e) => SectionChanged?.Invoke(this, e);
+        _mixer.SectionLooped += (s, e) => SectionLooped?.Invoke(this, e.SectionName);
 
         // Create a fresh WASAPI output device
         Initialize();
@@ -107,6 +109,7 @@ public class AudioEngine : IDisposable
         _mixer = mixer;
         _mixer.PositionChanged += (s, e) => PositionChanged?.Invoke(this, e);
         _mixer.SectionChanged += (s, e) => SectionChanged?.Invoke(this, e);
+        _mixer.SectionLooped += (s, e) => SectionLooped?.Invoke(this, e.SectionName);
 
         Initialize();
         _wasapiOut!.Init(_mixer);
@@ -303,4 +306,10 @@ public class SectionChangedEventArgs : EventArgs
     public int PreviousSectionIndex { get; set; }
     public int NewSectionIndex { get; set; }
     public Section? NewSection { get; set; }
+}
+
+public class SectionLoopedEventArgs : EventArgs
+{
+    public string SectionName { get; set; } = "";
+    public int SectionIndex { get; set; }
 }

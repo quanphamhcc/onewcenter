@@ -38,6 +38,24 @@ public class DisplayManager
     }
 
     /// <summary>
+    /// Clamp a saved display index to the currently available monitors.
+    /// Pure helper (no WPF/System.Windows dependency) so it is unit-testable
+    /// and cross-platform. Returns -1 (unassigned) when the saved index cannot
+    /// map to a real monitor:
+    ///  - savedIndex &lt; 0 preserves "unassigned".
+    ///  - monitorCount &lt;= 0 (no monitors) returns -1.
+    ///  - savedIndex &gt;= monitorCount (monitor removed) returns -1.
+    /// Otherwise the in-range index is preserved.
+    /// </summary>
+    public static int ClampDisplayIndex(int savedIndex, int monitorCount)
+    {
+        if (savedIndex < 0) return -1;
+        if (monitorCount <= 0) return -1;
+        if (savedIndex >= monitorCount) return -1;
+        return savedIndex;
+    }
+
+    /// <summary>
     /// Refresh the list of available displays.
     /// Call this on startup and when monitors are connected/disconnected.
     /// </summary>

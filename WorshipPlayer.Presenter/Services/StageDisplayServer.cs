@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Services;
+using WorshipPlayer.Core.Services.Stage;
 
 namespace WorshipPlayer.Presenter.Services;
 
@@ -88,6 +89,12 @@ public class StageDisplayServer : IDisposable
     private PresenterSettings? _presenterSettings;
 
     /// <summary>
+    /// The error message from the last failed <see cref="StartAsync"/> attempt, or null if the
+    /// last start succeeded. Populated deterministically on a bind failure.
+    /// </summary>
+    public string? LastStartError { get; private set; }
+
+    /// <summary>
     /// Creates a new StageDisplayServer instance.
     /// </summary>
     /// <param name="port">The port to listen on (default 5055).</param>
@@ -113,9 +120,14 @@ public class StageDisplayServer : IDisposable
     }
 
     /// <summary>
-    /// Starts the web server on a background thread.
+    /// Starts the web server, binding Kestrel on the fixed port and observing the bind outcome
+    /// deterministically. On a bind failure (port already in use, blocked) the exception is caught
+    /// here and converted into a <see cref="StageServerStartResult"/> with <c>Started = false</c> and
+    /// a human-readable message; it never throws out of the normal start path. The start/observe path
+    /// does not dereference the optional collaborators (<see cref="_presenterSettings"/>,
+    /// <see cref="_remoteCommandHandler"/>, presenter engine), which are null on the single-arg ctor.
     /// </summary>
-    public Task StartAsync()
+    public async Task<StageServerStartResult> StartAsync(System.Threading.CancellationToken ct = default)
     {
         _cts = new CancellationTokenSource();
 
@@ -386,10 +398,42 @@ public class StageDisplayServer : IDisposable
             }
         });
 
-        // Start the server on a background thread (non-blocking)
-        _serverTask = _app.RunAsync();
+        // Start the server and OBSERVE the bind outcome on the awaited call (not fire-and-forget).
+        // StartAsync starts Kestrel and binds the port; a bind failure surfaces here, where we can
+        // catch it and map it to a StageServerStartResult instead of losing it on a background task.
+        try
+        {
+            await _app.StartAsync(ct);
+            // StartAsync (unlike the old fire-and-forget RunAsync) returns once the host is
+            // listening, so a bind failure surfaces here. StopAsync stops/disposes _app directly,
+            // so no background _serverTask is needed to tear down.
+            _serverTask = null;
+            LastStartError = null;
+            return new StageServerStartResult(true, null);
+        }
+        catch (Exception ex)
+        {
+            // Bind failure (SocketException/IOException) or any other start error: fail gracefully.
+            var message = $"Stage display server could not bind on port {_port}: {ex.Message}";
+            LastStartError = message;
 
-        return Task.CompletedTask;
+            // Tear down the half-started app so a later Stop/Dispose is clean.
+            try
+            {
+                if (_app != null)
+                {
+                    await _app.DisposeAsync();
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors on an already-failed start.
+            }
+            _app = null;
+            _serverTask = null;
+
+            return new StageServerStartResult(false, message);
+        }
     }
 
     /// <summary>

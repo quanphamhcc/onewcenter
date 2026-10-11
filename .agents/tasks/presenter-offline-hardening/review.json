@@ -1,0 +1,11 @@
+{
+  "verdict": "APPROVED",
+  "summary": "All committed fixes F1-F12 are implemented behavior-preservingly and match design.md: F8 StageServerPortProbe/StageServerStartResult live in WorshipPlayer.Core.Services.Stage; the required cross-platform xUnit tests exist (net8.0, Core-referenced, no WPF/ASP.NET hosting pulled into the Tests project); the full solution builds with 0 errors and exactly the 4 pre-existing warnings (no new), and the full test suite is green (432 passed, 0 failed).",
+  "findings": [
+    {
+      "severity": "NIT",
+      "detail": "Several design items (F1 startup auto-load degrade, F5 projector chord transpose with real stems, F6 single-monitor full-screen/Esc, F8 real port-5055-taken operator message and single-arg StartAsync no-NRE at runtime, LibVLC video, phone/tablet over LAN) are WPF/hardware paths that cannot be verified in CI and remain human-on-hardware checks per design \u00a74. Verified by code read + full build only, not at runtime.",
+      "file": ".agents/tasks/presenter-offline-hardening/design.md"
+    }
+  ]
+}

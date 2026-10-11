@@ -175,12 +175,21 @@ public partial class MainWindow : Window
         _presenterIntegration = new PresenterIntegration(_audioEngine, _midiCueService, _settings, presenterSettings, _songManager);
         _presenterIntegration.Initialize();
         _presenterIntegration.SongLoadRequested += PresenterIntegration_SongLoadRequested;
+        _presenterIntegration.StatusMessage += PresenterIntegration_StatusMessage;
 
         // Populate display manager with actual monitor info
         PopulateDisplayManager(_presenterIntegration.DisplayManager);
 
+        // F6/F7: clamp saved output/stage display indices to the monitors actually present now
+        // (e.g. an index of 1 saved on a dual-monitor rig falls back to -1 on one monitor).
+        _presenterIntegration.ClampDisplayIndicesToMonitors();
+
         // Start stage server if enabled
         _ = _presenterIntegration.StartStageServerAsync();
+
+        // F1: auto-load the most recent service order so the sample service drives the app.
+        // Missing stems from the first item degrade via LoadSong's try/catch — no startup crash.
+        _ = _presenterIntegration.AutoLoadMostRecentServiceOrderAsync();
 
         // Auto-open the Presenter Operator Window on startup
         try
@@ -620,6 +629,12 @@ public partial class MainWindow : Window
         {
             Dispatcher.Invoke(() => LoadSong(song));
         }
+    }
+
+    private void PresenterIntegration_StatusMessage(object? sender, string message)
+    {
+        // Route non-fatal presenter status messages to the status bar (best-effort).
+        Dispatcher.Invoke(() => StatusText.Text = message);
     }
 
     private ChordChartWindow? _chordChartWindow;

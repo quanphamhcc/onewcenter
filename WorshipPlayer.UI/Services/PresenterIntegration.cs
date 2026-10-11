@@ -58,6 +58,12 @@ public class PresenterIntegration : IDisposable
     /// </summary>
     public event EventHandler<string>? SongLoadRequested;
 
+    /// <summary>
+    /// Fired with a non-fatal, operator-visible status message (e.g. the stage server could not
+    /// start on its port). The host (MainWindow) routes this to its status bar. Best-effort only.
+    /// </summary>
+    public event EventHandler<string>? StatusMessage;
+
     public PresenterIntegration(
         AudioEngine audioEngine,
         MidiCueService midiCueService,
@@ -127,11 +133,23 @@ public class PresenterIntegration : IDisposable
         _audioEngine.PositionChanged += OnAudioEnginePositionChanged;
         _audioEngine.PlaybackStopped += OnAudioEnginePlaybackStopped;
 
+        // F4/F11: an infinite section loop in the mixer re-raises AudioEngine.SectionLooped
+        // (section NAME payload); forward it through the sync bridge so the presenter resets
+        // to the section's first slide.
+        _audioEngine.SectionLooped += OnAudioEngineSectionLooped;
+
         // Wire ServiceOrderManager item changes for song auto-loading
         ServiceOrderManager.ItemChanged += OnServiceItemChanged;
 
+        // F1: when a service order is loaded, set the first item current (fires ItemChanged so the
+        // operator list + engine pick it up) — LoadAsync itself only fires ServiceOrderLoaded.
+        ServiceOrderManager.ServiceOrderLoaded += OnServiceOrderLoaded;
+
         // Wire PresenterEngine slide changes to broadcast to stage display
         PresenterEngine.SlideChanged += OnPresenterSlideChanged;
+
+        // F5: re-broadcast stage data on pitch change so the web stage display re-transposes.
+        PresenterEngine.PitchShiftChanged += OnPresenterPitchShiftChanged;
 
         // Refresh display info
         DisplayManager.RefreshDisplays();
@@ -230,6 +248,8 @@ public class PresenterIntegration : IDisposable
                 BibleDatabaseService,
                 ServiceOrderManager,
                 _songManager);
+            // F6: give the operator window the single-monitor Go-Live hooks.
+            _operatorWindow.SetGoLiveHandlers(HandleGoLiveSingleMonitor, () => IsSingleMonitorOutput);
             _operatorWindow.Closed += (s, e) => _operatorWindow = null;
             _operatorWindow.Show();
         }
@@ -249,13 +269,70 @@ public class PresenterIntegration : IDisposable
         {
             try
             {
-                await StageDisplayServer.StartAsync();
+                var result = await StageDisplayServer.StartAsync();
+                if (!result.Started)
+                {
+                    // Non-fatal: the live congregation path does not depend on the server.
+                    var message = $"Stage display server could not start on port {_presenterSettings.StageServerPort} — the service will run without the second-screen/remote display";
+                    System.Diagnostics.Debug.WriteLine($"{message} ({result.Error})");
+                    StatusMessage?.Invoke(this, message);
+                }
             }
             catch (Exception ex)
             {
+                // StartAsync is designed not to throw out of the normal path, but stay defensive.
                 System.Diagnostics.Debug.WriteLine($"Stage server start failed: {ex.Message}");
+                StatusMessage?.Invoke(this, $"Stage display server could not start on port {_presenterSettings.StageServerPort} — the service will run without the second-screen/remote display");
             }
         }
+    }
+
+    /// <summary>
+    /// Auto-load the most recent *.json service order in the ServiceOrders folder, if any.
+    /// Called on startup (from MainWindow after the display manager is populated). Any
+    /// null/exception from the load is degraded to a non-fatal status message, never a crash.
+    /// The resulting first-item-current may raise SongLoadRequested; MainWindow.LoadSong's
+    /// existing try/catch degrades missing stems to a non-fatal status (F1/F9).
+    /// </summary>
+    public async Task AutoLoadMostRecentServiceOrderAsync()
+    {
+        try
+        {
+            var appFolder = AppDomain.CurrentDomain.BaseDirectory;
+            var serviceOrdersPath = Path.Combine(appFolder, "ServiceOrders");
+            if (!Directory.Exists(serviceOrdersPath)) return;
+
+            var mostRecent = new DirectoryInfo(serviceOrdersPath)
+                .GetFiles("*.json")
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .FirstOrDefault();
+
+            if (mostRecent == null) return;
+
+            var loaded = await ServiceOrderManager.LoadAsync(mostRecent.FullName);
+            if (loaded == null)
+            {
+                StatusMessage?.Invoke(this, $"Could not load service order '{mostRecent.Name}'");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Auto-load service order failed: {ex.Message}");
+            StatusMessage?.Invoke(this, "Could not auto-load the most recent service order");
+        }
+    }
+
+    /// <summary>
+    /// Clamp the saved OutputDisplay/StageDisplay indices against the currently registered
+    /// monitors (F6/F7). Called from MainWindow right after displays are registered so a saved
+    /// index of 1 on a now-single-monitor machine falls back to -1 (unassigned) instead of the
+    /// silent "configured but no bounds" no-output branch.
+    /// </summary>
+    public void ClampDisplayIndicesToMonitors()
+    {
+        int monitorCount = DisplayManager.AvailableDisplays.Count;
+        _presenterSettings.OutputDisplay = DisplayManager.ClampDisplayIndex(_presenterSettings.OutputDisplay, monitorCount);
+        _presenterSettings.StageDisplay = DisplayManager.ClampDisplayIndex(_presenterSettings.StageDisplay, monitorCount);
     }
 
     // ---- Private event handlers ----
@@ -265,6 +342,31 @@ public class PresenterIntegration : IDisposable
         var sectionName = e.NewSection?.Name ?? "";
         MidiPresenterSync.OnBacktrackSectionChanged(sectionName);
 
+        BroadcastStageUpdate();
+    }
+
+    private void OnAudioEngineSectionLooped(object? sender, string sectionName)
+    {
+        // F4/F11: an infinite section loop reset — forward the section name through the sync
+        // bridge so the presenter re-shows that section's first slide.
+        MidiPresenterSync.OnSectionLooped(sectionName);
+
+        BroadcastStageUpdate();
+    }
+
+    private void OnServiceOrderLoaded(object? sender, ServiceOrder order)
+    {
+        // F1: set the first item current (fires ItemChanged so the engine + operator list react).
+        // LoadAsync set CurrentItemIndex but did not fire ItemChanged.
+        if (order.Items.Count > 0)
+        {
+            ServiceOrderManager.GoToItem(0);
+        }
+    }
+
+    private void OnPresenterPitchShiftChanged(object? sender, PitchShiftChangedEventArgs e)
+    {
+        // F5: push the re-transposed stage data to the web stage display.
         BroadcastStageUpdate();
     }
 
@@ -357,22 +459,59 @@ public class PresenterIntegration : IDisposable
         _operatorWindow?.SetOutputWindow(_outputWindow);
     }
 
+    /// <summary>
+    /// F6: handle Go-Live on a single-monitor machine. When no separate output monitor is
+    /// configured (OutputDisplay &lt; 0) or only one monitor is present, lazily create the output
+    /// window and full-screen it on the sole monitor with Topmost=false so the operator can
+    /// Alt-Tab back to the command center. On a dual-monitor rig with a configured output this is
+    /// a no-op (ApplyDisplaySettings already placed the window). Never throws; a bad DisplayInfo
+    /// falls back to the primary monitor.
+    /// </summary>
+    public void HandleGoLiveSingleMonitor()
+    {
+        try
+        {
+            bool singleMonitor = _presenterSettings.OutputDisplay < 0 || DisplayManager.AvailableDisplays.Count <= 1;
+            if (!singleMonitor) return;
+
+            // Lazily create the output window (same pattern as ApplyDisplaySettings).
+            if (_outputWindow == null || !_outputWindow.IsLoaded)
+            {
+                _outputWindow = new OutputWindow();
+                _outputWindow.Closed += (s, e) => _outputWindow = null;
+            }
+
+            if (!_outputWindow.IsVisible)
+                _outputWindow.Show();
+
+            // Full-screen but NOT topmost so the operator can return to the command center.
+            _outputWindow.GoFullScreen(topmost: false);
+
+            // Register with the operator window so slides forward to this output.
+            _operatorWindow?.SetOutputWindow(_outputWindow);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Single-monitor Go-Live failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// F6: whether the output is currently a single-monitor full-screen window (no dedicated
+    /// output monitor configured). The OperatorWindow uses this to decide whether Esc should
+    /// ExitFullScreen (reclaim the screen) rather than content-black.
+    /// </summary>
+    public bool IsSingleMonitorOutput =>
+        (_presenterSettings.OutputDisplay < 0 || DisplayManager.AvailableDisplays.Count <= 1)
+        && _outputWindow != null;
+
     private void BroadcastStageUpdate()
     {
-        // Build stage display data from current presenter state and broadcast to connected stage clients
-        var data = new StageDisplayData
-        {
-            CurrentText = PresenterEngine.CurrentSlide?.Content?.Text ?? "",
-            NextText = PresenterEngine.NextSlide?.Content?.Text ?? "",
-            SectionName = PresenterEngine.CurrentSlide?.SectionName ?? "",
-            SongTitle = PresenterEngine.CurrentSong?.Title ?? "",
-            Key = PresenterEngine.CurrentSong?.OriginalKey ?? "",
-            OriginalKey = PresenterEngine.CurrentSong?.OriginalKey ?? "",
-            IsLive = PresenterEngine.IsLive,
-            IsBlacked = PresenterEngine.IsBlacked,
-            CurrentSlideIndex = PresenterEngine.CurrentSlideIndex,
-            TotalSlides = PresenterEngine.TotalSlides
-        };
+        // F12: take a single internally-consistent snapshot under the engine lock (this runs on the
+        // audio render thread for section/position/loop events, so a torn read would be possible
+        // without the lock). F5: SnapshotStageData reflects the current state including pitch-driven
+        // re-renders downstream.
+        var data = PresenterEngine.SnapshotStageData();
 
         // Fire and forget - stage broadcast is best-effort
         _ = StageDisplayServer.BroadcastSlideUpdate(data);
@@ -384,8 +523,11 @@ public class PresenterIntegration : IDisposable
         _audioEngine.SectionChanged -= OnAudioEngineSectionChanged;
         _audioEngine.PositionChanged -= OnAudioEnginePositionChanged;
         _audioEngine.PlaybackStopped -= OnAudioEnginePlaybackStopped;
+        _audioEngine.SectionLooped -= OnAudioEngineSectionLooped;
         ServiceOrderManager.ItemChanged -= OnServiceItemChanged;
+        ServiceOrderManager.ServiceOrderLoaded -= OnServiceOrderLoaded;
         PresenterEngine.SlideChanged -= OnPresenterSlideChanged;
+        PresenterEngine.PitchShiftChanged -= OnPresenterPitchShiftChanged;
 
         // Dispose services
         MidiPresenterSync.Dispose();
