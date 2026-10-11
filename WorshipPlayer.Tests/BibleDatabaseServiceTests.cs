@@ -22,8 +22,20 @@ public class BibleDatabaseServiceTests : IDisposable
 
     public void Dispose()
     {
-        if (File.Exists(_tempDbPath))
-            File.Delete(_tempDbPath);
+        // Microsoft.Data.Sqlite pools connections by default, which keeps the
+        // database file handle open after the service's connections are disposed.
+        // Clear the pools so the temp file can be deleted on Windows.
+        SqliteConnection.ClearAllPools();
+
+        try
+        {
+            if (File.Exists(_tempDbPath))
+                File.Delete(_tempDbPath);
+        }
+        catch (IOException)
+        {
+            // Best-effort cleanup of a temp file; ignore if still locked.
+        }
     }
 
     [Fact]
