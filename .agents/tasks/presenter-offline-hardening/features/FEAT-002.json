@@ -1,0 +1,23 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "F4 producer side: emit a SectionLooped signal from the audio layer carrying the section NAME, so an infinite section loop can reset the Presenter slides to the section's first slide. Today MultiTrackMixer seeks back on an infinite loop but fires NO event, so the dead OnSectionLooped reset path in PresenterEngine never runs. This feature only adds the event on MultiTrackMixer and re-raises it on AudioEngine; the Presenter-side consumption/wiring is done in FEAT-003 (engine) and FEAT-004 (PresenterIntegration subscription). Independent of FEAT-001.",
+  "status": "completed",
+  "steps": [
+    "In WorshipPlayer.Audio/Engine/AudioEngine.cs add a new event args class near SectionChangedEventArgs: public class SectionLoopedEventArgs : EventArgs { public string SectionName { get; set; } = \"\"; public int SectionIndex { get; set; } }.",
+    "In WorshipPlayer.Audio/Engine/MultiTrackMixer.cs add: public event EventHandler<SectionLoopedEventArgs>? SectionLooped; Raise it in BOTH infinite-loop branches, immediately after the existing SeekToMsWithVocalPickup(currentSection); _loopIterations++; lines: (1) in HandleSectionBoundary's `if (LoopEnabled && LoopInfinite)` branch, and (2) in CheckSectionBoundary's identical `if (LoopEnabled && LoopInfinite)` branch. Payload: SectionName = _song.Sections[_currentSectionIndex].Name (currentSection.Name), SectionIndex = _currentSectionIndex. Both branches have currentSection / _currentSectionIndex in scope.",
+    "In WorshipPlayer.Audio/Engine/AudioEngine.cs add: public event EventHandler<string>? SectionLooped; In BOTH LoadSong and ActivateSong, where _mixer.PositionChanged and _mixer.SectionChanged are already subscribed, also subscribe _mixer.SectionLooped += (s, e) => SectionLooped?.Invoke(this, e.SectionName); so AudioEngine re-raises the section name to PresenterIntegration.",
+    "Keep raising on the audio render thread (same as SectionChanged today); do not add marshaling here — F12 handles snapshot consistency on the Presenter side."
+  ],
+  "acceptance_criteria": [
+    "MultiTrackMixer raises SectionLooped with the correct section name in both the HandleSectionBoundary and CheckSectionBoundary infinite-loop branches.",
+    "AudioEngine exposes a SectionLooped(string sectionName) event re-raised from the mixer in both LoadSong and ActivateSong.",
+    "WorshipPlayer.Audio builds with 0 errors and no new warnings."
+  ],
+  "verification": [
+    "dotnet build WorshipPlayer.Audio --nologo (0 errors, no new warnings)",
+    "dotnet build WorshipBacktrackPlayer.sln --nologo (0 errors, no new warnings)"
+  ],
+  "blocked_reason": null,
+  "findings": "Implemented. Event signatures for FEAT-004 to subscribe:\n\n(1) AudioEngine (WorshipPlayer.Audio/Engine/AudioEngine.cs) now exposes:\n    public event EventHandler<string>? SectionLooped;\n  The string payload is the section NAME (currentSection.Name). FEAT-004/PresenterIntegration should subscribe as:\n    audioEngine.SectionLooped += (s, sectionName) => { /* reset Presenter slides to first slide of sectionName */ };\n  Subscription is wired in BOTH AudioEngine.LoadSong and AudioEngine.ActivateSong, right after the existing _mixer.PositionChanged / _mixer.SectionChanged subscriptions, via:\n    _mixer.SectionLooped += (s, e) => SectionLooped?.Invoke(this, e.SectionName);\n\n(2) MultiTrackMixer (WorshipPlayer.Audio/Engine/MultiTrackMixer.cs) now exposes:\n    public event EventHandler<SectionLoopedEventArgs>? SectionLooped;\n  Raised in BOTH infinite-loop branches (HandleSectionBoundary's `if (LoopEnabled && LoopInfinite)` and CheckSectionBoundary's identical branch), immediately after the existing SeekToMsWithVocalPickup(currentSection); _loopIterations++; lines, with payload { SectionName = currentSection.Name, SectionIndex = _currentSectionIndex }.\n\n(3) New EventArgs class (WorshipPlayer.Audio/Engine/AudioEngine.cs, near SectionChangedEventArgs):\n    public class SectionLoopedEventArgs : EventArgs { public string SectionName { get; set; } = \"\"; public int SectionIndex { get; set; } }\n\nRaised on the audio render thread (same thread as SectionChanged); no marshaling added here per step 4 (F12 handles Presenter-side snapshot consistency).\n\nVerification: `dotnet build WorshipPlayer.Audio --nologo` = 0 errors, 0 warnings. `dotnet build WorshipBacktrackPlayer.sln --nologo` = 0 errors, exactly the 4 pre-existing warnings (no new warnings)."
+}
