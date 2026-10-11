@@ -1,0 +1,7 @@
+{
+  "task_id": "task-presenter-offline-hardening",
+  "task_description": "Implement every committed fix F1-F12 from design.md: make one Windows machine run a full worship service end-to-end OFFLINE with no crashes. Priority-1 offline reliability only, behavior-preserving unless the current behavior is a bug. Add the required cross-platform xUnit tests in WorshipPlayer.Tests (net8.0, Core-referenced; no WPF/ASP.NET hosting). Baseline: build 0 errors / 4 pre-existing warnings, 411 tests green; after: 0 errors, no new warnings, all tests green.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

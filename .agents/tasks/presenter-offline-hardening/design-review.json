@@ -1,0 +1,56 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "MEDIUM",
+      "scope": "F8",
+      "status": "RESOLVED",
+      "title": "F8 verification: compile location of StageServerPortProbe/StageServerStartResult is unspecified, so the test may still not compile",
+      "problem": "The design proves WorshipPlayer.Tests (net8.0, Core-only reference) cannot see StageDisplayServer.cs, but never says which file declares StageServerPortProbe and StageServerStartResult. If declared inside StageDisplayServer.cs (where StartAsync consults them), the test cannot compile against them \u2014 the exact problem the design meant to avoid.",
+      "fix": "State that StageServerPortProbe and the StageServerStartResult record live in their own new source file(s) added to the Tests project's <Compile Include> set (Link'd like the others), OR in WorshipPlayer.Core which the test already references. Call out that adding a <Compile Include> entry changes the test csproj and must be re-checked against the no-new-warnings / 411-green invariant.",
+      "resolution": "Fix F8 Decision 4 commits both StageServerPortProbe and the StageServerStartResult record to WorshipPlayer.Core (not inside StageDisplayServer.cs, which StageDisplayServer consumes). Verified WorshipPlayer.Tests.csproj has a single ProjectReference to WorshipPlayer.Core and its <Compile Include> set does NOT include StageDisplayServer.cs, so the Core placement makes the F8 test compile with no new <Compile Include> entry. Any csproj change must keep 0 new warnings beyond the 4 pre-existing and all tests green."
+    },
+    {
+      "id": 2,
+      "severity": "MEDIUM",
+      "scope": "F8",
+      "status": "RESOLVED",
+      "title": "F8 start-result path must not dereference null _presenterSettings/_remoteCommandHandler on the single-arg constructor production uses",
+      "problem": "PresenterIntegration constructs the server via new StageDisplayServer(StageServerPort) (single-arg), leaving _remoteCommandHandler and _presenterSettings null. The F8 rewrite of StartAsync/StageServerStartResult does not state it must work on this instance; if the new observe/start logic reads those null fields it will NRE in production while a 4-arg-constructor test passes.",
+      "fix": "Add a constraint to Fix F8: the StartAsync -> StageServerStartResult path must not dereference _presenterSettings or _remoteCommandHandler (both may be null on the single-arg constructor). Add a unit test calling StartAsync on a single-arg-constructed server asserting a clean StageServerStartResult with no NRE.",
+      "resolution": "Fix F8 Decision 5 forbids the StartAsync -> StageServerStartResult path from dereferencing _presenterSettings, _remoteCommandHandler, or _presenterEngine (all null on the single-arg constructor StageDisplayServer(int port = 5055, ...) \u2014 verified). Verification plan F8 (c) adds a unit test that calls StartAsync on a single-arg-constructed server and asserts a clean StageServerStartResult with no NullReferenceException."
+    },
+    {
+      "id": 3,
+      "severity": "MEDIUM",
+      "scope": "F5",
+      "status": "RESOLVED",
+      "title": "F5 verification under-specified: no named extractable method, no transpose sign/compose-order convention",
+      "problem": "Fix F5 says 'extract the text-building into a testable method' without naming it or giving a signature, and does not define whether a +N semitone pitch shift transposes chords up by N or how capo/nashville compose with the pitch offset on congregation output. The engine already has GetStageText(slide, transposeSemitones); the design does not say whether output reuses it.",
+      "fix": "Name the extracted method and signature (or reuse PresenterEngine.GetStageText) in a location the Tests project can compile, and state the convention: congregation output applies Transpose(text, +pitchSemitones) only when ShowChords is true; pitch 0 returns text unchanged; capo/nashville remain stage-only. Add a concrete unit assertion (e.g. [C] at +2 -> [D]).",
+      "resolution": "Fix F5 commits to reusing the existing PresenterEngine.GetStageText(Slide slide, int transposeSemitones) (verified present and linked into WorshipPlayer.Tests via PresenterEngine.cs). Convention committed: congregation output applies Transpose(text, +pitchSemitones) only when ShowChords is true; +N = up; pitch 0 returns text unchanged; capo/nashville remain stage-only. Verification plan F5 adds the concrete assertion [C] at +2 -> [D] and 0 -> unchanged."
+    },
+    {
+      "id": 4,
+      "severity": "NIT",
+      "scope": "F12",
+      "status": "RESOLVED",
+      "title": "F12 snapshot field count wrong (seven vs ten actual reads)",
+      "problem": "Fix F12 says BroadcastStageUpdate reads SEVEN engine members, but it actually reads ten (CurrentSlide.Content.Text, NextSlide.Content.Text, CurrentSlide.SectionName, CurrentSong.Title, CurrentSong.OriginalKey twice, IsLive, IsBlacked, CurrentSlideIndex, TotalSlides). The torn-read concern is valid but the enumeration omits CurrentSong.Title/OriginalKey.",
+      "fix": "Update the F12 member list to the ten actually read and have SnapshotStageData() derive SongTitle/Key/OriginalKey from _currentSong under the same lock.",
+      "resolution": "Fix F12 now lists the TEN members actually read by BroadcastStageUpdate (verified): CurrentSlide.Content.Text, NextSlide.Content.Text, CurrentSlide.SectionName, CurrentSong.Title, CurrentSong.OriginalKey (read twice as Key and OriginalKey), IsLive, IsBlacked, CurrentSlideIndex, TotalSlides. SnapshotStageData() reads _currentSong.Title/_currentSong.OriginalKey under the same _stateLock, and LoadSong's _currentSong write takes that lock."
+    },
+    {
+      "id": 5,
+      "severity": "NIT",
+      "scope": "F1",
+      "status": "RESOLVED",
+      "title": "F1 startup auto-load should state its interaction with the backtrack song-load/stem-preload path",
+      "problem": "Auto-loading the most recent service on startup sets the first item current; if that item is a backtrack Song, OnServiceItemChanged fires SongLoadRequested and preloads stems that this worktree's Songs/ folder lacks. The design does not state this must degrade silently rather than error on startup.",
+      "fix": "Specify that ServiceOrderLoaded handling sets the first item current but any resulting SongLoadRequested/stem load is wrapped by MainWindow.LoadSong's existing try/catch, and add a human check: on startup with the sample service and missing stems the app fills the sidebar and shows a non-fatal 'stems not found' status rather than erroring.",
+      "resolution": "Fix F1 commits that ServiceOrderLoaded setting the first item current may trigger a backtrack SongLoadRequested/stem preload, which degrades silently through MainWindow.LoadSong's existing try/catch (non-fatal 'stems not found' status) and does NOT error on startup; the handler adds no throwing wrapper of its own. Verification plan F1 adds the human startup-degrade check."
+    }
+  ],
+  "reviewDoc": "c:\\Users\\Quang\\Documents\\OneWorshipcenter\\owc-multitrack-feature-lyric-presenter\\owc-multitrack-feature-lyric-presenter\\.worktrees\\presenter-offline-hardening\\.agents\\tasks\\presenter-offline-hardening\\design-review.md"
+}
