@@ -43,6 +43,15 @@ public partial class OutputWindow : Window
     private bool _isVideoMode = false;
 
     /// <summary>
+    /// When true, a user close ([X]) is intercepted and the window is hidden instead of destroyed,
+    /// preserving this single instance and its LibVLC services (BUG fix: closing while LIVE on a
+    /// single monitor used to orphan the window and leak VLC decode memory). The host
+    /// (PresenterIntegration / OperatorWindow) sets this true while the service is LIVE and false
+    /// otherwise, so a genuine non-live close or app shutdown still destroys the window normally.
+    /// </summary>
+    public bool SuppressDestroyWhileLive { get; set; }
+
+    /// <summary>
     /// Fired when full-screen video playback ends (for auto-advance to next service item).
     /// </summary>
     public event EventHandler? VideoPlaybackEnded;
@@ -81,6 +90,42 @@ public partial class OutputWindow : Window
         }
 
         _videoPlaybackService.PlaybackEnded += OnVideoPlaybackEnded;
+    }
+
+    /// <summary>
+    /// Intercept a user close while the service is LIVE: cancel the close and hide the window
+    /// instead of destroying it, so the single OutputWindow instance and its LibVLC services
+    /// survive. GO LIVE then just re-shows the existing instance. A genuine (non-live) close or
+    /// app shutdown leaves SuppressDestroyWhileLive false, so the window closes normally and
+    /// OnClosed disposes everything.
+    /// </summary>
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (SuppressDestroyWhileLive)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+
+        base.OnClosing(e);
+    }
+
+    /// <summary>
+    /// Tear down everything this window owns on a real close / app exit: stop the alert timer,
+    /// unsubscribe the playback-ended handler, and dispose both LibVLC-backed video services
+    /// (Dispose clears the loop flag, unsubscribes EndReached, and releases the native decoder).
+    /// This prevents the motion-background self-restart loop from leaking memory on an orphaned
+    /// window.
+    /// </summary>
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+
+        _alertTimer?.Stop();
+        _videoPlaybackService.PlaybackEnded -= OnVideoPlaybackEnded;
+        _videoBackgroundService.Dispose();
+        _videoPlaybackService.Dispose();
     }
 
     /// <summary>

@@ -439,6 +439,10 @@ public class PresenterIntegration : IDisposable
                 _outputWindow.Closed += (s, e) => _outputWindow = null;
             }
 
+            // Dual-monitor / explicitly-configured output: preserve the existing close semantics
+            // (closing the dedicated output monitor's window destroys it as before).
+            _outputWindow.SuppressDestroyWhileLive = false;
+
             _outputWindow.PlaceOnDisplay(outputDisplay);
 
             if (!_outputWindow.IsVisible)
@@ -449,6 +453,8 @@ public class PresenterIntegration : IDisposable
             // "None" selected — close the output window if it's open
             if (_outputWindow != null && _outputWindow.IsLoaded)
             {
+                // Genuine teardown: ensure the close actually destroys (OnClosed disposes VLC).
+                _outputWindow.SuppressDestroyWhileLive = false;
                 _outputWindow.ExitFullScreen();
                 _outputWindow.Close();
                 _outputWindow = null;
@@ -486,6 +492,12 @@ public class PresenterIntegration : IDisposable
 
             // Full-screen but NOT topmost so the operator can return to the command center.
             _outputWindow.GoFullScreen(topmost: false);
+
+            // While LIVE on a single monitor, a user close ([X]) should hide (keep the one instance
+            // + its LibVLC services alive) rather than destroy/orphan it; GO LIVE then re-shows it.
+            // The flag is cleared on a genuine non-live reconfigure (ApplyDisplaySettings) and on
+            // Dispose so app shutdown still destroys normally.
+            _outputWindow.SuppressDestroyWhileLive = true;
 
             // Register with the operator window so slides forward to this output.
             _operatorWindow?.SetOutputWindow(_outputWindow);
@@ -535,8 +547,17 @@ public class PresenterIntegration : IDisposable
         StageDisplayServer.Dispose();
         CountdownService.Dispose();
 
-        // Close windows
+        // Close windows — app shutdown must destroy the output (and dispose its VLC services),
+        // so clear the hide-while-live guard before closing.
         try { _operatorWindow?.Close(); } catch { }
-        try { _outputWindow?.Close(); } catch { }
+        try
+        {
+            if (_outputWindow != null)
+            {
+                _outputWindow.SuppressDestroyWhileLive = false;
+                _outputWindow.Close();
+            }
+        }
+        catch { }
     }
 }

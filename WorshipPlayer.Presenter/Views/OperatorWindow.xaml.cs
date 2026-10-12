@@ -146,6 +146,9 @@ public partial class OperatorWindow : Window
 
         if (_outputCaptureService != null)
         {
+            // Stop the capture timer (up to 60 FPS RenderTargetBitmap allocations) before
+            // unsubscribing so NDI capture cannot keep running against an orphaned output.
+            _outputCaptureService.Stop();
             _outputCaptureService.FrameCaptured -= OnFrameCaptured;
         }
 
@@ -405,13 +408,18 @@ public partial class OperatorWindow : Window
     {
         if (_engine == null) return;
 
+        // Always (re)create/re-show the single-monitor output first. The hook is a no-op on a
+        // dual-monitor rig and when the window already exists & is loaded; it recreates/reshows the
+        // window and refreshes this window's _outputWindow reference via SetOutputWindow. Running it
+        // unconditionally is what fixes "GO LIVE does nothing after the output was closed while LIVE"
+        // (IsLive stays true, so the old IsBlacked||!IsLive guard never reached the hook).
+        _onGoLive?.Invoke();
+
         if (_engine.IsBlacked || !_engine.IsLive)
         {
-            // F6: on a single-monitor rig this lazily creates/full-screens the output window.
-            _onGoLive?.Invoke();
             _engine.GoLive();
-            _outputWindow?.Unblack();
         }
+        _outputWindow?.Unblack();
     }
 
     private void GoBlack_Click(object sender, RoutedEventArgs e)
@@ -748,11 +756,16 @@ public partial class OperatorWindow : Window
                 break;
 
             case Key.Enter:
-                if (_engine?.IsBlacked == true || !(_engine?.IsLive ?? false))
+                if (_engine != null)
                 {
-                    // F6: single-monitor Go-Live lazy-create/full-screen (same as the button).
+                    // Always (re)create/re-show the single-monitor output first (same as the GO LIVE
+                    // button); the hook recreates/reshows a closed-while-live output and refreshes
+                    // the _outputWindow reference. Keep GoLive() behind the state guard.
                     _onGoLive?.Invoke();
-                    _engine?.GoLive();
+                    if (_engine.IsBlacked || !_engine.IsLive)
+                    {
+                        _engine.GoLive();
+                    }
                     _outputWindow?.Unblack();
                 }
                 e.Handled = true;
