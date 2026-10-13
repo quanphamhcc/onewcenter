@@ -286,12 +286,12 @@ public partial class OutputWindow : Window
         // Load content into the INACTIVE buffer
         if (_isSlideAActive)
         {
-            LoadSlideIntoBuffer(slide, SlideBText, SlideBHeader, SlideBFooter);
+            LoadSlideIntoBuffer(slide, SlideBText, SlideBHeader, SlideBFooter, SlideBChords);
             TransitionToB(transition, durationMs);
         }
         else
         {
-            LoadSlideIntoBuffer(slide, SlideAText, SlideAHeader, SlideAFooter);
+            LoadSlideIntoBuffer(slide, SlideAText, SlideAHeader, SlideAFooter, SlideAChords);
             TransitionToA(transition, durationMs);
         }
 
@@ -312,9 +312,9 @@ public partial class OutputWindow : Window
         if (_currentSlide != null && !_isBlacked && !_isVideoMode)
         {
             if (_isSlideAActive)
-                LoadSlideIntoBuffer(_currentSlide, SlideAText, SlideAHeader, SlideAFooter);
+                LoadSlideIntoBuffer(_currentSlide, SlideAText, SlideAHeader, SlideAFooter, SlideAChords);
             else
-                LoadSlideIntoBuffer(_currentSlide, SlideBText, SlideBHeader, SlideBFooter);
+                LoadSlideIntoBuffer(_currentSlide, SlideBText, SlideBHeader, SlideBFooter, SlideBChords);
         }
     }
 
@@ -527,23 +527,31 @@ public partial class OutputWindow : Window
     // ─── Private Methods ──────────────────────────────────────────
 
     private void LoadSlideIntoBuffer(Slide slide, System.Windows.Controls.TextBlock textBlock,
-        System.Windows.Controls.TextBlock headerBlock, System.Windows.Controls.TextBlock footerBlock)
+        System.Windows.Controls.TextBlock headerBlock, System.Windows.Controls.TextBlock footerBlock,
+        System.Windows.Controls.ItemsControl chordHost)
     {
         // Apply chord display toggle: strip chords for congregation, keep (and transpose by the
         // live pitch offset) for stage. Mirrors PresenterEngine.GetStageText — +N up, 0 unchanged.
         var slideText = slide.Content?.Text ?? "";
-        string displayText;
         if (_showChords)
         {
-            displayText = _pitchSemitones == 0
+            // CHORDS ON: transpose the inline [chord] text FIRST (part d), then build the
+            // monospace chord-over-lyric layout and render it into the chord host.
+            string transposed = _pitchSemitones == 0
                 ? slideText
                 : _chordParser.Transpose(slideText, _pitchSemitones);
+            chordHost.ItemsSource = _chordParser.BuildChordOverLyric(transposed);
+            chordHost.Visibility = Visibility.Visible;
+            textBlock.Visibility = Visibility.Collapsed;
         }
         else
         {
-            displayText = _chordParser.StripChords(slideText);
+            // CHORDS OFF: unchanged congregation behavior — strip chords, themed proportional font.
+            chordHost.ItemsSource = null;
+            chordHost.Visibility = Visibility.Collapsed;
+            textBlock.Visibility = Visibility.Visible;
+            textBlock.Text = _chordParser.StripChords(slideText);
         }
-        textBlock.Text = displayText;
         headerBlock.Text = slide.Content?.Header ?? "";
         footerBlock.Text = slide.Content?.Footer ?? "";
 

@@ -279,18 +279,12 @@ public partial class ChordChartWindow : Window
         if (TransposeSemitones != 0)
             text = parser.Transpose(text, TransposeSemitones);
 
-        var lines = text.Split('\n');
-        string lastChord = ""; // Carry over chord to lines without new chord
-
-        foreach (var rawLine in lines)
+        // Use the shared Core builder as the single source of truth for the chord-over-lyric
+        // strings; this view keeps its own TextBlock creation/coloring (incl. the dim "(chord)"
+        // style via CarriedOver).
+        foreach (var line in parser.BuildChordOverLyric(text))
         {
-            if (string.IsNullOrWhiteSpace(rawLine)) continue; // Skip empty (shouldn't be here in a single slide)
-
             var lineContainer = new StackPanel { Margin = new Thickness(0, 6, 0, 6) };
-
-            // Extract chord positions from this line
-            var chordPositions = parser.ExtractChordPositions(rawLine);
-            string lyricText = parser.StripChords(rawLine);
 
             // Build chord display line
             var chordTextBlock = new TextBlock
@@ -301,31 +295,16 @@ public partial class ChordChartWindow : Window
                 FontFamily = new FontFamily("Consolas, Courier New, monospace")
             };
 
-            if (chordPositions.Count > 0)
-            {
-                // Build positioned chord string
-                int lineLength = Math.Max(lyricText.Length + 10, 80);
-                char[] chordChars = new char[lineLength];
-                Array.Fill(chordChars, ' ');
-
-                foreach (var (charOffset, chord) in chordPositions)
-                {
-                    int offset = Math.Clamp(charOffset, 0, lineLength - chord.Length - 1);
-                    for (int i = 0; i < chord.Length && offset + i < lineLength; i++)
-                    {
-                        chordChars[offset + i] = chord[i];
-                    }
-                    lastChord = chord; // Track last chord for carry-over
-                }
-
-                chordTextBlock.Text = new string(chordChars).TrimEnd();
-            }
-            else if (!string.IsNullOrEmpty(lastChord))
+            if (line.CarriedOver)
             {
                 // No chord on this line — show carried-over chord (dim)
-                chordTextBlock.Text = $"({lastChord})";
+                chordTextBlock.Text = line.ChordLine;
                 chordTextBlock.Foreground = DimBrush;
                 chordTextBlock.FontSize = 16;
+            }
+            else if (!string.IsNullOrEmpty(line.ChordLine))
+            {
+                chordTextBlock.Text = line.ChordLine;
             }
             else
             {
@@ -335,7 +314,7 @@ public partial class ChordChartWindow : Window
             // Build lyric line (large, white, readable)
             var lyricTextBlock = new TextBlock
             {
-                Text = lyricText,
+                Text = line.LyricLine,
                 FontSize = 24,
                 Foreground = LyricBrush,
                 FontFamily = new FontFamily("Consolas, Courier New, monospace"),

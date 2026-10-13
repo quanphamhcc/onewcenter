@@ -56,11 +56,31 @@
                     BorderBrush="#2A2E3A" BorderThickness="2"
                     Cursor="Hand" MouseLeftButtonDown="StagePreview_Click">
                 <Grid>
-                    <TextBlock x:Name="NextSlidePreview" Text="(standby)"
-                               FontSize="16" Foreground="#B0B4C0"
-                               TextAlignment="Center" TextWrapping="Wrap"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               Margin="16" />
+                    <!-- STAGE preview: monospace chord-over-lyric layout (green chord row above white lyric row) -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16">
+                        <TextBlock x:Name="StagePreviewPlaceholder" Text="(standby)"
+                                   FontSize="16" Foreground="#B0B4C0"
+                                   TextAlignment="Center" TextWrapping="Wrap"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock x:Name="StagePreviewSection" FontSize="12" FontWeight="Bold"
+                                   Foreground="#7ED321" HorizontalAlignment="Center"
+                                   Margin="0,0,0,6" Visibility="Collapsed" />
+                        <ItemsControl x:Name="StagePreviewItems" HorizontalAlignment="Center">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,2,0,2">
+                                        <TextBlock Text="{Binding ChordLine}"
+                                                   FontFamily="Consolas, Courier New"
+                                                   FontSize="15" FontWeight="Bold"
+                                                   Foreground="#7ED321" />
+                                        <TextBlock Text="{Binding LyricLine}"
+                                                   FontFamily="Consolas, Courier New"
+                                                   FontSize="16" Foreground="White" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                     <TextBlock Text="STAGE" FontSize="9" FontWeight="Bold"
                                Foreground="#8B92A5" HorizontalAlignment="Left"
                                VerticalAlignment="Top" Margin="10,6" />

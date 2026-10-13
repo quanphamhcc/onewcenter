@@ -68,23 +68,65 @@
 
             <!-- Main Content -->
             <Viewbox Grid.Row="1" Margin="80,20">
-                <TextBlock x:Name="SlideAText"
-                           FontSize="60"
-                           FontWeight="Bold"
-                           Foreground="White"
-                           TextAlignment="Center"
-                           TextWrapping="Wrap"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           FontFamily="Segoe UI"
-                           MaxWidth="1600">
-                    <TextBlock.Effect>
-                        <DropShadowEffect Color="Black"
-                                          BlurRadius="6"
-                                          ShadowDepth="2"
-                                          Opacity="0.8" />
-                    </TextBlock.Effect>
-                </TextBlock>
+                <Grid>
+                    <!-- Lyric-only (chords OFF) path: themed proportional font, unchanged -->
+                    <TextBlock x:Name="SlideAText"
+                               FontSize="60"
+                               FontWeight="Bold"
+                               Foreground="White"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontFamily="Segoe UI"
+                               MaxWidth="1600">
+                        <TextBlock.Effect>
+                            <DropShadowEffect Color="Black"
+                                              BlurRadius="6"
+                                              ShadowDepth="2"
+                                              Opacity="0.8" />
+                        </TextBlock.Effect>
+                    </TextBlock>
+
+                    <!-- Chords ON path: monospace chord row (green) above lyric row (themed) -->
+                    <ItemsControl x:Name="SlideAChords"
+                                  Visibility="Collapsed"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,4,0,4">
+                                    <TextBlock Text="{Binding ChordLine}"
+                                               FontFamily="Consolas, Courier New"
+                                               FontSize="46"
+                                               FontWeight="Bold"
+                                               Foreground="#7ED321"
+                                               TextAlignment="Left">
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="Black"
+                                                              BlurRadius="6"
+                                                              ShadowDepth="2"
+                                                              Opacity="0.8" />
+                                        </TextBlock.Effect>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding LyricLine}"
+                                               FontFamily="Consolas, Courier New"
+                                               FontSize="60"
+                                               FontWeight="Bold"
+                                               Foreground="White"
+                                               TextAlignment="Left">
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="Black"
+                                                              BlurRadius="6"
+                                                              ShadowDepth="2"
+                                                              Opacity="0.8" />
+                                        </TextBlock.Effect>
+                                    </TextBlock>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
             </Viewbox>
 
             <!-- Footer (Copyright/CCLI) -->
@@ -116,23 +158,65 @@
 
             <!-- Main Content -->
             <Viewbox Grid.Row="1" Margin="80,20">
-                <TextBlock x:Name="SlideBText"
-                           FontSize="60"
-                           FontWeight="Bold"
-                           Foreground="White"
-                           TextAlignment="Center"
-                           TextWrapping="Wrap"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           FontFamily="Segoe UI"
-                           MaxWidth="1600">
-                    <TextBlock.Effect>
-                        <DropShadowEffect Color="Black"
-                                          BlurRadius="6"
-                                          ShadowDepth="2"
-                                          Opacity="0.8" />
-                    </TextBlock.Effect>
-                </TextBlock>
+                <Grid>
+                    <!-- Lyric-only (chords OFF) path: themed proportional font, unchanged -->
+                    <TextBlock x:Name="SlideBText"
+                               FontSize="60"
+                               FontWeight="Bold"
+                               Foreground="White"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontFamily="Segoe UI"
+                               MaxWidth="1600">
+                        <TextBlock.Effect>
+                            <DropShadowEffect Color="Black"
+                                              BlurRadius="6"
+                                              ShadowDepth="2"
+                                              Opacity="0.8" />
+                        </TextBlock.Effect>
+                    </TextBlock>
+
+                    <!-- Chords ON path: monospace chord row (green) above lyric row (themed) -->
+                    <ItemsControl x:Name="SlideBChords"
+                                  Visibility="Collapsed"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,4,0,4">
+                                    <TextBlock Text="{Binding ChordLine}"
+                                               FontFamily="Consolas, Courier New"
+                                               FontSize="46"
+                                               FontWeight="Bold"
+                                               Foreground="#7ED321"
+                                               TextAlignment="Left">
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="Black"
+                                                              BlurRadius="6"
+                                                              ShadowDepth="2"
+                                                              Opacity="0.8" />
+                                        </TextBlock.Effect>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding LyricLine}"
+                                               FontFamily="Consolas, Courier New"
+                                               FontSize="60"
+                                               FontWeight="Bold"
+                                               Foreground="White"
+                                               TextAlignment="Left">
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="Black"
+                                                              BlurRadius="6"
+                                                              ShadowDepth="2"
+                                                              Opacity="0.8" />
+                                        </TextBlock.Effect>
+                                    </TextBlock>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
             </Viewbox>
 
             <!-- Footer -->

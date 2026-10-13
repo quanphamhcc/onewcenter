@@ -911,4 +911,89 @@ public class ChordProParserService
     {
         return text.TrimEnd('\n', '\r', ' ');
     }
+
+    /// <summary>
+    /// Build a chord-over-lyric layout from inline [chord] text.
+    /// This is the single shared source of truth for the two-line layout used by the
+    /// WPF STAGE preview, the congregation output, and (optionally) ChordChartWindow.
+    ///
+    /// Mirrors ChordChartWindow.BuildFromInlineChords/BuildChordLine EXACTLY:
+    /// - split on '\n'
+    /// - skip blank/whitespace lines (same as the reference's `continue`)
+    /// - per line call ExtractChordPositions + StripChords
+    /// - fill a char[Math.Max(lyric.Length + 10, 80)] with spaces, write each chord at
+    ///   Math.Clamp(offset, 0, len - chord.Length - 1), then TrimEnd()
+    /// - carry the last chord onto chordless lines as a dim "(chord)" (CarriedOver = true)
+    ///
+    /// Returns strings only (no WPF types) so it is unit-testable and shareable.
+    /// </summary>
+    public List<ChordLyricLine> BuildChordOverLyric(string text)
+    {
+        var result = new List<ChordLyricLine>();
+        if (string.IsNullOrEmpty(text)) return result;
+
+        var lines = text.Split('\n');
+        string lastChord = ""; // Carry over chord to lines without a new chord
+
+        foreach (var rawLine in lines)
+        {
+            if (string.IsNullOrWhiteSpace(rawLine)) continue; // Skip empty lines (matches reference)
+
+            var chordPositions = ExtractChordPositions(rawLine);
+            string lyricText = StripChords(rawLine);
+
+            string chordLine;
+            bool carriedOver = false;
+
+            if (chordPositions.Count > 0)
+            {
+                int lineLength = Math.Max(lyricText.Length + 10, 80);
+                char[] chordChars = new char[lineLength];
+                Array.Fill(chordChars, ' ');
+
+                foreach (var (charOffset, chord) in chordPositions)
+                {
+                    int offset = Math.Clamp(charOffset, 0, lineLength - chord.Length - 1);
+                    for (int i = 0; i < chord.Length && offset + i < lineLength; i++)
+                    {
+                        chordChars[offset + i] = chord[i];
+                    }
+                    lastChord = chord; // Track last chord for carry-over
+                }
+
+                chordLine = new string(chordChars).TrimEnd();
+            }
+            else if (!string.IsNullOrEmpty(lastChord))
+            {
+                // No chord on this line — show carried-over chord (dim)
+                chordLine = $"({lastChord})";
+                carriedOver = true;
+            }
+            else
+            {
+                chordLine = "";
+            }
+
+            result.Add(new ChordLyricLine
+            {
+                ChordLine = chordLine,
+                LyricLine = lyricText,
+                CarriedOver = carriedOver
+            });
+        }
+
+        return result;
+    }
+}
+
+/// <summary>
+/// A single rendered chord-over-lyric line: the monospace chord row (<see cref="ChordLine"/>)
+/// sits above the lyric row (<see cref="LyricLine"/>). <see cref="CarriedOver"/> is true when
+/// the chord row is a dim "(chord)" carried over from a previous line (no new chord here).
+/// </summary>
+public class ChordLyricLine
+{
+    public string ChordLine { get; set; } = "";
+    public string LyricLine { get; set; } = "";
+    public bool CarriedOver { get; set; }
 }

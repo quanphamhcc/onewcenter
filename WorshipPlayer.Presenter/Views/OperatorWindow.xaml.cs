@@ -815,13 +815,34 @@ public partial class OperatorWindow : Window
         CurrentSlidePreview.Text = audienceText;
 
         // STAGE preview: Show what MUSICIANS actually see (current slide WITH chords, always)
-        // Stage always shows chords — this mirrors the web stage display at /stage
-        string stageText = current?.Content.Text ?? "(standby)";
-        if (!string.IsNullOrEmpty(current?.SectionName))
+        // Stage always shows chords — this mirrors the web stage display at /stage.
+        // Render a green monospace chord row ABOVE a white monospace lyric row, using the
+        // engine's GetStageText so transposition + live pitch shift apply (part b/d).
+        if (current == null || _engine == null)
         {
-            stageText = $"{current.SectionName}\n{stageText}";
+            StagePreviewItems.ItemsSource = null;
+            StagePreviewSection.Visibility = Visibility.Collapsed;
+            StagePreviewPlaceholder.Visibility = Visibility.Visible;
         }
-        NextSlidePreview.Text = stageText;
+        else
+        {
+            string stageText = _engine.GetStageText(current, _engine.PitchShiftSemitones);
+            var stageLines = _previewChordParser.BuildChordOverLyric(stageText);
+            StagePreviewItems.ItemsSource = stageLines;
+
+            if (!string.IsNullOrEmpty(current.SectionName))
+            {
+                StagePreviewSection.Text = current.SectionName;
+                StagePreviewSection.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                StagePreviewSection.Visibility = Visibility.Collapsed;
+            }
+
+            StagePreviewPlaceholder.Visibility = stageLines.Count == 0
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
 
         // Update live glow on audience preview
         if (_engine != null && _engine.IsLive && !_engine.IsBlacked)
