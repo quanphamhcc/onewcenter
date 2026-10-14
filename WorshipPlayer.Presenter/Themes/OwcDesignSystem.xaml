@@ -14,6 +14,44 @@
          caused infinite layout recursion by overriding WPF's built-in templates
          without providing replacement ControlTemplates. -->
 
+    <!-- Colors and brushes are declared FIRST so every {StaticResource ...Brush}
+         reference below resolves to a concrete value. StaticResource is resolved
+         in document order within a dictionary; a forward reference (resource used
+         above where it is defined) resolves to DependencyProperty.UnsetValue, which
+         crashes any ControlTemplate that feeds it through a TemplateBinding
+         (e.g. BorderBrush -> "'(DependencyProperty.UnsetValue)' is not a valid
+         value for property 'BorderBrush'"). -->
+
+    <!-- OWC Design Identity - Color Palette -->
+    <Color x:Key="OwcBackgroundColor">#0F1117</Color>
+    <Color x:Key="OwcPanelColor">#1A1D27</Color>
+    <Color x:Key="OwcSurfaceColor">#252A36</Color>
+    <Color x:Key="OwcAccentColor">#00D4FF</Color>
+    <Color x:Key="OwcLiveColor">#FF3366</Color>
+    <Color x:Key="OwcConnectedColor">#00E676</Color>
+    <Color x:Key="OwcWarningColor">#FFAB00</Color>
+    <Color x:Key="OwcTextPrimaryColor">#F0F2F5</Color>
+    <Color x:Key="OwcTextSecondaryColor">#8B92A5</Color>
+    <Color x:Key="OwcTextMutedColor">#4A5068</Color>
+    <Color x:Key="OwcBorderColor">#2A2E3A</Color>
+
+    <!-- Hover/Interaction Colors -->
+    <Color x:Key="OwcSurfaceHoverColor">#2F3544</Color>
+
+    <!-- Brush Resources -->
+    <SolidColorBrush x:Key="OwcBackgroundBrush" Color="{StaticResource OwcBackgroundColor}" />
+    <SolidColorBrush x:Key="OwcPanelBrush" Color="{StaticResource OwcPanelColor}" />
+    <SolidColorBrush x:Key="OwcSurfaceBrush" Color="{StaticResource OwcSurfaceColor}" />
+    <SolidColorBrush x:Key="OwcSurfaceHoverBrush" Color="{StaticResource OwcSurfaceHoverColor}" />
+    <SolidColorBrush x:Key="OwcAccentBrush" Color="{StaticResource OwcAccentColor}" />
+    <SolidColorBrush x:Key="OwcLiveBrush" Color="{StaticResource OwcLiveColor}" />
+    <SolidColorBrush x:Key="OwcConnectedBrush" Color="{StaticResource OwcConnectedColor}" />
+    <SolidColorBrush x:Key="OwcWarningBrush" Color="{StaticResource OwcWarningColor}" />
+    <SolidColorBrush x:Key="OwcTextPrimaryBrush" Color="{StaticResource OwcTextPrimaryColor}" />
+    <SolidColorBrush x:Key="OwcTextSecondaryBrush" Color="{StaticResource OwcTextSecondaryColor}" />
+    <SolidColorBrush x:Key="OwcTextMutedBrush" Color="{StaticResource OwcTextMutedColor}" />
+    <SolidColorBrush x:Key="OwcBorderBrush" Color="{StaticResource OwcBorderColor}" />
+
     <!-- Keyed styles - must be explicitly applied via Style="{StaticResource ...}" -->
     <Style x:Key="OwcTextBox" TargetType="TextBox">
         <Setter Property="Background" Value="{StaticResource OwcSurfaceBrush}" />
@@ -158,44 +196,23 @@
         </Setter>
     </Style>
 
-    <!-- Back-compat alias: existing callers reference OwcComboBox. Point it at the
-         fully-templated dark style so they get a readable dropdown too. -->
-    <Style x:Key="OwcComboBox" TargetType="ComboBox" BasedOn="{StaticResource OwcDarkComboBox}" />
+    <!-- Back-compat alias: existing callers reference OwcComboBox. Kept as the
+         original lightweight keyed style (NO ControlTemplate) so existing
+         ComboBoxes behave exactly as before and do not get the heavy dark
+         template forced onto them. Apply OwcDarkComboBox explicitly where a
+         dark dropdown is wanted (e.g. the Songs-tab filters). -->
+    <Style x:Key="OwcComboBox" TargetType="ComboBox">
+        <Setter Property="Background" Value="{StaticResource OwcSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource OwcTextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource OwcBorderBrush}" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
 
     <Style x:Key="OwcCheckBox" TargetType="CheckBox">
         <Setter Property="Foreground" Value="{StaticResource OwcTextPrimaryBrush}" />
         <Setter Property="FontSize" Value="13" />
     </Style>
-
-    <!-- OWC Design Identity - Color Palette -->
-    <Color x:Key="OwcBackgroundColor">#0F1117</Color>
-    <Color x:Key="OwcPanelColor">#1A1D27</Color>
-    <Color x:Key="OwcSurfaceColor">#252A36</Color>
-    <Color x:Key="OwcAccentColor">#00D4FF</Color>
-    <Color x:Key="OwcLiveColor">#FF3366</Color>
-    <Color x:Key="OwcConnectedColor">#00E676</Color>
-    <Color x:Key="OwcWarningColor">#FFAB00</Color>
-    <Color x:Key="OwcTextPrimaryColor">#F0F2F5</Color>
-    <Color x:Key="OwcTextSecondaryColor">#8B92A5</Color>
-    <Color x:Key="OwcTextMutedColor">#4A5068</Color>
-    <Color x:Key="OwcBorderColor">#2A2E3A</Color>
-
-    <!-- Hover/Interaction Colors -->
-    <Color x:Key="OwcSurfaceHoverColor">#2F3544</Color>
-
-    <!-- Brush Resources -->
-    <SolidColorBrush x:Key="OwcBackgroundBrush" Color="{StaticResource OwcBackgroundColor}" />
-    <SolidColorBrush x:Key="OwcPanelBrush" Color="{StaticResource OwcPanelColor}" />
-    <SolidColorBrush x:Key="OwcSurfaceBrush" Color="{StaticResource OwcSurfaceColor}" />
-    <SolidColorBrush x:Key="OwcSurfaceHoverBrush" Color="{StaticResource OwcSurfaceHoverColor}" />
-    <SolidColorBrush x:Key="OwcAccentBrush" Color="{StaticResource OwcAccentColor}" />
-    <SolidColorBrush x:Key="OwcLiveBrush" Color="{StaticResource OwcLiveColor}" />
-    <SolidColorBrush x:Key="OwcConnectedBrush" Color="{StaticResource OwcConnectedColor}" />
-    <SolidColorBrush x:Key="OwcWarningBrush" Color="{StaticResource OwcWarningColor}" />
-    <SolidColorBrush x:Key="OwcTextPrimaryBrush" Color="{StaticResource OwcTextPrimaryColor}" />
-    <SolidColorBrush x:Key="OwcTextSecondaryBrush" Color="{StaticResource OwcTextSecondaryColor}" />
-    <SolidColorBrush x:Key="OwcTextMutedBrush" Color="{StaticResource OwcTextMutedColor}" />
-    <SolidColorBrush x:Key="OwcBorderBrush" Color="{StaticResource OwcBorderColor}" />
 
     <!-- Button Base Style -->
     <Style x:Key="OwcButtonBase" TargetType="Button">
