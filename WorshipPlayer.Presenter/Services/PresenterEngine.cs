@@ -368,6 +368,41 @@ public class PresenterEngine : IDisposable
     }
 
     /// <summary>
+    /// Load a standalone song (e.g. picked from the Songs tab) unconditionally.
+    /// Unlike <see cref="LoadSong"/>, this ignores the current ServiceItem's pre-baked
+    /// slides and ALWAYS regenerates slides from the song's sections[].text, then emits.
+    /// This gives the Songs-tab path its own entry point without touching the F2/F3
+    /// "ServiceItem slides are the source of truth" behavior of the service-order flow.
+    /// </summary>
+    public void LoadStandaloneSong(Song song)
+    {
+        lock (_stateLock)
+        {
+            _currentSong = song;
+        }
+        _pitchShiftSemitones = 0;
+        _tempoPercent = 100.0;
+
+        // Always generate from the song's sections[].text — no itemHasSlides guard.
+        // GenerateSlidesFromSong resets _currentSlides/_currentSlideIndex under lock.
+        GenerateSlidesFromSong(song);
+
+        SongLoaded?.Invoke(this, new SongLoadedEventArgs { Song = song });
+
+        if (_currentSlides.Count > 0 && _currentSlideIndex >= 0)
+        {
+            SlideChanged?.Invoke(this, new SlideChangedEventArgs
+            {
+                PreviousSlide = null,
+                NewSlide = _currentSlides[_currentSlideIndex],
+                Transition = SlideTransition.Fade,
+                TransitionDurationMs = 500,
+                IsLogo = false
+            });
+        }
+    }
+
+    /// <summary>
     /// Generate slides from a song's sections[].text field.
     /// Uses ChordChartData timing when available for auto-advance.
     /// This is the bridge between the backtrack's song data and the presenter's slide system.

@@ -107,4 +107,36 @@ public class PresenterEngineSlideSourceTests
         // Fallback fired SlideChanged exactly once (slide 0).
         Assert.Equal(1, slideChangedCount);
     }
+
+    [Fact]
+    public void LoadStandaloneSong_ItemHasSlides_StillGeneratesSongSlides_AndFiresSlideChanged()
+    {
+        // Current item carries pre-baked slides — LoadSong would be gated by the
+        // F2/F3 guard. LoadStandaloneSong must ignore that and generate the song's
+        // own slides anyway (the Songs-tab path).
+        var item = SongItemWithSlides();
+        var engine = EngineWithCurrentItem(item);
+
+        int slideChangedCount = 0;
+        engine.SlideChanged += (_, _) => slideChangedCount++;
+
+        var song = new Song
+        {
+            Title = "The Blessing",
+            OriginalKey = "C",
+            Sections = new List<Section>
+            {
+                new Section { Name = "Verse 1", Text = "[B]The Lord bless you and keep you" }
+            }
+        };
+
+        engine.LoadStandaloneSong(song);
+
+        // The standalone song's slides were generated, replacing the pre-baked item slides.
+        Assert.True(engine.TotalSlides > 0);
+        Assert.Equal("Verse 1", engine.CurrentSlides[0].SectionName, ignoreCase: true);
+
+        // SlideChanged fired for the standalone load (slide 0).
+        Assert.Equal(1, slideChangedCount);
+    }
 }

@@ -1216,7 +1216,7 @@ public partial class OperatorWindow : Window
             var song = _songManager?.Songs.FirstOrDefault(s => s.FolderPath == songItem.Id);
             if (song != null)
             {
-                _engine.OnSongLoaded(song);
+                _engine.LoadStandaloneSong(song);
             }
         }
     }
