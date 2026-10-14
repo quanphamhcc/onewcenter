@@ -1209,15 +1209,22 @@ public partial class OperatorWindow : Window
 
     private void OnSongSelected(object? sender, SongListItem songItem)
     {
-        // Load the selected song into the backtrack engine via the service order manager
-        if (_engine != null && !string.IsNullOrEmpty(songItem.Id))
+        // Load the selected song into the presenter engine (Songs-tab standalone path).
+        // The item's Id is produced from Song.FolderPath, but folder-scan vs. registry
+        // paths can differ by casing/separators — resolve robustly (normalized path,
+        // then folder name, then title) instead of relying on an exact string match.
+        if (_engine == null || _songManager == null) return;
+
+        var song = SongPathResolver.Resolve(_songManager.Songs, songItem.Id, songItem.Title);
+        if (song != null)
         {
-            // The song Id is the folder path - fire event to load it
-            var song = _songManager?.Songs.FirstOrDefault(s => s.FolderPath == songItem.Id);
-            if (song != null)
-            {
-                _engine.LoadStandaloneSong(song);
-            }
+            _engine.LoadStandaloneSong(song);
+        }
+        else
+        {
+            // Non-fatal: nothing resolved — surface it instead of silently doing nothing.
+            System.Diagnostics.Debug.WriteLine(
+                $"OnSongSelected: could not resolve song (Id='{songItem.Id}', Title='{songItem.Title}').");
         }
     }
 

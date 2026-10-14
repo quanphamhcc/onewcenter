@@ -45,8 +45,7 @@
                 </Grid.ColumnDefinitions>
 
                 <ComboBox x:Name="KeyFilterComboBox" Grid.Column="0"
-                          Background="{StaticResource OwcSurfaceBrush}"
-                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          Style="{StaticResource OwcDarkComboBox}"
                           FontSize="11" Padding="6,4"
                           SelectionChanged="Filter_Changed">
                     <ComboBoxItem Content="All Keys" IsSelected="True"/>
@@ -63,8 +62,7 @@
                 </ComboBox>
 
                 <ComboBox x:Name="ArtistFilterComboBox" Grid.Column="2"
-                          Background="{StaticResource OwcSurfaceBrush}"
-                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          Style="{StaticResource OwcDarkComboBox}"
                           FontSize="11" Padding="6,4"
                           SelectionChanged="Filter_Changed">
                     <ComboBoxItem Content="All Artists" IsSelected="True"/>

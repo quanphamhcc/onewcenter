@@ -51,7 +51,7 @@ public class SongManager
                 {
                     var json = await File.ReadAllTextAsync(songJsonPath);
                     var song = JsonSerializer.Deserialize<Song>(json, _jsonOptions);
-                    if (song != null)
+                    if (song != null && !Songs.Any(s => SongPathResolver.PathsEqual(s.FolderPath, dir)))
                     {
                         song.FolderPath = dir;
                         Songs.Add(song);
@@ -85,8 +85,10 @@ public class SongManager
             foreach (var dir in paths)
             {
                 if (!Directory.Exists(dir)) continue;
-                // Skip if already loaded (it's a subdirectory of base path)
-                if (Songs.Any(s => s.FolderPath == dir)) continue;
+                // Skip if already loaded (it's a subdirectory of base path).
+                // Compare by normalized path so a registry entry that differs only by
+                // drive-letter case / trailing separator is still treated as a duplicate.
+                if (Songs.Any(s => SongPathResolver.PathsEqual(s.FolderPath, dir))) continue;
 
                 var songJsonPath = Path.Combine(dir, "song.json");
                 if (File.Exists(songJsonPath))

@@ -24,13 +24,143 @@
         <Setter Property="FontSize" Value="13" />
     </Style>
 
-    <Style x:Key="OwcComboBox" TargetType="ComboBox">
+    <!-- Dark ComboBoxItem (used inside the dark ComboBox dropdown Popup).
+         Full ControlTemplate so the item renders dark instead of the WPF default white. -->
+    <Style x:Key="OwcDarkComboBoxItem" TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="{StaticResource OwcPanelBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource OwcTextPrimaryBrush}" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="ItemBorder"
+                            Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background"
+                                    Value="{StaticResource OwcAccentBrush}" />
+                            <Setter Property="Foreground">
+                                <Setter.Value>
+                                    <SolidColorBrush Color="#0F1117" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background">
+                                <Setter.Value>
+                                    <SolidColorBrush Color="#1A3A4A" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Foreground" Value="{StaticResource OwcAccentBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ToggleButton used by the dark ComboBox template -->
+    <Style x:Key="OwcComboBoxToggleButton" TargetType="ToggleButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="ClickMode" Value="Press" />
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="Transparent">
+                        <Path x:Name="Arrow"
+                              HorizontalAlignment="Right"
+                              VerticalAlignment="Center"
+                              Margin="0,0,8,0"
+                              Data="M 0 0 L 4 4 L 8 0 Z"
+                              Fill="{StaticResource OwcTextPrimaryBrush}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Dark ComboBox: full ControlTemplate so BOTH the closed face and the opened
+         dropdown Popup render dark (OwcSurface/OwcPanel) with light text.
+         The default WPF template renders white/light, making OwcTextPrimary text
+         invisible. Keyed — apply explicitly via Style="{StaticResource OwcDarkComboBox}". -->
+    <Style x:Key="OwcDarkComboBox" TargetType="ComboBox">
         <Setter Property="Background" Value="{StaticResource OwcSurfaceBrush}" />
         <Setter Property="Foreground" Value="{StaticResource OwcTextPrimaryBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource OwcBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="8,6" />
         <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource OwcDarkComboBoxItem}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <Border x:Name="MainBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" />
+                        <ContentPresenter x:Name="ContentSite"
+                                          Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                          IsHitTestVisible="False" />
+                        <ToggleButton Grid.Column="0"
+                                      Style="{StaticResource OwcComboBoxToggleButton}"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
+                        <Popup x:Name="PART_Popup"
+                               Placement="Bottom"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               PopupAnimation="Slide">
+                            <Border x:Name="DropDownBorder"
+                                    MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                    MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                    Background="{StaticResource OwcPanelBrush}"
+                                    BorderBrush="{StaticResource OwcBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Margin="0,2,0,0">
+                                <ScrollViewer SnapsToDevicePixels="True">
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="MainBorder" Property="Background"
+                                    Value="{StaticResource OwcSurfaceHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{StaticResource OwcTextMutedBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
+
+    <!-- Back-compat alias: existing callers reference OwcComboBox. Point it at the
+         fully-templated dark style so they get a readable dropdown too. -->
+    <Style x:Key="OwcComboBox" TargetType="ComboBox" BasedOn="{StaticResource OwcDarkComboBox}" />
 
     <Style x:Key="OwcCheckBox" TargetType="CheckBox">
         <Setter Property="Foreground" Value="{StaticResource OwcTextPrimaryBrush}" />
