@@ -21,6 +21,15 @@ public class ServiceOrder
     [JsonPropertyName("date")]
     public string Date { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
 
+    /// <summary>
+    /// Optional start date+time of the service (e.g. 10/18/2026 08:00 AM).
+    /// Nullable so existing date-only service files load with no time and nothing
+    /// time-related is written back (the manager ignores null when serializing).
+    /// The UI formats this with <see cref="Services.ServiceDateFormatter"/>.
+    /// </summary>
+    [JsonPropertyName("startTime")]
+    public DateTime? StartTime { get; set; }
+
     [JsonPropertyName("serviceType")]
     public string ServiceType { get; set; } = "Sunday Morning";
 

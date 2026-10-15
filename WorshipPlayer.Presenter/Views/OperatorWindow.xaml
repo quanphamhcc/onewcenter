@@ -250,6 +250,9 @@
                         <Button Content="Remove Item" Padding="6,5" Margin="0,2" FontSize="10"
                                 Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
                                 Click="RemoveServiceItem_Click" Cursor="Hand" />
+                        <Button Content="Edit Service" Padding="6,5" Margin="0,2" FontSize="10"
+                                Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
+                                Click="EditService_Click" Cursor="Hand" />
                         <Button Content="Load Service" Padding="6,5" Margin="0,2" FontSize="10"
                                 Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
                                 Click="LoadService_Click" Cursor="Hand" />

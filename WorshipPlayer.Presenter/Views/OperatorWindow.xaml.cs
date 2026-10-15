@@ -484,10 +484,27 @@ public partial class OperatorWindow : Window
         }
     }
 
-    private void NewService_Click(object sender, RoutedEventArgs e)
+    private async void NewService_Click(object sender, RoutedEventArgs e)
     {
         try
         {
+            // When no service is loaded yet, let the user name it and pick a US-format
+            // date/time first (ServiceInfoDialog merges the dark theme safely). If they
+            // cancel, create nothing. This replaces the old hardcoded "New Service"/today.
+            if (_serviceOrderManager != null && _serviceOrderManager.CurrentServiceOrder == null)
+            {
+                var infoDialog = new ServiceInfoDialog { Owner = this };
+                if (infoDialog.ShowDialog() != true || !infoDialog.Confirmed)
+                    return;
+
+                _serviceOrderManager.CreateNew(infoDialog.ServiceName, infoDialog.ServiceDate);
+                if (_serviceOrderManager.CurrentServiceOrder != null)
+                    _serviceOrderManager.CurrentServiceOrder.StartTime = infoDialog.StartTime;
+
+                await SaveServiceOrderAsync();
+                RefreshServiceOrderList();
+            }
+
             var dialog = new AddServiceItemDialog();
             dialog.Owner = this;
             if (_serviceOrderManager != null)
@@ -501,6 +518,36 @@ public partial class OperatorWindow : Window
         catch (Exception ex)
         {
             ShowToolError("Add Service Item", ex.Message);
+        }
+    }
+
+    private async void EditService_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var order = _serviceOrderManager?.CurrentServiceOrder;
+            if (order == null)
+            {
+                MessageBox.Show("No service is loaded. Click '+ Add Item' to create one first.",
+                    "Edit Service", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var infoDialog = new ServiceInfoDialog { Owner = this };
+            infoDialog.Initialize(order.Name, order.Date, order.StartTime);
+            if (infoDialog.ShowDialog() != true || !infoDialog.Confirmed)
+                return;
+
+            order.Name = infoDialog.ServiceName;
+            order.Date = infoDialog.ServiceDate;
+            order.StartTime = infoDialog.StartTime;
+
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Edit Service", ex.Message);
         }
     }
 
