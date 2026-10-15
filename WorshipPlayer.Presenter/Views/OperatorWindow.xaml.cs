@@ -324,12 +324,23 @@ public partial class OperatorWindow : Window
         {
             CurrentItemTitle.Text = e.NewItem?.Title ?? "";
             CurrentItemSubtitle.Text = e.NewItem?.Type.ToString() ?? "";
+
+            // BUG A: ensure the sidebar reflects the loaded service. On startup the service order
+            // is auto-loaded asynchronously (ServiceOrderManager.LoadAsync) AFTER the operator
+            // window has already run its initial RefreshServiceOrderList() against an empty order.
+            // The load path ends in GoToItem(0) -> ItemChanged, so refreshing the list here
+            // repopulates it once a service is actually loaded (covers both auto-load and manual
+            // Load Service). The list is only rebuilt when its item count no longer matches, so the
+            // user's current selection is preserved for ordinary item-to-item navigation.
+            var orderItemCount = _engine?.CurrentServiceOrder?.Items.Count ?? 0;
+            if (_serviceOrderItems.Count != orderItemCount)
+            {
+                RefreshServiceOrderList();
+            }
+
             RefreshSlideThumbnails();
             UpdatePreviews();
             UpdateSlideCounter();
-
-            // Highlight in service order list (ItemsControl doesn't support selection)
-            // Future: add click handlers on items for navigation
         });
     }
 
@@ -926,32 +937,43 @@ public partial class OperatorWindow : Window
 
     private void RefreshServiceOrderList()
     {
-        _serviceOrderItems.Clear();
-        ServiceOrderList.ItemsSource = _serviceOrderItems;
-
-        var order = _engine?.CurrentServiceOrder;
-        if (order == null) return;
-
-        foreach (var item in order.Items)
+        // BUG B: suppress the SelectionChanged handler while we rebuild the list. Clearing and
+        // repopulating the backing collection raises SelectionChanged, which must not re-enter
+        // GoToItem during a programmatic refresh.
+        _suppressServiceOrderSelection = true;
+        try
         {
-            var icon = item.Type switch
-            {
-                ServiceItemType.Song => "\u266A",
-                ServiceItemType.Scripture => "\U0001F4D6",
-                ServiceItemType.Announcement => "\U0001F4E2",
-                ServiceItemType.Sermon => "\U0001F3A4",
-                ServiceItemType.Video => "\U0001F3AC",
-                ServiceItemType.Offering => "\U0001F49D",
-                ServiceItemType.Prayer => "\U0001F64F",
-                _ => "\u2022"
-            };
+            _serviceOrderItems.Clear();
+            ServiceOrderList.ItemsSource = _serviceOrderItems;
 
-            _serviceOrderItems.Add(new ServiceItemDisplay
+            var order = _engine?.CurrentServiceOrder;
+            if (order == null) return;
+
+            foreach (var item in order.Items)
             {
-                Icon = icon,
-                Title = item.Title,
-                Item = item
-            });
+                var icon = item.Type switch
+                {
+                    ServiceItemType.Song => "\u266A",
+                    ServiceItemType.Scripture => "\U0001F4D6",
+                    ServiceItemType.Announcement => "\U0001F4E2",
+                    ServiceItemType.Sermon => "\U0001F3A4",
+                    ServiceItemType.Video => "\U0001F3AC",
+                    ServiceItemType.Offering => "\U0001F49D",
+                    ServiceItemType.Prayer => "\U0001F64F",
+                    _ => "\u2022"
+                };
+
+                _serviceOrderItems.Add(new ServiceItemDisplay
+                {
+                    Icon = icon,
+                    Title = item.Title,
+                    Item = item
+                });
+            }
+        }
+        finally
+        {
+            _suppressServiceOrderSelection = false;
         }
     }
 
@@ -969,6 +991,35 @@ public partial class OperatorWindow : Window
         catch (Exception ex)
         {
             ShowToolError("Save Service", ex.Message);
+        }
+    }
+
+    // BUG B: guards the SelectionChanged handler against selection changes that we cause
+    // ourselves while rebuilding the list (RefreshServiceOrderList clears the ItemsSource, which
+    // raises SelectionChanged). Without this a refresh would re-enter GoToItem and fight the
+    // navigation that triggered the refresh.
+    private bool _suppressServiceOrderSelection;
+
+    /// <summary>
+    /// BUG B: single-click a service item on the left to make it the current item. Navigating via
+    /// ServiceOrderManager.GoToItem fires ItemChanged -> PresenterEngine.OnServiceItemChanged
+    /// (loads that item's slides + fires SlideChanged), which this window handles to update the
+    /// previews, slide counter, and live-slide highlight. RefreshSlideThumbnails repaints the
+    /// center grid with the newly selected item's slides.
+    /// </summary>
+    private void ServiceOrderList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressServiceOrderSelection) return;
+        if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display) return;
+
+        var items = _engine?.CurrentServiceOrder?.Items;
+        if (items == null) return;
+
+        int index = items.IndexOf(display.Item);
+        if (index >= 0)
+        {
+            _serviceOrderManager?.GoToItem(index);
+            RefreshSlideThumbnails();
         }
     }
 

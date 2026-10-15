@@ -221,6 +221,7 @@
                              Background="Transparent" BorderThickness="0"
                              Foreground="#F0F2F5"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             SelectionChanged="ServiceOrderList_SelectionChanged"
                              MouseDoubleClick="ServiceOrderList_MouseDoubleClick">
                         <ListBox.ItemTemplate>
                             <DataTemplate>

@@ -1,0 +1,161 @@
+{
+  "id": "so-sunday-demo-001",
+  "name": "Sunday Morning Demo",
+  "date": "2026-08-17",
+  "serviceType": "Sunday Morning",
+  "items": [
+    {
+      "id": "demo-item-blessing",
+      "type": "Song",
+      "title": "The Blessing",
+      "subtitle": "Kari Jobe / Elevation Worship",
+      "notes": "Key of F. Backtrack-driven; slides auto-advance via timestamps.",
+      "duration_minutes": 5.2,
+      "order": 0,
+      "songFolder": "Songs/TheBlessing",
+      "keyShift": 0,
+      "tempoPercent": 100.0,
+      "useBacktrack": true,
+      "slides": [
+        {
+          "id": "demo-sb000",
+          "type": "Title",
+          "content": { "text": "The Blessing", "subtitle": "Kari Jobe / Elevation Worship", "header": "", "footer": "CCLI License #", "backgroundImage": "", "foregroundImage": "" },
+          "order": 0,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 700
+        },
+        {
+          "id": "demo-sb001",
+          "type": "Lyrics",
+          "content": { "text": "[B]    The Lord bless you[E]  and keep you\r\n[B/D#]    Make His face shine upon[F#sus]    you\r\nAnd be gracious to you", "subtitle": "VERSE 1", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 1,
+          "sectionName": "VERSE 1",
+          "timestamp_ms": 18003.73,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "demo-sb002",
+          "type": "Lyrics",
+          "content": { "text": "[G#m]    The Lord turn His[E]  face toward you\r\n[B/D#]    And  [F#sus]give you peace [B]  [E]", "subtitle": "VERSE 1", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 2,
+          "sectionName": "VERSE 1",
+          "timestamp_ms": 34660.48,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "demo-sb003",
+          "type": "Lyrics",
+          "content": { "text": "[G#m7]A  -  [E]men\r\nA[B/F#]men\r\nA[F#]men", "subtitle": "CHORUS", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 3,
+          "sectionName": "Chorus 1",
+          "timestamp_ms": 82349.06,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "demo-sb004",
+          "type": "Lyrics",
+          "content": { "text": "May His fa[G#m7]vor be upon you\r\nAnd a thou[E]sand generations\r\nAnd your fam[B/F#]ily and your children\r\nAnd their child[F#]ren and their children", "subtitle": "BRIDGE", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 4,
+          "sectionName": "BRIDGE 1",
+          "timestamp_ms": 178241.0,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        }
+      ]
+    },
+    {
+      "id": "demo-item-opentheheavens",
+      "type": "Song",
+      "title": "Open The Heavens",
+      "subtitle": "Opening Worship",
+      "notes": "Start with keys pad, build into full band at Chorus 1",
+      "duration_minutes": 5.5,
+      "order": 1,
+      "songFolder": "Songs/Open The Heavens",
+      "keyShift": 0,
+      "tempoPercent": 100.0,
+      "useBacktrack": true,
+      "slides": [
+        {
+          "id": "demo-s001",
+          "type": "Title",
+          "content": { "text": "Open The Heavens", "subtitle": "", "header": "", "footer": "CCLI License #12345", "backgroundImage": "", "foregroundImage": "" },
+          "order": 0,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 700
+        },
+        {
+          "id": "demo-s002",
+          "type": "Lyrics",
+          "content": { "text": "Open the heavens\nPour down on us", "subtitle": "VERSE 1", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 1,
+          "sectionName": "VERSE 1",
+          "timestamp_ms": 17937.0,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "demo-s003",
+          "type": "Lyrics",
+          "content": { "text": "Your glory and Your goodness\nWe thirst for nothing else", "subtitle": "VERSE 1", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 2,
+          "sectionName": "VERSE 1",
+          "timestamp_ms": 28000.0,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "demo-s004",
+          "type": "Lyrics",
+          "content": { "text": "Open the heavens\nLet Your glory fall", "subtitle": "CHORUS 1", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 3,
+          "sectionName": "CHORUS 1",
+          "timestamp_ms": 110506.0,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        }
+      ]
+    },
+    {
+      "id": "demo-item-scripture",
+      "type": "Scripture",
+      "title": "John 3:16-17",
+      "subtitle": "Scripture Reading",
+      "notes": "Pastor reads, congregation follows on screen",
+      "duration_minutes": 2.0,
+      "order": 2,
+      "scriptureReference": "John 3:16-17",
+      "scriptureTranslation": "NIV",
+      "scriptureText": "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life. For God did not send his Son into the world to condemn the world, but to save the world through him.",
+      "slides": [
+        {
+          "id": "demo-s010",
+          "type": "Scripture",
+          "content": { "text": "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.", "subtitle": "John 3:16 (NIV)", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 0,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 600
+        },
+        {
+          "id": "demo-s011",
+          "type": "Scripture",
+          "content": { "text": "For God did not send his Son into the world to condemn the world, but to save the world through him.", "subtitle": "John 3:17 (NIV)", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 1,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 600
+        }
+      ]
+    }
+  ],
+  "notes": "Multi-song demo service: two worship songs plus a scripture reading. Click each item in the SERVICE ORDER sidebar to load its slides.",
+  "createdAt": "2026-08-14T09:00:00",
+  "updatedAt": "2026-08-14T09:00:00"
+}
