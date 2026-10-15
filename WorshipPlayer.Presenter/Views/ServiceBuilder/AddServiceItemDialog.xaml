@@ -35,8 +35,7 @@
                 <TextBlock Text="Item Type" Foreground="{StaticResource OwcTextSecondaryBrush}"
                            FontSize="11" Margin="0,0,0,4"/>
                 <ComboBox x:Name="ItemTypeComboBox" Margin="0,0,0,12"
-                          Background="{StaticResource OwcSurfaceBrush}"
-                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          Style="{StaticResource OwcDarkComboBox}"
                           FontSize="13" Padding="8,6">
                     <ComboBoxItem Content="Song" IsSelected="True"/>
                     <ComboBoxItem Content="Scripture"/>
@@ -51,8 +50,7 @@
                 <TextBlock Text="Background Type" Foreground="{StaticResource OwcTextSecondaryBrush}"
                            FontSize="11" Margin="0,0,0,4"/>
                 <ComboBox x:Name="BackgroundTypeComboBox" Margin="0,0,0,12"
-                          Background="{StaticResource OwcSurfaceBrush}"
-                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          Style="{StaticResource OwcDarkComboBox}"
                           FontSize="13" Padding="8,6">
                     <ComboBoxItem Content="None" IsSelected="True"/>
                     <ComboBoxItem Content="Solid Color"/>
@@ -65,8 +63,7 @@
                 <TextBlock Text="Foreground Type" Foreground="{StaticResource OwcTextSecondaryBrush}"
                            FontSize="11" Margin="0,0,0,4"/>
                 <ComboBox x:Name="ForegroundTypeComboBox" Margin="0,0,0,12"
-                          Background="{StaticResource OwcSurfaceBrush}"
-                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          Style="{StaticResource OwcDarkComboBox}"
                           FontSize="13" Padding="8,6">
                     <ComboBoxItem Content="Text" IsSelected="True"/>
                     <ComboBoxItem Content="Image"/>
@@ -85,8 +82,7 @@
                     <TextBlock Text="Go To:" Foreground="{StaticResource OwcTextPrimaryBrush}"
                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <ComboBox x:Name="GoToComboBox" Grid.Column="1"
-                              Background="{StaticResource OwcSurfaceBrush}"
-                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              Style="{StaticResource OwcDarkComboBox}"
                               FontSize="13" Padding="8,6">
                         <ComboBoxItem Content="Next Item" IsSelected="True"/>
                         <ComboBoxItem Content="Specific Item"/>
@@ -102,8 +98,7 @@
                     <TextBlock Text="After:" Foreground="{StaticResource OwcTextPrimaryBrush}"
                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <ComboBox x:Name="AfterConditionComboBox" Grid.Column="1"
-                              Background="{StaticResource OwcSurfaceBrush}"
-                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              Style="{StaticResource OwcDarkComboBox}"
                               FontSize="13" Padding="8,6">
                         <ComboBoxItem Content="Manual" IsSelected="True"/>
                         <ComboBoxItem Content="Time Delay"/>
