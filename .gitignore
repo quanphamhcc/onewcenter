@@ -24,3 +24,6 @@ Thumbs.db
 # *.mp3
 # *.wav
 # *.flac
+
+# Redundant archive (stems are already extracted alongside it; too large for GitHub)
+Songs/TheBlessing.zip

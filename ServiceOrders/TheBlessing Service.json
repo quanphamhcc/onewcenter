@@ -1,0 +1,102 @@
+{
+  "id": "so-blessing-001",
+  "name": "The Blessing (Demo)",
+  "date": "2026-08-10",
+  "serviceType": "Demo",
+  "items": [
+    {
+      "id": "item-blessing",
+      "type": "Song",
+      "title": "The Blessing",
+      "subtitle": "Kari Jobe / Elevation Worship",
+      "notes": "Key of F. Backtrack-driven; slides auto-advance via timestamps.",
+      "duration_minutes": 5.2,
+      "order": 0,
+      "songFolder": "Songs/TheBlessing",
+      "keyShift": 0,
+      "tempoPercent": 100.0,
+      "useBacktrack": true,
+      "slides": [
+        {
+          "id": "sb000",
+          "type": "Title",
+          "content": { "text": "The Blessing", "subtitle": "Kari Jobe / Elevation Worship", "header": "", "footer": "CCLI License #", "backgroundImage": "", "foregroundImage": "" },
+          "order": 0,
+          "sectionName": "",
+          "transition": "Fade",
+          "transitionDuration_ms": 700
+        },
+        {
+          "id": "sb001",
+          "type": "Lyrics",
+          "content": { "text": "[B]    The Lord bless you[E]  and keep you\r\n[B/D#]    Make His face shine upon[F#sus]    you\r\nAnd be gracious to you", "subtitle": "VERSE 1", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 1,
+          "sectionName": "VERSE 1",
+          "timestamp_ms": 18003.73,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "sb002",
+          "type": "Lyrics",
+          "content": { "text": "[G#m]    The Lord turn His[E]  face toward you\r\n[B/D#]    And  [F#sus]give you peace [B]  [E]", "subtitle": "VERSE 1", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 2,
+          "sectionName": "VERSE 1",
+          "timestamp_ms": 34660.48,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "sb003",
+          "type": "Lyrics",
+          "content": { "text": "[G#m7]A  -  [E]men\r\nA[B/F#]men\r\nA[F#]men", "subtitle": "CHORUS", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 3,
+          "sectionName": "Chorus 1",
+          "timestamp_ms": 82349.06,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "sb004",
+          "type": "Lyrics",
+          "content": { "text": "May His fa[G#m7]vor be upon you\r\nAnd a thou[E]sand generations\r\nAnd your fam[B/F#]ily and your children\r\nAnd their child[F#]ren and their children", "subtitle": "BRIDGE", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 4,
+          "sectionName": "BRIDGE 1",
+          "timestamp_ms": 178241.0,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "sb005",
+          "type": "Lyrics",
+          "content": { "text": "He is for[G#m7]   you He is for you\r\nHe is for [E]  you, He is for you\r\nHe is for [B/F#]  you, He is for you\r\nHe is for[F#]   you, He is for you", "subtitle": "TAG", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 5,
+          "sectionName": "TAG",
+          "timestamp_ms": 210002.54,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "sb006",
+          "type": "Lyrics",
+          "content": { "text": "May His pre[G#m7]sence go before you\r\nAnd behind[E] you and beside you\r\nAll around[B/F#]     you and within you\r\nHe is with[F#] you, he is with you", "subtitle": "BRIDGE 2", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 6,
+          "sectionName": "BRIDGE 2",
+          "timestamp_ms": 237430.85,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        },
+        {
+          "id": "sb007",
+          "type": "Lyrics",
+          "content": { "text": "[G#m7]A  -  [E]men\r\nA[B/F#]men\r\nA[F#]men", "subtitle": "CHORUS", "header": "", "footer": "", "backgroundImage": "", "foregroundImage": "" },
+          "order": 7,
+          "sectionName": "CHORUS",
+          "timestamp_ms": 247716.48,
+          "transition": "Fade",
+          "transitionDuration_ms": 500
+        }
+      ]
+    }
+  ]
+}

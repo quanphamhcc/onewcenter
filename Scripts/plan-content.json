@@ -1,0 +1,104 @@
+{
+  "title": "KẾ HOẠCH TRIỂN KHAI ỨNG DỤNG OWC PRESENTER",
+  "subtitle": "Phần mềm trình chiếu lời bài hát và điều khiển backtrack cho buổi nhóm",
+  "blocks": [
+    { "type": "h1", "text": "Thông tin chung" },
+    { "type": "bullet", "text": "Mục tiêu đợt này: Chạy ổn định OFFLINE trên một máy tính cho buổi nhóm Chủ Nhật sắp tới." },
+    { "type": "bullet", "text": "Nền tảng: Windows 10/11 (64-bit). Bản chạy độc lập, không cần cài .NET." },
+    { "type": "bullet", "text": "Trạng thái code: Hoàn tất - build 0 lỗi, 432/432 kiểm thử tự động pass, đã review APPROVED." },
+
+    { "type": "h1", "text": "1. Tóm tắt cho lãnh đạo" },
+    { "type": "p", "text": "Ứng dụng đã hoàn thiện phần phát triển và sửa 12 lỗi trọng yếu trên đường chạy sống của buổi nhóm (load chương trình, hiển thị lời, đồng bộ nhạc nền, loop đoạn, đổi tông, màn hình phụ, màn hình ban nhạc). Toàn bộ kiểm thử tự động đã xanh. Bước còn lại là kiểm thử trên phần cứng thật và tổng duyệt trước khi dùng chính thức - những việc chỉ xác nhận được bằng người, không thể tự động hóa." },
+    { "type": "p", "text": "Gói triển khai là một bản chạy độc lập (khoảng 448 MB), copy sang máy phòng kỹ thuật là chạy được ngay, không cần internet khi diễn ra buổi nhóm." },
+
+    { "type": "h1", "text": "2. Thành phần gói triển khai (số liệu thực đo)" },
+    { "type": "table",
+      "headers": ["Thành phần", "Dung lượng", "Số file", "Ghi chú"],
+      "rows": [
+        ["publish\\ (ứng dụng + .NET nhúng)", "318 MB", "658", "Bản self-contained, không cần cài .NET"],
+        ["Songs\\ (bài hát + stems mp3)", "129 MB", "30", "Nhạc nền nhiều track"],
+        ["ServiceOrders\\ (thứ tự chương trình)", "dưới 1 MB", "1", "File JSON"],
+        ["Setlists\\", "dưới 1 MB", "1", "File JSON"],
+        ["Scripts\\", "0.2 MB", "2", "Tiện ích"],
+        ["TỔNG CỘNG", "khoảng 448 MB", "khoảng 690", ""],
+        ["bible.db (Kinh Thánh offline)", "tạo khi chạy lần đầu", "1", "Tự sinh, tra cứu offline"]
+      ]
+    },
+
+    { "type": "h1", "text": "3. Ước lượng thời gian copy (dựa trên 448 MB / ~690 file)" },
+    { "type": "p", "text": "Thời gian thực tế phụ thuộc tốc độ ghi của thiết bị. Số liệu dưới đây đã tính hao hụt do nhiều file nhỏ." },
+    { "type": "table",
+      "headers": ["Phương tiện copy", "Tốc độ ghi điển hình", "Thời gian ước lượng"],
+      "rows": [
+        ["USB 3.0 (chép sang)", "80-120 MB/s", "1 - 2 phút"],
+        ["USB 2.0 (chép sang)", "20-30 MB/s", "4 - 7 phút"],
+        ["Ổ cứng ngoài / SSD di động", "150-400 MB/s", "dưới 1 phút"],
+        ["Mạng LAN nội bộ (SMB chia sẻ)", "50-100 MB/s", "1 - 3 phút"],
+        ["Nén ZIP rồi giải nén", "-", "cộng thêm 3-5 phút (gọn, ít rủi ro sót file)"]
+      ]
+    },
+    { "type": "p-bold", "text": "Khuyến nghị: nén cả gói thành 1 file .zip để copy nguyên khối (tránh sót file trong 690 file), rồi giải nén tại máy đích. Tổng cộng gọn trong 5-10 phút." },
+
+    { "type": "h1", "text": "4. Yêu cầu máy đích (phòng kỹ thuật)" },
+    { "type": "table",
+      "headers": ["Hạng mục", "Yêu cầu tối thiểu"],
+      "rows": [
+        ["Hệ điều hành", "Windows 10/11 64-bit"],
+        ["RAM", "8 GB (app dùng khoảng 200 MB; dư cho video/nhạc)"],
+        ["Màn hình", "2 ngõ xuất (1 điều khiển + 1 máy chiếu); chạy 1 màn hình vẫn được"],
+        ["Âm thanh", "Audio interface / sound card cho nhạc nền multitrack"],
+        ["Mạng", "WiFi nội bộ nếu dùng màn ban nhạc / remote; KHÔNG cần internet"],
+        [".NET", "Không cần - đã nhúng trong bản publish"]
+      ]
+    },
+
+    { "type": "h1", "text": "5. Các bước triển khai (chi tiết, có mốc thời gian)" },
+    { "type": "table",
+      "headers": ["#", "Bước", "Người thực hiện", "Thời gian", "Kết quả cần đạt"],
+      "rows": [
+        ["A", "Đóng gói bản publish thành ZIP", "Kỹ thuật", "5 phút", "1 file OWC-Presenter.zip (khoảng 448 MB)"],
+        ["B", "Copy sang máy phòng kỹ thuật", "Kỹ thuật", "5-10 phút", "Giải nén vào thư mục cố định (vd C:\\OWC-Presenter\\)"],
+        ["C", "Chạy thử lần đầu (sinh bible.db)", "Kỹ thuật", "5 phút", "App mở, cửa sổ Command Center hiện"],
+        ["D", "Kiểm thử phần cứng theo mục 6", "Kỹ thuật", "30-45 phút", "6 mục đều PASS"],
+        ["E", "Tổng duyệt với setlist Chủ Nhật thật", "KT + Ban thờ phượng", "60 phút", "Chạy trọn 1 buổi không lỗi"],
+        ["F", "Chốt và sẵn sàng", "Toàn đội", "-", "Giữ nguyên máy, không đổi gì trước buổi nhóm"]
+      ]
+    },
+    { "type": "p-bold", "text": "Lưu ý quan trọng: Thực hiện bước D-E trước ngày nhóm ít nhất 1-2 hôm để còn thời gian xử lý nếu phát sinh vấn đề phần cứng." },
+
+    { "type": "h1", "text": "6. Checklist kiểm thử phần cứng (bắt buộc trước khi dùng thật)" },
+    { "type": "p", "text": "Đây là những việc chỉ người kiểm được, không có trong kiểm thử tự động." },
+    { "type": "table",
+      "headers": ["#", "Hạng mục", "Cách kiểm", "Đạt/Chưa"],
+      "rows": [
+        ["1", "Màn hình phụ / máy chiếu", "Bấm GO LIVE thì lời hiện đúng; Esc/B hoạt động đúng", "[  ]"],
+        ["2", "Nhạc nền + stems thật", "Slide tự chuyển theo nhạc; loop reset về đầu đoạn; đổi tông transpose hợp âm", "[  ]"],
+        ["3", "Video nền (LibVLC)", "Slide dạng video phát được", "[  ]"],
+        ["4", "Máy 1 màn hình", "GO LIVE full-screen; Alt-Tab lấy lại; Esc thoát", "[  ]"],
+        ["5", "Màn ban nhạc / remote qua WiFi", "Điện thoại vào http://<IP-máy>:5055/stage và /remote", "[  ]"],
+        ["6", "Trùng cổng 5055", "Cổng bị chiếm thì app báo rõ, KHÔNG crash", "[  ]"]
+      ]
+    },
+
+    { "type": "h1", "text": "7. Phương án dự phòng (trong buổi nhóm)" },
+    { "type": "table",
+      "headers": ["Rủi ro", "Dấu hiệu", "Xử lý tại chỗ"],
+      "rows": [
+        ["Màn hội chúng không hiện", "GO LIVE không thấy gì", "Kiểm Display Settings; chạy chế độ 1 màn hình full-screen"],
+        ["Server ban nhạc không lên", "Điện thoại không vào được /stage", "App vẫn chạy; ban nhạc dùng bản in dự phòng"],
+        ["Nhạc nền lỗi/thiếu stem", "Báo stems not found", "App không crash; advance slide thủ công bằng phím"],
+        ["App treo", "Không phản hồi", "Có ZIP gốc giải nén lại; khởi động lại máy"]
+      ]
+    },
+    { "type": "p-bold", "text": "Nguyên tắc vàng: luôn mang theo 1 USB chứa bản ZIP gốc để khôi phục nhanh." },
+
+    { "type": "h1", "text": "8. Trạng thái hiện tại và việc đã hoàn thành" },
+    { "type": "bullet", "text": "Phát triển và sửa 12 lỗi trọng yếu (F1-F12) - đã gộp vào nhánh chính main." },
+    { "type": "bullet", "text": "Build toàn bộ: 0 lỗi." },
+    { "type": "bullet", "text": "Kiểm thử tự động: 432/432 pass (gồm 21 test mới cho các fix)." },
+    { "type": "bullet", "text": "Review code độc lập: APPROVED." },
+    { "type": "bullet", "text": "Đã tạo bản .exe chạy độc lập (self-contained)." },
+    { "type": "bullet", "text": "CHỜ: kiểm thử phần cứng (mục 6) và tổng duyệt (bước E)." },
+    { "type": "p", "text": "Tài liệu lập dựa trên số liệu thực đo của gói triển khai tại thời điểm đóng gói. Thời gian copy sẽ thay đổi theo thiết bị thực tế dùng khi triển khai." }
+  ]
+}
