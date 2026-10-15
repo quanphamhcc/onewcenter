@@ -321,6 +321,7 @@ public partial class OperatorWindow : Window
             ServicesListPanel.Visibility = Visibility.Visible;
 
             _activeTab = "Services";
+            SetTabInactive(TabLive);
             SetTabInactive(TabSongs);
             SetTabInactive(TabScripture);
             SetTabInactive(TabMedia);
@@ -348,6 +349,16 @@ public partial class OperatorWindow : Window
         MediaPanel.Visibility = Visibility.Collapsed;
         ErrorPanel.Visibility = Visibility.Collapsed;
         ServicesPanel.Visibility = Visibility.Visible;
+
+        // Showing the slide-editing grid IS the Live presentation surface, so reflect that in
+        // the top nav: the Live tab becomes active (the Live-status dot is driven separately
+        // by engine IsLive state, not by tab selection).
+        _activeTab = "Live";
+        SetTabActive(TabLive);
+        SetTabInactive(TabServices);
+        SetTabInactive(TabSongs);
+        SetTabInactive(TabScripture);
+        SetTabInactive(TabMedia);
 
         var order = _serviceOrderManager?.CurrentServiceOrder;
         if (order == null || order.Items.Count == 0)
@@ -587,6 +598,7 @@ public partial class OperatorWindow : Window
                 LiveBadge.Visibility = Visibility.Collapsed;
                 AudiencePreviewBorder.BorderBrush = new SolidColorBrush(BorderColor);
                 _outputWindow?.ShowBlack();
+                UpdateLiveTabDot(false);
             }
             else if (e.IsLive)
             {
@@ -594,6 +606,7 @@ public partial class OperatorWindow : Window
                 LiveButton.Background = new SolidColorBrush(LivePink);
                 LiveBadge.Visibility = Visibility.Visible;
                 AudiencePreviewBorder.BorderBrush = new SolidColorBrush(LivePink);
+                UpdateLiveTabDot(true);
             }
         });
     }
@@ -1542,6 +1555,7 @@ public partial class OperatorWindow : Window
 
     // --- Navigation Tab Handlers ---
 
+    private void TabLive_Click(object sender, RoutedEventArgs e) => SwitchToTab("Live");
     private void TabServices_Click(object sender, RoutedEventArgs e) => ShowServicesList();
     private void TabSongs_Click(object sender, RoutedEventArgs e) => SwitchToTab("Songs");
     private void TabScripture_Click(object sender, RoutedEventArgs e) => SwitchToTab("Scripture");
@@ -1572,6 +1586,7 @@ public partial class OperatorWindow : Window
         ErrorPanel.Visibility = Visibility.Collapsed;
 
         // Reset all tab button styles
+        SetTabInactive(TabLive);
         SetTabInactive(TabServices);
         SetTabInactive(TabSongs);
         SetTabInactive(TabScripture);
@@ -1581,6 +1596,15 @@ public partial class OperatorWindow : Window
         {
             switch (tabName)
             {
+                case "Live":
+                    // Live tab = the presentation surface for the current service: the slide
+                    // grid (ServicesPanel) alongside the always-visible SERVICE ORDER sidebar.
+                    // Reuse ShowServiceEditor() rather than inventing a new panel; with no
+                    // service loaded it simply shows an empty standby grid. ShowServiceEditor()
+                    // sets ServicesPanel visible, marks the Live tab active, and fixes the header.
+                    ShowServiceEditor();
+                    break;
+
                 case "Services":
                     ServicesPanel.Visibility = Visibility.Visible;
                     SetTabActive(TabServices);
@@ -1708,6 +1732,15 @@ public partial class OperatorWindow : Window
     {
         tab.Foreground = new SolidColorBrush(TextSecondary);
         tab.BorderBrush = new SolidColorBrush(Colors.Transparent);
+    }
+
+    /// <summary>
+    /// Recolor the Live-tab status dot: live pink when the presentation is live on-screen,
+    /// gray when idle/blacked/standby. Independent of which tab is active.
+    /// </summary>
+    private void UpdateLiveTabDot(bool isLive)
+    {
+        LiveTabDot.Fill = new SolidColorBrush(isLive ? LivePink : TextSecondary);
     }
 
     // --- Tools Menu Handlers ---

@@ -156,6 +156,19 @@
         <Border Grid.Row="2" Background="#1A1D27" Padding="12,4"
                 BorderBrush="#2A2E3A" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal">
+                <!-- Live tab (first). Status dot recolored in code-behind: gray when idle,
+                     live pink when PresenterEngine.IsLive. Inline brushes only - this file
+                     uses NO resource dictionaries. -->
+                <Button x:Name="TabLive" FontSize="11" FontWeight="SemiBold"
+                        Padding="10,4" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
+                        BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                        Click="TabLive_Click" Cursor="Hand">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="LiveTabDot" Width="8" Height="8" Fill="#8B92A5"
+                                 VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Text="Live" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
                 <Button x:Name="TabServices" Content="Services" FontSize="11" FontWeight="SemiBold"
                         Padding="10,4" Margin="0,0,2,0" Background="Transparent" Foreground="#00D4FF"
                         BorderBrush="#00D4FF" BorderThickness="0,0,0,2"
