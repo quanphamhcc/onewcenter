@@ -276,6 +276,45 @@ public class ServiceOrderManager
     }
 
     /// <summary>
+    /// Scan the base path for service-order files, returning one <see cref="ServiceFileInfo"/>
+    /// per valid file (path + last-write time + deserialized order). Mirrors
+    /// <see cref="LoadAllAsync"/>'s scan: a missing directory is created and yields an empty
+    /// list, and corrupt/unreadable files are skipped. Ordering is the builder's job, so the
+    /// files are returned in scan order.
+    /// </summary>
+    public async Task<List<ServiceFileInfo>> ListServiceFilesAsync()
+    {
+        var files = new List<ServiceFileInfo>();
+
+        if (!Directory.Exists(_serviceOrdersBasePath))
+        {
+            Directory.CreateDirectory(_serviceOrdersBasePath);
+            return files;
+        }
+
+        foreach (var file in Directory.GetFiles(_serviceOrdersBasePath, "*.json"))
+        {
+            try
+            {
+                var json = await File.ReadAllTextAsync(file);
+                var order = JsonSerializer.Deserialize<ServiceOrder>(json, _jsonOptions);
+                if (order != null)
+                    files.Add(new ServiceFileInfo(file, new FileInfo(file).LastWriteTimeUtc, order));
+            }
+            catch { }
+        }
+
+        return files;
+    }
+
+    /// <summary>
+    /// Resolve the file path this manager would use when saving the given order with a
+    /// default path. Exposes the private naming logic so the host can detect
+    /// save-location changes without duplicating the convention.
+    /// </summary>
+    public string GetFilePathFor(ServiceOrder order) => GetDefaultFilePath(order);
+
+    /// <summary>
     /// Create a service order from an existing Setlist (migration helper).
     /// Converts the old Setlist format to the new ServiceOrder format.
     /// </summary>
