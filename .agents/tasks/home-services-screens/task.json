@@ -1,0 +1,7 @@
+{
+  "task_id": "task-home-services-screens",
+  "task_description": "Add a WorshipTools-style Home screen (Quick start + Upcoming services + '+ Add a new service') as the default center panel, and repoint the Services top-nav tab to a full Services-list table (Date | Type | Title | Last modified | Last modified by) with search, filters, '+ New Service', per-row overflow menu, and row-click load. Extract all listing/formatting logic into testable Core helpers. Strictly obey the three-prior-crash avoidance rules: OperatorWindow.xaml stays resource-dictionary-free (inline brushes only); the two new UserControls merge OwcDesignSystem.xaml and use only verified *Brush keys; ComboBox uses OwcDarkComboBox; no implicit/keyless styles. Implements .agents/tasks/home-services-screens/design.md faithfully.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

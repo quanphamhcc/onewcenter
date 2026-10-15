@@ -1,0 +1,10 @@
+{
+  "verdict": "APPROVED",
+  "summary": "The Home + Services-list feature is implemented faithfully to the finalized design: solution build is clean (0 errors, 0 warnings), all 479 tests pass, the crash-avoidance invariants hold (OperatorWindow.xaml has no {StaticResource} and merges no ResourceDictionary; both UserControls merge OwcDesignSystem.xaml and use only verified *Brush keys and keyed styles; Filters uses OwcDarkComboBox; no implicit styles), and every design decision (passive views, bool-returning LoadServiceOrderAsync with success-gated editor switch, dedicated create flow, SamePath-restricted rename without LoadAsync, confirmed delete, testable Core helpers) is in place with forbidden areas untouched.",
+  "findings": [
+    {
+      "severity": "NIT",
+      "detail": "SwitchToTab(string) in OperatorWindow.xaml.cs still contains a 'Services' case that shows ServicesPanel (the slide grid). It is now unreachable because TabServices_Click was repointed to ShowServicesList(), so it is harmless dead code; consider removing it to avoid confusion."
+    }
+  ]
+}

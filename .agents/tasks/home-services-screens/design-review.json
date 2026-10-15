@@ -1,0 +1,30 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "MEDIUM",
+      "title": "LoadServiceOrderAsync returns no success signal, but Decision 3 / item 14 branch on \"only on success\"",
+      "location": "design.md Decision 3 and item 14 (OpenServiceRequested handler); OperatorWindow.xaml.cs LoadServiceOrderAsync",
+      "problem": "Item 14 says OpenServiceRequested should 'await LoadServiceOrderAsync(path); and only on success set _currentServicePath, ShowServiceEditor(), RefreshServiceOrderList()'. Verified LoadServiceOrderAsync is 'private async Task' (not Task<bool>) and swallows both the null-load and exception cases into an internal MessageBox, so the caller gets no success/failure value. The 'only on success' guard is not implementable as written; the center would switch even on a failed load.",
+      "fix": "Change LoadServiceOrderAsync to 'private async Task<bool> LoadServiceOrderAsync(string path)' returning (loaded != null), false in the catch; then 'if (await LoadServiceOrderAsync(path)) { _currentServicePath = path; ShowServiceEditor(); RefreshServiceOrderList(); }'. Document this as a second edit to an existing helper alongside item 10a; the existing LoadService_Click caller ignores the return value, so it stays source-compatible."
+    },
+    {
+      "id": 2,
+      "severity": "NIT",
+      "title": "Empty-service header uses ServiceOrder.ServiceType (string) where OnItemChanged uses the item's Type enum",
+      "location": "design.md item 13; OperatorWindow.xaml.cs OnItemChanged",
+      "problem": "Item 13 sets CurrentItemSubtitle from CurrentServiceOrder?.ServiceType (service-type string) for an empty service, while the reactive OnItemChanged sets it from e.NewItem?.Type.ToString() (the item's ServiceItemType enum). Both compile, but the subtitle means different things in the two paths. Cosmetic and undocumented.",
+      "fix": "Add a one-line note to item 13 acknowledging the subtitle shows the service type for an empty service vs. the item type once items exist (intended), or render the service name/date consistently in both cases."
+    },
+    {
+      "id": 3,
+      "severity": "NIT",
+      "title": "Item 8 says new hosts 'mirror ServicesPanel structure exactly' but ServicesPanel is a Grid, not a Border",
+      "location": "design.md item 8; OperatorWindow.xaml ServicesPanel",
+      "problem": "Verified ServicesPanel is '<Grid x:Name=\"ServicesPanel\">' (ScrollViewer + WrapPanel), while item 8 proposes '<Border x:Name=\"HomePanel\"><ContentPresenter/></Border>'. Functionally valid as an overlapping Visibility-toggled sibling, but 'mirroring its structure exactly' is inaccurate.",
+      "fix": "Reword item 8 to 'add two sibling hosts in the same Row-3/Column-1 content Grid cell as ServicesPanel, toggled by Visibility like the existing panels' and drop 'mirroring its structure exactly'."
+    }
+  ],
+  "reviewDoc": "c:\\Users\\Quang\\Documents\\OneWorshipcenter\\owc-multitrack-feature-lyric-presenter\\owc-multitrack-feature-lyric-presenter\\.agents\\tasks\\home-services-screens\\design-review.md"
+}
