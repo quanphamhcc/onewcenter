@@ -792,7 +792,19 @@ public partial class OperatorWindow : Window
         }
     }
 
-    private readonly System.Collections.ObjectModel.ObservableCollection<string> _serviceOrderItems = new();
+    /// <summary>
+    /// Lightweight display wrapper so the sidebar ListBox can show icon + title while
+    /// keeping a reference back to the underlying ServiceItem (selected index maps to
+    /// CurrentServiceOrder.Items[i]).
+    /// </summary>
+    private sealed class ServiceItemDisplay
+    {
+        public string Icon { get; set; } = "";
+        public string Title { get; set; } = "";
+        public ServiceItem Item { get; set; } = null!;
+    }
+
+    private readonly System.Collections.ObjectModel.ObservableCollection<ServiceItemDisplay> _serviceOrderItems = new();
 
     // Chord parser for preview rendering (mirrors actual output behavior)
     private static readonly Core.Services.ChordProParserService _previewChordParser = new();
@@ -887,7 +899,84 @@ public partial class OperatorWindow : Window
                 _ => "\u2022"
             };
 
-            _serviceOrderItems.Add($"{icon} {item.Title}");
+            _serviceOrderItems.Add(new ServiceItemDisplay
+            {
+                Icon = icon,
+                Title = item.Title,
+                Item = item
+            });
+        }
+    }
+
+    /// <summary>
+    /// Persist the current service order to disk. Single reuse point for every
+    /// service mutation (add/edit/delete). No-ops when nothing is loaded.
+    /// </summary>
+    private async Task SaveServiceOrderAsync()
+    {
+        if (_serviceOrderManager?.CurrentServiceOrder == null) return;
+        try
+        {
+            await _serviceOrderManager.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Save Service", ex.Message);
+        }
+    }
+
+    private void ServiceOrderList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        EditSelectedServiceItem();
+    }
+
+    private void EditServiceItem_Click(object sender, RoutedEventArgs e)
+    {
+        EditSelectedServiceItem();
+    }
+
+    private void EditSelectedServiceItem()
+    {
+        try
+        {
+            if (_serviceOrderManager == null) return;
+            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display) return;
+
+            var dialog = new AddServiceItemDialog
+            {
+                Owner = this,
+                ServiceOrderManager = _serviceOrderManager,
+                ItemToEdit = display.Item
+            };
+            dialog.ItemEdited += async (s, item) =>
+            {
+                await SaveServiceOrderAsync();
+                RefreshServiceOrderList();
+            };
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Edit Service Item", ex.Message);
+        }
+    }
+
+    private async void RemoveServiceItem_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_serviceOrderManager?.CurrentServiceOrder == null) return;
+
+            int index = ServiceOrderList.SelectedIndex;
+            if (index < 0 || index >= _serviceOrderManager.CurrentServiceOrder.Items.Count) return;
+
+            _serviceOrderManager.RemoveItem(index);
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Remove Service Item", ex.Message);
         }
     }
 

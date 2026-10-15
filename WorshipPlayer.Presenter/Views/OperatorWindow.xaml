@@ -214,22 +214,40 @@
                                 Padding="3,1" Click="SidebarCollapse_Click" Cursor="Hand" />
                     </Grid>
 
-                    <!-- Service order list - using ItemsControl instead of ListBox to avoid VirtualizingStackPanel -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="ServiceOrderList">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding}" FontSize="12" Foreground="#F0F2F5"
-                                               Padding="10,5" Cursor="Hand" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                    <!-- Service order list - selectable ListBox using the keyed OwcServiceListBox style
+                         (NO implicit/keyless style; concrete brushes only to avoid BorderBrush/UnsetValue crash) -->
+                    <ListBox x:Name="ServiceOrderList" Grid.Row="1"
+                             Style="{StaticResource OwcServiceListBox}"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             MouseDoubleClick="ServiceOrderList_MouseDoubleClick">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Cursor="Hand">
+                                    <TextBlock Text="{Binding Icon}" FontSize="12" Foreground="#F0F2F5"
+                                               Padding="10,5,4,5" />
+                                    <TextBlock Text="{Binding Title}" FontSize="12" Foreground="#F0F2F5"
+                                               Padding="0,5,10,5" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Edit" Click="EditServiceItem_Click" />
+                                <MenuItem Header="Remove" Click="RemoveServiceItem_Click" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                    </ListBox>
 
                     <StackPanel Grid.Row="2" Margin="8,4,8,8">
                         <Button Content="+ Add Item" Padding="6,5" Margin="0,2" FontSize="11" FontWeight="SemiBold"
                                 Background="#252A36" Foreground="#00D4FF" BorderBrush="Transparent" BorderThickness="0"
                                 Click="NewService_Click" Cursor="Hand" />
+                        <Button Content="Edit Item" Padding="6,5" Margin="0,2" FontSize="10"
+                                Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
+                                Click="EditServiceItem_Click" Cursor="Hand" />
+                        <Button Content="Remove Item" Padding="6,5" Margin="0,2" FontSize="10"
+                                Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
+                                Click="RemoveServiceItem_Click" Cursor="Hand" />
                         <Button Content="Load Service" Padding="6,5" Margin="0,2" FontSize="10"
                                 Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
                                 Click="LoadService_Click" Cursor="Hand" />

@@ -25,16 +25,39 @@ public partial class AddServiceItemDialog : Window
     public ServiceOrderManager? ServiceOrderManager { get; set; }
 
     /// <summary>
+    /// When set (before ShowDialog), the dialog opens in EDIT mode: fields are
+    /// pre-populated from this item, and on confirm the item is mutated in place
+    /// instead of a new one being added.
+    /// </summary>
+    public ServiceItem? ItemToEdit { get; set; }
+
+    /// <summary>
     /// Fired when an item has been successfully added to the service order.
     /// </summary>
     public event EventHandler<ServiceItem>? ItemAdded;
 
+    /// <summary>
+    /// Fired when an existing item has been edited (edit mode only).
+    /// </summary>
+    public event EventHandler<ServiceItem>? ItemEdited;
+
     public AddServiceItemDialog()
     {
         InitializeComponent();
+        Loaded += AddServiceItemDialog_Loaded;
     }
 
-    private void AddItem_Click(object sender, RoutedEventArgs e)
+    private void AddServiceItemDialog_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (ItemToEdit == null) return;
+
+        // Edit mode: reflect the item's current type and relabel the UI.
+        Title = "Edit Service Item";
+        AddItemButton.Content = "Save";
+        SelectComboBoxItem(ItemTypeComboBox, ItemTypeToText(ItemToEdit.Type));
+    }
+
+    private async void AddItem_Click(object sender, RoutedEventArgs e)
     {
         SelectedItemType = GetComboBoxText(ItemTypeComboBox);
         SelectedBackgroundType = GetComboBoxText(BackgroundTypeComboBox);
@@ -46,39 +69,91 @@ public partial class AddServiceItemDialog : Window
 
         Confirmed = true;
 
-        // Create a ServiceItem and add it to the ServiceOrderManager
-        if (ServiceOrderManager != null)
+        var itemType = TextToItemType(SelectedItemType);
+
+        try
         {
-            // Ensure a service order exists
-            if (ServiceOrderManager.CurrentServiceOrder == null)
+            if (ItemToEdit != null)
             {
-                ServiceOrderManager.CreateNew("New Service", DateTime.Today.ToString("yyyy-MM-dd"));
+                // EDIT: mutate the existing item in place. The operator window owns
+                // the save after ItemEdited (one save path), so no SaveAsync here.
+                ItemToEdit.Type = itemType;
+                ItemEdited?.Invoke(this, ItemToEdit);
             }
-
-            var itemType = SelectedItemType switch
+            else if (ServiceOrderManager != null)
             {
-                "Song" => ServiceItemType.Song,
-                "Scripture" => ServiceItemType.Scripture,
-                "Announcement" => ServiceItemType.Announcement,
-                "Sermon" => ServiceItemType.Sermon,
-                "Video" => ServiceItemType.Video,
-                "Offering" => ServiceItemType.Offering,
-                "Prayer" => ServiceItemType.Prayer,
-                _ => ServiceItemType.Song
-            };
+                // Ensure a service order exists
+                if (ServiceOrderManager.CurrentServiceOrder == null)
+                {
+                    ServiceOrderManager.CreateNew("New Service", DateTime.Today.ToString("yyyy-MM-dd"));
+                }
 
-            var serviceItem = new ServiceItem
-            {
-                Type = itemType,
-                Title = $"{SelectedItemType} Item"
-            };
+                var serviceItem = new ServiceItem
+                {
+                    Type = itemType,
+                    Title = $"{SelectedItemType} Item"
+                };
 
-            ServiceOrderManager.AddItem(serviceItem);
-            ItemAdded?.Invoke(this, serviceItem);
+                ServiceOrderManager.AddItem(serviceItem);
+
+                // Persist immediately so the added item survives restart (core bug fix).
+                await ServiceOrderManager.SaveAsync();
+
+                ItemAdded?.Invoke(this, serviceItem);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Failed to save service item: {ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
 
         DialogResult = true;
         Close();
+    }
+
+    private static ServiceItemType TextToItemType(string text) => text switch
+    {
+        "Song" => ServiceItemType.Song,
+        "Scripture" => ServiceItemType.Scripture,
+        "Announcement" => ServiceItemType.Announcement,
+        "Sermon" => ServiceItemType.Sermon,
+        "Video" => ServiceItemType.Video,
+        "Offering" => ServiceItemType.Offering,
+        "Prayer" => ServiceItemType.Prayer,
+        "Blank" => ServiceItemType.Blank,
+        "Custom" => ServiceItemType.Custom,
+        _ => ServiceItemType.Song
+    };
+
+    private static string ItemTypeToText(ServiceItemType type) => type switch
+    {
+        ServiceItemType.Song => "Song",
+        ServiceItemType.Scripture => "Scripture",
+        ServiceItemType.Announcement => "Announcement",
+        ServiceItemType.Sermon => "Sermon",
+        ServiceItemType.Video => "Video",
+        ServiceItemType.Offering => "Offering",
+        ServiceItemType.Prayer => "Prayer",
+        ServiceItemType.Blank => "Blank",
+        ServiceItemType.Custom => "Custom",
+        _ => "Song"
+    };
+
+    private static void SelectComboBoxItem(System.Windows.Controls.ComboBox comboBox, string text)
+    {
+        foreach (var obj in comboBox.Items)
+        {
+            if (obj is System.Windows.Controls.ComboBoxItem item &&
+                string.Equals(item.Content?.ToString(), text, StringComparison.Ordinal))
+            {
+                comboBox.SelectedItem = item;
+                return;
+            }
+        }
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
