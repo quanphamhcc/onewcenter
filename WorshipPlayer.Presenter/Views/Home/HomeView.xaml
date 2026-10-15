@@ -1,0 +1,133 @@
+<UserControl x:Class="WorshipPlayer.Presenter.Views.Home.HomeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI"
+             Background="#0F1117">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="24">
+
+            <!-- Quick start card -->
+            <Border Style="{StaticResource OwcPanelBorder}" Padding="20" Margin="0,0,0,20">
+                <StackPanel>
+                    <TextBlock Text="Quick start" Foreground="{StaticResource OwcTextPrimaryBrush}"
+                               FontSize="16" FontWeight="SemiBold" Margin="0,0,0,16" />
+                    <UniformGrid Rows="1" Columns="6">
+                        <Button Style="{StaticResource OwcButtonBase}" Margin="4" MinHeight="90"
+                                Click="Tour_Click">
+                            <StackPanel>
+                                <TextBlock Text="&#x1F9ED;" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                <TextBlock Text="Tour" FontSize="12" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource OwcButtonBase}" Margin="4" MinHeight="90"
+                                Click="Services_Click">
+                            <StackPanel>
+                                <TextBlock Text="&#x1F4CB;" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                <TextBlock Text="Services" FontSize="12" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource OwcButtonBase}" Margin="4" MinHeight="90"
+                                Click="Songs_Click">
+                            <StackPanel>
+                                <TextBlock Text="&#x266A;" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                <TextBlock Text="Songs" FontSize="12" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource OwcButtonBase}" Margin="4" MinHeight="90"
+                                Click="Slides_Click">
+                            <StackPanel>
+                                <TextBlock Text="&#x1F5BC;" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                <TextBlock Text="Slides" FontSize="12" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource OwcButtonBase}" Margin="4" MinHeight="90"
+                                Click="Media_Click">
+                            <StackPanel>
+                                <TextBlock Text="&#x1F3AC;" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                <TextBlock Text="Media" FontSize="12" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource OwcButtonBase}" Margin="4" MinHeight="90"
+                                Click="Scripture_Click">
+                            <StackPanel>
+                                <TextBlock Text="&#x1F4D6;" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                <TextBlock Text="Scripture" FontSize="12" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+
+            <!-- Upcoming services card -->
+            <Border Style="{StaticResource OwcPanelBorder}" Padding="20">
+                <StackPanel>
+                    <TextBlock Text="Upcoming services" Foreground="{StaticResource OwcTextPrimaryBrush}"
+                               FontSize="16" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+                    <ListView x:Name="ServicesListView" Style="{StaticResource OwcDarkListView}"
+                              MaxHeight="320">
+                        <ListView.View>
+                            <GridView ColumnHeaderContainerStyle="{StaticResource OwcDarkGridViewColumnHeader}">
+                                <GridViewColumn Header="Date" Width="160">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DateDisplay}" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{StaticResource OwcTextPrimaryBrush}" Padding="8,8" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Type" Width="140">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Type}" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{StaticResource OwcTextSecondaryBrush}" Padding="8,8" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Title" Width="260">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{StaticResource OwcTextPrimaryBrush}" Padding="8,8" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="" Width="44">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="&#x22EE;" Style="{StaticResource OwcButtonBase}"
+                                                    Background="Transparent" Padding="6,2" FontSize="16"
+                                                    Click="Overflow_Click" Tag="{Binding FilePath}">
+                                                <Button.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="Open" Click="Open_Click" Tag="{Binding FilePath}" />
+                                                        <MenuItem Header="Rename" Click="Rename_Click" Tag="{Binding FilePath}" />
+                                                        <MenuItem Header="Delete" Click="Delete_Click" Tag="{Binding FilePath}" />
+                                                    </ContextMenu>
+                                                </Button.ContextMenu>
+                                            </Button>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                    <Button Content="+ Add a new service" Style="{StaticResource OwcAccentButton}"
+                            HorizontalAlignment="Center" Margin="0,16,0,0" MinWidth="200"
+                            Click="AddService_Click" />
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

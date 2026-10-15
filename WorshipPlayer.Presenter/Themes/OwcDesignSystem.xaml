@@ -329,4 +329,77 @@
         <Setter Property="Background" Value="{StaticResource OwcPanelBrush}" />
     </Style>
 
+    <!-- Dark GridViewColumnHeader for the services tables. Keyed — apply explicitly.
+         Dark header row with secondary text and a thin bottom border. -->
+    <Style x:Key="OwcDarkGridViewColumnHeader" TargetType="GridViewColumnHeader">
+        <Setter Property="Background" Value="{StaticResource OwcPanelBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource OwcTextSecondaryBrush}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridViewColumnHeader">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{StaticResource OwcBorderBrush}"
+                            BorderThickness="0,0,0,1"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Left"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Dark ListViewItem for the services tables: a full ControlTemplate so rows render dark
+         and highlight on hover/selection via OwcSurfaceHoverBrush (the default WPF item chrome
+         would paint a light highlight). Keyed; referenced by OwcDarkListView below. -->
+    <Style x:Key="OwcDarkListViewItem" TargetType="ListViewItem">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource OwcTextPrimaryBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                    <Border x:Name="RowBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{StaticResource OwcBorderBrush}"
+                            BorderThickness="0,0,0,1"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <GridViewRowPresenter Content="{TemplateBinding Content}"
+                                              Columns="{TemplateBinding GridView.ColumnCollection}"
+                                              VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="RowBorder" Property="Background"
+                                    Value="{StaticResource OwcSurfaceHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="RowBorder" Property="Background"
+                                    Value="{StaticResource OwcSurfaceHoverBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Dark ListView for the services tables. Transparent/dark background, light foreground,
+         no default border, and the dark item container style above. Keyed — apply explicitly. -->
+    <Style x:Key="OwcDarkListView" TargetType="ListView">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource OwcTextPrimaryBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource OwcDarkListViewItem}" />
+    </Style>
+
 </ResourceDictionary>

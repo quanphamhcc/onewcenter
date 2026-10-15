@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -9,6 +10,7 @@ using WorshipPlayer.Core.Services;
 using WorshipPlayer.Core.Services.Bible;
 using WorshipPlayer.Core.Services.Interfaces;
 using WorshipPlayer.Presenter.Services;
+using WorshipPlayer.Presenter.Views.Home;
 using WorshipPlayer.Presenter.Views.SongLibrary;
 using WorshipPlayer.Presenter.Views.Scripture;
 using WorshipPlayer.Presenter.Views.MediaLibrary;
@@ -58,9 +60,9 @@ public partial class OperatorWindow : Window
     /// Load a service order file via the shared ServiceOrderManager (F1). Null/exception degrade
     /// to a non-fatal message box; never crashes. Separated out so LoadService_Click can await it.
     /// </summary>
-    private async Task LoadServiceOrderAsync(string path)
+    private async Task<bool> LoadServiceOrderAsync(string path)
     {
-        if (_serviceOrderManager == null) return;
+        if (_serviceOrderManager == null) return false;
         try
         {
             var loaded = await _serviceOrderManager.LoadAsync(path);
@@ -69,11 +71,13 @@ public partial class OperatorWindow : Window
                 MessageBox.Show(this, "The selected service order could not be loaded (missing or invalid file).",
                     "Load Service", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
+            return loaded != null;
         }
         catch (Exception ex)
         {
             MessageBox.Show(this, $"Could not load the service order:\n{ex.Message}",
                 "Load Service", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
         }
     }
     private bool _ndiActive;
@@ -99,6 +103,17 @@ public partial class OperatorWindow : Window
     private SongLibraryPanel? _songLibraryPanel;
     private ScriptureBrowserPanel? _scriptureBrowserPanel;
     private MediaLibraryPanel? _mediaLibraryPanel;
+
+    // Home / Services-list screens (FEAT-002). The views are passive renderers; the host
+    // owns all service mutations and re-scans via Core after each.
+    private HomeView? _homeView;
+    private ServicesListView? _servicesListView;
+    private string? _currentServicePath;
+
+    /// <summary>Normalized full-path equality for scanned-vs-derived service file paths.</summary>
+    private static bool SamePath(string? a, string? b) =>
+        a != null && b != null &&
+        string.Equals(System.IO.Path.GetFullPath(a), System.IO.Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 
     // OWC Design colors
     private static readonly Color AccentCyan = (Color)ColorConverter.ConvertFromString("#00D4FF");
@@ -212,6 +227,223 @@ public partial class OperatorWindow : Window
         RefreshServiceOrderList();
         UpdatePreviews();
         RefreshSlideThumbnails();
+
+        // FEAT-002: land on the Home screen. Synchronous view setup inline (Initialize is a
+        // sync void and cannot await); the services scan is fired-and-forgotten but observes
+        // its own exceptions via RefreshServiceListingInitialAsync.
+        EnsureHomeView();
+        HomePanelContent.Content = _homeView;
+        HomePanel.Visibility = Visibility.Visible;
+        ServicesListPanel.Visibility = Visibility.Collapsed;
+        ServicesPanel.Visibility = Visibility.Collapsed;
+
+        _ = RefreshServiceListingInitialAsync();
+    }
+
+    /// <summary>Lazily create and wire the Home view (idempotent).</summary>
+    private void EnsureHomeView()
+    {
+        if (_homeView != null) return;
+
+        _homeView = new HomeView();
+        _homeView.TourRequested += (_, _) => { /* placeholder, no-op */ };
+        _homeView.ServicesRequested += (_, _) => ShowServicesList();
+        _homeView.SongsRequested += (_, _) => SwitchToTab("Songs");
+        _homeView.ScriptureRequested += (_, _) => SwitchToTab("Scripture");
+        _homeView.MediaRequested += (_, _) => SwitchToTab("Media");
+        _homeView.SlidesRequested += (_, _) => ShowServiceEditor();
+        _homeView.AddServiceRequested += OnNewServiceRequested;
+        _homeView.OpenServiceRequested += OnOpenServiceRequested;
+        _homeView.RenameServiceRequested += OnRenameServiceRequested;
+        _homeView.DeleteServiceRequested += OnDeleteServiceRequested;
+    }
+
+    /// <summary>Lazily create and wire the Services-list view (idempotent).</summary>
+    private void EnsureServicesListView()
+    {
+        if (_servicesListView != null) return;
+
+        _servicesListView = new ServicesListView();
+        _servicesListView.NewServiceRequested += OnNewServiceRequested;
+        _servicesListView.OpenServiceRequested += OnOpenServiceRequested;
+        _servicesListView.RenameServiceRequested += OnRenameServiceRequested;
+        _servicesListView.DeleteServiceRequested += OnDeleteServiceRequested;
+    }
+
+    /// <summary>
+    /// Fire-and-forget wrapper for the initial services scan. Observes its own exceptions so
+    /// an unobserved task exception can never crash the window.
+    /// </summary>
+    private async Task RefreshServiceListingInitialAsync()
+    {
+        try { await RefreshServiceListingAsync(); }
+        catch (Exception ex) { ShowToolError("Services", ex.Message); }
+    }
+
+    /// <summary>
+    /// Re-scan the ServiceOrders folder via Core and rebind both tables. Non-fatal: any error
+    /// is surfaced via ShowToolError and the previously-bound rows remain. Called on initial
+    /// load and after every create/rename/delete.
+    /// </summary>
+    private async Task RefreshServiceListingAsync()
+    {
+        if (_serviceOrderManager == null) return;
+        try
+        {
+            var files = await _serviceOrderManager.ListServiceFilesAsync();
+            var rows = ServiceListingBuilder.Build(files, DateTime.UtcNow);
+            _homeView?.SetServices(rows);
+            _servicesListView?.SetServices(rows);
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Services", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Show the Services-list table (the Services top-nav tab). Lazily creates the view,
+    /// hosts it, hides the other center panels, marks the tab active, and refreshes the list.
+    /// </summary>
+    private async void ShowServicesList()
+    {
+        try
+        {
+            EnsureServicesListView();
+            ServicesListPanelContent.Content = _servicesListView;
+
+            HomePanel.Visibility = Visibility.Collapsed;
+            ServicesPanel.Visibility = Visibility.Collapsed;
+            SongsPanel.Visibility = Visibility.Collapsed;
+            ScripturePanel.Visibility = Visibility.Collapsed;
+            MediaPanel.Visibility = Visibility.Collapsed;
+            ErrorPanel.Visibility = Visibility.Collapsed;
+            ServicesListPanel.Visibility = Visibility.Visible;
+
+            _activeTab = "Services";
+            SetTabInactive(TabSongs);
+            SetTabInactive(TabScripture);
+            SetTabInactive(TabMedia);
+            SetTabActive(TabServices);
+
+            await RefreshServiceListingAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Services", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Reveal the slide-editing grid (ServicesPanel) when a service is opened. For a non-empty
+    /// service, OnItemChanged has already set the header via the GoToItem(0) chain; for an empty
+    /// or none-current service we write the header from the current order so no stale title shows.
+    /// </summary>
+    private void ShowServiceEditor()
+    {
+        HomePanel.Visibility = Visibility.Collapsed;
+        ServicesListPanel.Visibility = Visibility.Collapsed;
+        SongsPanel.Visibility = Visibility.Collapsed;
+        ScripturePanel.Visibility = Visibility.Collapsed;
+        MediaPanel.Visibility = Visibility.Collapsed;
+        ErrorPanel.Visibility = Visibility.Collapsed;
+        ServicesPanel.Visibility = Visibility.Visible;
+
+        var order = _serviceOrderManager?.CurrentServiceOrder;
+        if (order == null || order.Items.Count == 0)
+        {
+            CurrentItemTitle.Text = order?.Name ?? "";
+            CurrentItemSubtitle.Text = order?.ServiceType ?? "";
+        }
+    }
+
+    // --- FEAT-002 view event handlers (async void at the WPF boundary) ---
+
+    private async void OnOpenServiceRequested(object? sender, string path)
+    {
+        try
+        {
+            if (await LoadServiceOrderAsync(path))
+            {
+                _currentServicePath = path;
+                ShowServiceEditor();
+                RefreshServiceOrderList();
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Open Service", ex.Message);
+        }
+    }
+
+    private async void OnNewServiceRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_serviceOrderManager == null) return;
+
+            var dlg = new ServiceInfoDialog { Owner = this };
+            if (dlg.ShowDialog() != true || !dlg.Confirmed) return;
+
+            _serviceOrderManager.CreateNew(dlg.ServiceName, dlg.ServiceDate);
+            _serviceOrderManager.CurrentServiceOrder!.StartTime = dlg.StartTime;
+            await SaveServiceOrderAsync();
+            _currentServicePath = _serviceOrderManager.GetFilePathFor(_serviceOrderManager.CurrentServiceOrder!);
+            RefreshServiceOrderList();
+            await RefreshServiceListingAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("New Service", ex.Message);
+        }
+    }
+
+    private async void OnRenameServiceRequested(object? sender, string path)
+    {
+        try
+        {
+            if (!SamePath(path, _currentServicePath) || _serviceOrderManager?.CurrentServiceOrder == null)
+                return;
+
+            var order = _serviceOrderManager.CurrentServiceOrder;
+            var dlg = new ServiceInfoDialog { Owner = this };
+            dlg.Initialize(order.Name, order.Date, order.StartTime);
+            if (dlg.ShowDialog() != true || !dlg.Confirmed) return;
+
+            order.Name = dlg.ServiceName;
+            order.Date = dlg.ServiceDate;
+            order.StartTime = dlg.StartTime;
+            await SaveServiceOrderAsync(path);
+            RefreshServiceOrderList();
+            await RefreshServiceListingAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Rename Service", ex.Message);
+        }
+    }
+
+    private async void OnDeleteServiceRequested(object? sender, string path)
+    {
+        try
+        {
+            var result = MessageBox.Show(this,
+                "Delete this service? This cannot be undone.",
+                "Delete Service", MessageBoxButton.YesNo, MessageBoxImage.Warning,
+                MessageBoxResult.No);
+            if (result != MessageBoxResult.Yes) return;
+
+            try { File.Delete(path); }
+            catch (Exception ex) { ShowToolError("Delete Service", ex.Message); }
+
+            await RefreshServiceListingAsync();
+            if (SamePath(path, _currentServicePath))
+                _currentServicePath = null;
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Delete Service", ex.Message);
+        }
     }
 
     /// <summary>
@@ -974,6 +1206,11 @@ public partial class OperatorWindow : Window
         finally
         {
             _suppressServiceOrderSelection = false;
+            // FEAT-002: show the dashed sidebar empty-state only when no items are listed.
+            if (SidebarEmptyState != null)
+                SidebarEmptyState.Visibility = _serviceOrderItems.Count == 0
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
         }
     }
 
@@ -981,12 +1218,12 @@ public partial class OperatorWindow : Window
     /// Persist the current service order to disk. Single reuse point for every
     /// service mutation (add/edit/delete). No-ops when nothing is loaded.
     /// </summary>
-    private async Task SaveServiceOrderAsync()
+    private async Task SaveServiceOrderAsync(string? path = null)
     {
         if (_serviceOrderManager?.CurrentServiceOrder == null) return;
         try
         {
-            await _serviceOrderManager.SaveAsync();
+            await _serviceOrderManager.SaveAsync(path);
         }
         catch (Exception ex)
         {
@@ -1305,7 +1542,7 @@ public partial class OperatorWindow : Window
 
     // --- Navigation Tab Handlers ---
 
-    private void TabServices_Click(object sender, RoutedEventArgs e) => SwitchToTab("Services");
+    private void TabServices_Click(object sender, RoutedEventArgs e) => ShowServicesList();
     private void TabSongs_Click(object sender, RoutedEventArgs e) => SwitchToTab("Songs");
     private void TabScripture_Click(object sender, RoutedEventArgs e) => SwitchToTab("Scripture");
     private void TabMedia_Click(object sender, RoutedEventArgs e) => SwitchToTab("Media");
@@ -1326,6 +1563,8 @@ public partial class OperatorWindow : Window
         _activeTab = tabName;
 
         // Hide all panels
+        HomePanel.Visibility = Visibility.Collapsed;
+        ServicesListPanel.Visibility = Visibility.Collapsed;
         ServicesPanel.Visibility = Visibility.Collapsed;
         SongsPanel.Visibility = Visibility.Collapsed;
         ScripturePanel.Visibility = Visibility.Collapsed;
