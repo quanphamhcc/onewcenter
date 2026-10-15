@@ -214,10 +214,12 @@
                                 Padding="3,1" Click="SidebarCollapse_Click" Cursor="Hand" />
                     </Grid>
 
-                    <!-- Service order list - selectable ListBox using the keyed OwcServiceListBox style
-                         (NO implicit/keyless style; concrete brushes only to avoid BorderBrush/UnsetValue crash) -->
+                    <!-- Service order list - selectable ListBox. OperatorWindow uses NO resource
+                         dictionaries (see note at top of file), so all brushes are hardcoded inline
+                         here instead of referencing a StaticResource style, which would throw at load. -->
                     <ListBox x:Name="ServiceOrderList" Grid.Row="1"
-                             Style="{StaticResource OwcServiceListBox}"
+                             Background="Transparent" BorderThickness="0"
+                             Foreground="#F0F2F5"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              MouseDoubleClick="ServiceOrderList_MouseDoubleClick">
                         <ListBox.ItemTemplate>
