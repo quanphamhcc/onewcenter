@@ -1,0 +1,7 @@
+{
+  "task_id": "task-template-system",
+  "task_description": "Wire the already-complete template backend (TemplateService + TemplateManagerPanel + 3-tab TemplateEditorWindow) into the WPF operator UI so template management (G1 editor, G5 management, G6 built-ins) is reachable from the Tools dropdown and persists to disk. Backend and UI controls exist; the job is composition/wiring plus closing the editor-does-not-save gap.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
