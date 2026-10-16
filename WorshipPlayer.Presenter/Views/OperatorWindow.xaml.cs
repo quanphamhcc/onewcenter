@@ -1887,7 +1887,7 @@ public partial class OperatorWindow : Window
             try
             {
                 var item = await _mediaLibraryService.ImportAsync(filePath);
-                _mediaLibraryPanel.Items.Add(new MediaItem
+                _mediaLibraryPanel.AddImportedItem(new MediaItem
                 {
                     Id = item.Id,
                     Name = item.Name,

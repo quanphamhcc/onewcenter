@@ -59,16 +59,38 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Type filters -->
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-                <CheckBox x:Name="ImageFilterCheckBox" IsChecked="True" Content="Images"
-                          Foreground="{StaticResource OwcTextPrimaryBrush}" FontSize="12"
-                          Margin="0,0,12,0"
-                          Checked="Filter_Changed" Unchecked="Filter_Changed"/>
-                <CheckBox x:Name="VideoFilterCheckBox" IsChecked="True" Content="Videos"
-                          Foreground="{StaticResource OwcTextPrimaryBrush}" FontSize="12"
-                          Checked="Filter_Changed" Unchecked="Filter_Changed"/>
-            </StackPanel>
+            <!-- Type / Tag filters -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <ComboBox x:Name="TypeFilterComboBox" Grid.Column="0"
+                          Style="{StaticResource OwcDarkComboBox}"
+                          FontSize="11" Padding="6,4"
+                          SelectionChanged="Filter_Changed">
+                    <ComboBoxItem Content="All Types" IsSelected="True"/>
+                    <ComboBoxItem Content="Image"/>
+                    <ComboBoxItem Content="Video"/>
+                    <ComboBoxItem Content="Audio"/>
+                </ComboBox>
+
+                <ComboBox x:Name="TagFilterComboBox" Grid.Column="2"
+                          Style="{StaticResource OwcDarkComboBox}"
+                          FontSize="11" Padding="6,4"
+                          SelectionChanged="Filter_Changed">
+                    <ComboBoxItem Content="All Tags" IsSelected="True"/>
+                </ComboBox>
+
+                <Button x:Name="ClearFiltersButton" Grid.Column="4" Content="Clear"
+                        Style="{StaticResource OwcButtonBase}"
+                        FontSize="10" Padding="8,4"
+                        Click="ClearFilters_Click"/>
+            </Grid>
 
             <!-- Content area -->
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
