@@ -1621,6 +1621,7 @@ public partial class OperatorWindow : Window
                         if (_songLibraryService != null)
                             _songLibraryPanel.SongLibraryService = _songLibraryService;
                         _songLibraryPanel.SongSelected += OnSongSelected;
+                        _songLibraryPanel.ImportChordProRequested += OnImportChordProRequested;
                     }
                     SongsPanelContent.Content = _songLibraryPanel;
                     SongsPanel.Visibility = Visibility.Visible;
@@ -1679,6 +1680,42 @@ public partial class OperatorWindow : Window
             // Non-fatal: nothing resolved — surface it instead of silently doing nothing.
             System.Diagnostics.Debug.WriteLine(
                 $"OnSongSelected: could not resolve song (Id='{songItem.Id}', Title='{songItem.Title}').");
+        }
+    }
+
+    private void OnImportChordProRequested(object? sender, EventArgs e)
+    {
+        if (_songLibraryService == null) return;
+
+        // The dialog's own Browse button shows an OpenFileDialog (ChordPro extensions),
+        // parses, and previews; on confirm it exposes the chosen path via FilePathTextBox.
+        var dialog = new ChordProImportDialog { Owner = this };
+        if (dialog.ShowDialog() == true && dialog.Confirmed)
+        {
+            var path = dialog.FilePathTextBox.Text;
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            {
+                // Fire-and-forget the async import, mirroring OnMediaImportRequested.
+                _ = ImportChordProFromFileAsync(path);
+            }
+        }
+    }
+
+    private async Task ImportChordProFromFileAsync(string path)
+    {
+        if (_songLibraryService == null) return;
+
+        try
+        {
+            // Authoritative import: reuses ChordProParserService + SongManager.SaveSongAsync
+            // (song.json persistence) and preserves chords/sections, unlike the dialog's
+            // lossy preview. Then refresh the list so the new song shows immediately.
+            await _songLibraryService.ImportChordProAsync(path);
+            _songLibraryPanel?.RefreshSongs();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Import ChordPro", ex.Message);
         }
     }
 

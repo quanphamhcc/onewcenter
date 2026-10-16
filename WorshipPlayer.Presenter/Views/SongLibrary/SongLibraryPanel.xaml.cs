@@ -27,6 +27,12 @@ public partial class SongLibraryPanel : UserControl
 
     public event EventHandler<SongListItem>? SongSelected;
 
+    /// <summary>
+    /// Raised when the user clicks "Import ChordPro…". The host (OperatorWindow) owns the
+    /// dialog + service logic, keeping this panel service-agnostic — mirrors MediaLibraryPanel.ImportRequested.
+    /// </summary>
+    public event EventHandler? ImportChordProRequested;
+
     public SongLibraryPanel()
     {
         InitializeComponent();
@@ -73,6 +79,11 @@ public partial class SongLibraryPanel : UserControl
         }
 
         UpdateEmptyState();
+    }
+
+    private void ImportChordPro_Click(object sender, RoutedEventArgs e)
+    {
+        ImportChordProRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)

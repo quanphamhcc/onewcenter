@@ -19,6 +19,15 @@
                        Foreground="{StaticResource OwcTextPrimaryBrush}"
                        Margin="0,0,0,10"/>
 
+            <!-- Import -->
+            <Button x:Name="ImportChordProButton" DockPanel.Dock="Top"
+                    Content="Import ChordPro…"
+                    Style="{StaticResource OwcButtonBase}"
+                    FontSize="11" Padding="8,5"
+                    HorizontalAlignment="Left"
+                    Margin="0,0,0,10"
+                    Click="ImportChordPro_Click"/>
+
             <!-- Search bar -->
             <TextBox x:Name="SearchTextBox" DockPanel.Dock="Top"
                      Background="{StaticResource OwcSurfaceBrush}"

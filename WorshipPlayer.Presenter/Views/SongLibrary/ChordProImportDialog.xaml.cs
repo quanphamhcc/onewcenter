@@ -36,7 +36,7 @@ public partial class ChordProImportDialog : Window
         var dialog = new OpenFileDialog
         {
             Title = "Select ChordPro File",
-            Filter = "ChordPro Files (*.chopro;*.chordpro;*.cho)|*.chopro;*.chordpro;*.cho|Text Files (*.txt)|*.txt|All Files (*.*)|*.*"
+            Filter = "ChordPro Files (*.chopro;*.chordpro;*.cho;*.pro;*.crd)|*.chopro;*.chordpro;*.cho;*.pro;*.crd|Text Files (*.txt)|*.txt|All Files (*.*)|*.*"
         };
 
         if (dialog.ShowDialog() == true)
