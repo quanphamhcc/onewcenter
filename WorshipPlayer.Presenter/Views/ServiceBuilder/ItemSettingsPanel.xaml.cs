@@ -159,12 +159,9 @@ internal static class ItemSettingsMapping
         _ => AutoAdvanceGoTo.NextItem
     };
 
-    public static AutoAdvanceAfterCondition ToAfter(string label) => label switch
-    {
-        "Time Delay" => AutoAdvanceAfterCondition.Timer,
-        "End of Media" => AutoAdvanceAfterCondition.AudioEnd,
-        _ => AutoAdvanceAfterCondition.Manual
-    };
+    // Delegate to the Core parser so per-item (C4) and bulk edit (C3) agree on the mapping.
+    public static AutoAdvanceAfterCondition ToAfter(string label) =>
+        WorshipPlayer.Core.Services.BulkEditService.ParseAfterCondition(label);
 
     public static string GoToLabel(AutoAdvanceGoTo goTo) => goTo switch
     {

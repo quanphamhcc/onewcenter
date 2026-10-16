@@ -1,11 +1,14 @@
 using System.Windows;
 using System.Windows.Controls;
+using WorshipPlayer.Core.Services;
 
 namespace WorshipPlayer.Presenter.Views.ServiceBuilder;
 
 /// <summary>
-/// Panel for bulk editing multiple selected service items.
-/// Appears when multiple items are selected in the service sidebar.
+/// Panel for bulk editing multiple selected service items (roadmap C3).
+/// Hosted modally by <see cref="BulkEditWindow"/>. Each field is opt-in via a checkbox; the
+/// panel builds the Core <see cref="BulkEditOptions"/> (reusing <see cref="BulkEditService"/>'s
+/// label→enum mapping) so the pure batch-apply logic stays testable and shared with C4.
 /// </summary>
 public partial class BulkEditPanel : UserControl
 {
@@ -44,14 +47,16 @@ public partial class BulkEditPanel : UserControl
 
     private void Apply_Click(object sender, RoutedEventArgs e)
     {
+        // Build the Core options directly, mapping the human-readable combo text through the
+        // shared Core parsers so the panel and the pure apply logic agree.
         var options = new BulkEditOptions
         {
             ApplyBackground = ApplyBackgroundCheck.IsChecked == true,
-            BackgroundType = GetComboBoxText(BackgroundComboBox),
+            BackgroundType = BulkEditService.ParseBackground(GetComboBoxText(BackgroundComboBox)),
             ApplyTransition = ApplyTransitionCheck.IsChecked == true,
             TransitionTimeMs = (int)BatchTransitionSlider.Value,
             ApplyAutoAdvance = ApplyAutoAdvanceCheck.IsChecked == true,
-            AutoAdvanceMode = GetComboBoxText(AutoAdvanceComboBox)
+            AutoAdvanceCondition = BulkEditService.ParseAfterCondition(GetComboBoxText(AutoAdvanceComboBox))
         };
 
         ApplyRequested?.Invoke(this, options);
@@ -77,17 +82,4 @@ public partial class BulkEditPanel : UserControl
             return item.Content?.ToString() ?? string.Empty;
         return string.Empty;
     }
-}
-
-/// <summary>
-/// Options for a bulk edit operation.
-/// </summary>
-public class BulkEditOptions
-{
-    public bool ApplyBackground { get; set; }
-    public string BackgroundType { get; set; } = string.Empty;
-    public bool ApplyTransition { get; set; }
-    public int TransitionTimeMs { get; set; }
-    public bool ApplyAutoAdvance { get; set; }
-    public string AutoAdvanceMode { get; set; } = string.Empty;
 }

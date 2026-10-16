@@ -1315,6 +1315,10 @@ public partial class OperatorWindow : Window
     // navigation that triggered the refresh.
     private bool _suppressServiceOrderSelection;
 
+    // C3 Bulk edit: when true the sidebar is in multi-select mode (ListBox SelectionMode = Extended)
+    // and single-click navigation is suppressed so the user can build a selection set to batch-edit.
+    private bool _bulkEditMode;
+
     /// <summary>
     /// BUG B: single-click a service item on the left to make it the current item. Navigating via
     /// ServiceOrderManager.GoToItem fires ItemChanged -> PresenterEngine.OnServiceItemChanged
@@ -1325,6 +1329,9 @@ public partial class OperatorWindow : Window
     private void ServiceOrderList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressServiceOrderSelection) return;
+        // C3: while bulk-edit multi-select is on, selecting rows must NOT drive single-item
+        // navigation — the user is building a selection set for a batch apply.
+        if (_bulkEditMode) return;
         if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display) return;
         // C2: group-header rows carry a null Item — don't navigate when one is selected.
         if (display.Item == null) return;
@@ -1410,6 +1417,76 @@ public partial class OperatorWindow : Window
         catch (Exception ex)
         {
             ShowToolError("Item Settings", ex.Message);
+        }
+    }
+
+    // ─── C3 Bulk edit: multi-select toggle + batch apply ──────────────────────────
+    // Coexists with C2 grouped rendering: the toggle only flips the ListBox selection mode and
+    // reveals the "Apply to selected…" action; it does not change how rows are rendered. Group
+    // headers (Item == null) are filtered out of the selected set before applying.
+
+    /// <summary>Enter bulk-edit mode: allow multi-selection and reveal the batch-apply action.</summary>
+    private void BulkEditToggle_Checked(object sender, RoutedEventArgs e)
+    {
+        _bulkEditMode = true;
+        ServiceOrderList.SelectionMode = SelectionMode.Extended;
+        ServiceOrderList.UnselectAll();
+        if (ApplyToSelectedBtn != null)
+            ApplyToSelectedBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Leave bulk-edit mode: restore single-select navigation and hide the batch-apply action.</summary>
+    private void BulkEditToggle_Unchecked(object sender, RoutedEventArgs e)
+    {
+        _bulkEditMode = false;
+        ServiceOrderList.SelectionMode = SelectionMode.Single;
+        ServiceOrderList.UnselectAll();
+        if (ApplyToSelectedBtn != null)
+            ApplyToSelectedBtn.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Collect the multi-selection, open <see cref="BulkEditWindow"/>, and on confirm batch-apply
+    /// the chosen fields to all selected items via the pure <see cref="Core.Services.BulkEditService"/>,
+    /// persist through the existing ServiceOrder save path, and refresh the sidebar. Mirrors the
+    /// established manager → SaveServiceOrderAsync → RefreshServiceOrderList pattern.
+    /// </summary>
+    private async void ApplyToSelected_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_serviceOrderManager?.CurrentServiceOrder == null) return;
+
+            // Project the selected display rows to their underlying items, dropping group headers
+            // (Item == null). Build a concrete list so enumeration is stable across the dialog.
+            var selectedItems = ServiceOrderList.SelectedItems
+                .OfType<ServiceItemDisplay>()
+                .Where(d => d.Item != null)
+                .Select(d => d.Item!)
+                .ToList();
+
+            if (selectedItems.Count < 2)
+            {
+                MessageBox.Show(
+                    "Select two or more items to bulk edit.",
+                    "Bulk Edit",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var window = new BulkEditWindow(selectedItems.Count) { Owner = this };
+
+            if (window.ShowDialog() == true && window.Result != null)
+            {
+                Core.Services.BulkEditService.Apply(window.Result, selectedItems);
+                await SaveServiceOrderAsync();
+                RefreshServiceOrderList();
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Bulk Edit", ex.Message);
         }
     }
 
