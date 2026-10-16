@@ -137,7 +137,12 @@ public class ServiceOrderManager
         if (CurrentServiceOrder == null || index < 0 || index >= CurrentServiceOrder.Items.Count)
             return;
 
+        var removedId = CurrentServiceOrder.Items[index].Id;
         CurrentServiceOrder.Items.RemoveAt(index);
+
+        // Purge the removed item's id from every group so no group keeps a dangling reference.
+        foreach (var group in CurrentServiceOrder.Groups)
+            group.Items.RemoveAll(id => id == removedId);
 
         // Reorder remaining items
         for (int i = index; i < CurrentServiceOrder.Items.Count; i++)
@@ -172,6 +177,121 @@ public class ServiceOrderManager
             CurrentItemIndex--;
         else if (fromIndex > CurrentItemIndex && toIndex <= CurrentItemIndex)
             CurrentItemIndex++;
+    }
+
+    // ─── Service group operations (roadmap C2) ────────────────────
+    // Groups own an ordered list of ServiceItem.Id values (ServiceGroup.Items). An item whose
+    // Id is in no group's Items list is "ungrouped". There is a single source of truth (the
+    // group side); ServiceItem has no group reference. All mutations happen in place on
+    // CurrentServiceOrder.Groups / .Items and are persisted by the existing SaveAsync path.
+
+    /// <summary>
+    /// Create a named group, appended after any existing groups. Returns the new group,
+    /// or null when no service order is loaded.
+    /// </summary>
+    public ServiceGroup? CreateGroup(string name)
+    {
+        if (CurrentServiceOrder == null) return null;
+
+        var group = new ServiceGroup
+        {
+            Name = string.IsNullOrWhiteSpace(name) ? "Untitled Group" : name.Trim(),
+            Order = CurrentServiceOrder.Groups.Count
+        };
+        CurrentServiceOrder.Groups.Add(group);
+        return group;
+    }
+
+    /// <summary>
+    /// Rename an existing group. Returns false when the order is unloaded or the id is unknown.
+    /// </summary>
+    public bool RenameGroup(string groupId, string newName)
+    {
+        if (CurrentServiceOrder == null) return false;
+
+        var group = CurrentServiceOrder.Groups.FirstOrDefault(g => g.Id == groupId);
+        if (group == null) return false;
+
+        group.Name = string.IsNullOrWhiteSpace(newName) ? group.Name : newName.Trim();
+        return true;
+    }
+
+    /// <summary>
+    /// Delete a group WITHOUT deleting its items. The group's item ids are simply dropped from
+    /// the group; the underlying ServiceItems stay in ServiceOrder.Items and become ungrouped.
+    /// Remaining groups' Order values are compacted. Returns false on unloaded order / unknown id.
+    /// </summary>
+    public bool DeleteGroup(string groupId)
+    {
+        if (CurrentServiceOrder == null) return false;
+
+        var group = CurrentServiceOrder.Groups.FirstOrDefault(g => g.Id == groupId);
+        if (group == null) return false;
+
+        CurrentServiceOrder.Groups.Remove(group);
+
+        // Compact Order so it stays a dense 0..n-1 sequence.
+        var ordered = CurrentServiceOrder.Groups.OrderBy(g => g.Order).ToList();
+        for (int i = 0; i < ordered.Count; i++)
+            ordered[i].Order = i;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Assign an item to a group (or ungroup it when <paramref name="targetGroupId"/> is null).
+    /// The item id is first removed from every group, then appended to the target group's Items.
+    /// Returns false when the order is unloaded, the item id is unknown, or the target group id
+    /// is non-null but unknown.
+    /// </summary>
+    public bool AssignItemToGroup(string itemId, string? targetGroupId)
+    {
+        if (CurrentServiceOrder == null) return false;
+        if (!CurrentServiceOrder.Items.Any(i => i.Id == itemId)) return false;
+
+        ServiceGroup? target = null;
+        if (targetGroupId != null)
+        {
+            target = CurrentServiceOrder.Groups.FirstOrDefault(g => g.Id == targetGroupId);
+            if (target == null) return false;
+        }
+
+        // Remove from any current group (single source of truth).
+        foreach (var group in CurrentServiceOrder.Groups)
+            group.Items.RemoveAll(id => id == itemId);
+
+        target?.Items.Add(itemId);
+        return true;
+    }
+
+    /// <summary>
+    /// Set a group's collapsed state. Returns false on unloaded order / unknown id.
+    /// </summary>
+    public bool SetGroupCollapsed(string groupId, bool collapsed)
+    {
+        if (CurrentServiceOrder == null) return false;
+
+        var group = CurrentServiceOrder.Groups.FirstOrDefault(g => g.Id == groupId);
+        if (group == null) return false;
+
+        group.IsCollapsed = collapsed;
+        return true;
+    }
+
+    /// <summary>
+    /// Ids of items not present in any group's Items list, in ServiceOrder.Items order.
+    /// </summary>
+    public IReadOnlyList<string> GetUngroupedItemIds()
+    {
+        if (CurrentServiceOrder == null) return Array.Empty<string>();
+
+        var grouped = new HashSet<string>(
+            CurrentServiceOrder.Groups.SelectMany(g => g.Items));
+
+        return CurrentServiceOrder.Items
+            .Where(i => !grouped.Contains(i.Id))
+            .Select(i => i.Id)
+            .ToList();
     }
 
     /// <summary>

@@ -222,10 +222,18 @@
                     <Grid Grid.Row="0" Margin="10,8,10,4">
                         <TextBlock Text="SERVICE ORDER" FontSize="9" FontWeight="Bold"
                                    Foreground="#4A5068" VerticalAlignment="Center" />
-                        <Button x:Name="SidebarCollapseBtn" Content="&#x25C0;" FontSize="9"
-                                HorizontalAlignment="Right" Background="Transparent"
-                                Foreground="#8B92A5" BorderBrush="Transparent" BorderThickness="0"
-                                Padding="3,1" Click="SidebarCollapse_Click" Cursor="Hand" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <!-- C2 Service order groups: add a collapsible named section. -->
+                            <Button x:Name="AddGroupBtn" Content="&#xA7; Group" FontSize="9"
+                                    Background="Transparent" Foreground="#00D4FF"
+                                    BorderBrush="Transparent" BorderThickness="0"
+                                    Padding="3,1" Margin="0,0,6,0" Click="AddGroup_Click"
+                                    Cursor="Hand" ToolTip="Add a group section" />
+                            <Button x:Name="SidebarCollapseBtn" Content="&#x25C0;" FontSize="9"
+                                    Background="Transparent"
+                                    Foreground="#8B92A5" BorderBrush="Transparent" BorderThickness="0"
+                                    Padding="3,1" Click="SidebarCollapse_Click" Cursor="Hand" />
+                        </StackPanel>
                     </Grid>
 
                     <!-- Service order list - selectable ListBox. OperatorWindow uses NO resource
@@ -239,19 +247,44 @@
                              MouseDoubleClick="ServiceOrderList_MouseDoubleClick">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Cursor="Hand">
-                                    <TextBlock Text="{Binding Icon}" FontSize="12" Foreground="#F0F2F5"
-                                               Padding="10,5,4,5" />
-                                    <TextBlock Text="{Binding Title}" FontSize="12" Foreground="#F0F2F5"
-                                               Padding="0,5,10,5" />
-                                </StackPanel>
+                                <Grid>
+                                    <!-- Group-header row (C2): collapse chevron + name. Visible only
+                                         when the display wrapper represents a group header. -->
+                                    <StackPanel Orientation="Horizontal" Cursor="Hand"
+                                                Visibility="{Binding HeaderVisibility}">
+                                        <Button Content="{Binding CollapseGlyph}" FontSize="10"
+                                                Background="Transparent" Foreground="#8B92A5"
+                                                BorderBrush="Transparent" BorderThickness="0"
+                                                Padding="8,4,4,4" Cursor="Hand"
+                                                Click="GroupCollapseToggle_Click"
+                                                Tag="{Binding}" />
+                                        <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="Bold"
+                                                   Foreground="#4A5068" VerticalAlignment="Center"
+                                                   Padding="0,4,10,4" />
+                                    </StackPanel>
+                                    <!-- Item row: icon + title (unchanged layout). -->
+                                    <StackPanel Orientation="Horizontal" Cursor="Hand"
+                                                Visibility="{Binding ItemVisibility}">
+                                        <TextBlock Text="{Binding Icon}" FontSize="12" Foreground="#F0F2F5"
+                                                   Padding="10,5,4,5" />
+                                        <TextBlock Text="{Binding Title}" FontSize="12" Foreground="#F0F2F5"
+                                                   Padding="0,5,10,5" />
+                                    </StackPanel>
+                                </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                         <ListBox.ContextMenu>
-                            <ContextMenu>
+                            <!-- Opened handler rebuilds the "Move to Group" submenu from the
+                                 current groups and enables item actions only for item rows. -->
+                            <ContextMenu Opened="ServiceOrderContextMenu_Opened">
                                 <MenuItem Header="Edit" Click="EditServiceItem_Click" />
                                 <MenuItem Header="Item Settings…" Click="ItemSettings_Click" />
+                                <MenuItem x:Name="MoveToGroupMenu" Header="Move to Group" />
                                 <MenuItem Header="Remove" Click="RemoveServiceItem_Click" />
+                                <Separator />
+                                <MenuItem Header="Add Group…" Click="AddGroup_Click" />
+                                <MenuItem x:Name="RenameGroupMenu" Header="Rename Group…" Click="RenameGroup_Click" />
+                                <MenuItem x:Name="DeleteGroupMenu" Header="Delete Group" Click="DeleteGroup_Click" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
                     </ListBox>

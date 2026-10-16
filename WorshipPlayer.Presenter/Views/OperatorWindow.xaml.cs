@@ -585,8 +585,11 @@ public partial class OperatorWindow : Window
             // repopulates it once a service is actually loaded (covers both auto-load and manual
             // Load Service). The list is only rebuilt when its item count no longer matches, so the
             // user's current selection is preserved for ordinary item-to-item navigation.
+            // C2: the sidebar may contain group-header rows (Item == null) in addition to item
+            // rows, so compare the ITEM-row count (not total row count) against the order.
             var orderItemCount = _engine?.CurrentServiceOrder?.Items.Count ?? 0;
-            if (_serviceOrderItems.Count != orderItemCount)
+            var itemRowCount = _serviceOrderItems.Count(d => d.Item != null);
+            if (itemRowCount != orderItemCount)
             {
                 RefreshServiceOrderList();
             }
@@ -1101,7 +1104,21 @@ public partial class OperatorWindow : Window
     {
         public string Icon { get; set; } = "";
         public string Title { get; set; } = "";
-        public ServiceItem Item { get; set; } = null!;
+
+        // Null for group-header rows; non-null for item rows. Selection/navigation and the
+        // sidebar sync check both key off this (null => a header row, skipped).
+        public ServiceItem? Item { get; set; }
+
+        // C2 group-header fields. Group is non-null only when IsGroupHeader is true.
+        public bool IsGroupHeader { get; set; }
+        public ServiceGroup? Group { get; set; }
+
+        public Visibility HeaderVisibility => IsGroupHeader ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility ItemVisibility => IsGroupHeader ? Visibility.Collapsed : Visibility.Visible;
+
+        // ▼ expanded, ► collapsed. The "Ungrouped" header (Group == null) is not collapsible,
+        // so it shows no chevron.
+        public string CollapseGlyph => Group == null ? "" : (Group.IsCollapsed ? "\u25BA" : "\u25BC");
     }
 
     private readonly System.Collections.ObjectModel.ObservableCollection<ServiceItemDisplay> _serviceOrderItems = new();
@@ -1191,37 +1208,88 @@ public partial class OperatorWindow : Window
             var order = _engine?.CurrentServiceOrder;
             if (order == null) return;
 
-            foreach (var item in order.Items)
+            // C2: when no groups exist, render items flat exactly as before (legacy / no-group
+            // behavior). Otherwise render each group as a collapsible header followed by its
+            // (uncollapsed) item rows, then an "Ungrouped" section for any leftover items.
+            if (order.Groups.Count == 0)
             {
-                var icon = item.Type switch
-                {
-                    ServiceItemType.Song => "\u266A",
-                    ServiceItemType.Scripture => "\U0001F4D6",
-                    ServiceItemType.Announcement => "\U0001F4E2",
-                    ServiceItemType.Sermon => "\U0001F3A4",
-                    ServiceItemType.Video => "\U0001F3AC",
-                    ServiceItemType.Offering => "\U0001F49D",
-                    ServiceItemType.Prayer => "\U0001F64F",
-                    _ => "\u2022"
-                };
+                foreach (var item in order.Items)
+                    _serviceOrderItems.Add(MakeItemRow(item));
+            }
+            else
+            {
+                var byId = order.Items.ToDictionary(i => i.Id);
 
-                _serviceOrderItems.Add(new ServiceItemDisplay
+                foreach (var group in order.Groups.OrderBy(g => g.Order))
                 {
-                    Icon = icon,
-                    Title = item.Title,
-                    Item = item
-                });
+                    _serviceOrderItems.Add(new ServiceItemDisplay
+                    {
+                        IsGroupHeader = true,
+                        Group = group,
+                        Title = group.Name
+                    });
+
+                    if (group.IsCollapsed) continue;
+
+                    foreach (var id in group.Items)
+                        if (byId.TryGetValue(id, out var item))
+                            _serviceOrderItems.Add(MakeItemRow(item));
+                }
+
+                // Ungrouped bucket: items not in any group, in ServiceOrder.Items order.
+                var ungroupedIds = _serviceOrderManager?.GetUngroupedItemIds()
+                    ?? (IReadOnlyList<string>)System.Array.Empty<string>();
+                if (ungroupedIds.Count > 0)
+                {
+                    _serviceOrderItems.Add(new ServiceItemDisplay
+                    {
+                        IsGroupHeader = true,
+                        Group = null,
+                        Title = "Ungrouped"
+                    });
+
+                    foreach (var id in ungroupedIds)
+                        if (byId.TryGetValue(id, out var item))
+                            _serviceOrderItems.Add(MakeItemRow(item));
+                }
             }
         }
         finally
         {
             _suppressServiceOrderSelection = false;
             // FEAT-002: show the dashed sidebar empty-state only when no items are listed.
+            // C2: a group header can occupy a row with zero service items, so key the empty
+            // state off the actual item count, not the row count (which includes headers).
             if (SidebarEmptyState != null)
-                SidebarEmptyState.Visibility = _serviceOrderItems.Count == 0
+                SidebarEmptyState.Visibility = (_engine?.CurrentServiceOrder?.Items.Count ?? 0) == 0
                     ? Visibility.Visible
                     : Visibility.Collapsed;
         }
+    }
+
+    /// <summary>
+    /// Build an item (non-header) display row for the sidebar.
+    /// </summary>
+    private static ServiceItemDisplay MakeItemRow(ServiceItem item)
+    {
+        var icon = item.Type switch
+        {
+            ServiceItemType.Song => "\u266A",
+            ServiceItemType.Scripture => "\U0001F4D6",
+            ServiceItemType.Announcement => "\U0001F4E2",
+            ServiceItemType.Sermon => "\U0001F3A4",
+            ServiceItemType.Video => "\U0001F3AC",
+            ServiceItemType.Offering => "\U0001F49D",
+            ServiceItemType.Prayer => "\U0001F64F",
+            _ => "\u2022"
+        };
+
+        return new ServiceItemDisplay
+        {
+            Icon = icon,
+            Title = item.Title,
+            Item = item
+        };
     }
 
     /// <summary>
@@ -1258,6 +1326,8 @@ public partial class OperatorWindow : Window
     {
         if (_suppressServiceOrderSelection) return;
         if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display) return;
+        // C2: group-header rows carry a null Item — don't navigate when one is selected.
+        if (display.Item == null) return;
 
         var items = _engine?.CurrentServiceOrder?.Items;
         if (items == null) return;
@@ -1286,6 +1356,7 @@ public partial class OperatorWindow : Window
         {
             if (_serviceOrderManager == null) return;
             if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display) return;
+            if (display.Item == null) return; // C2: ignore group-header rows.
 
             var dialog = new AddServiceItemDialog
             {
@@ -1322,6 +1393,7 @@ public partial class OperatorWindow : Window
         {
             if (_serviceOrderManager?.CurrentServiceOrder == null) return;
             if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display) return;
+            if (display.Item == null) return; // C2: ignore group-header rows.
 
             var window = new ItemSettingsWindow(display.Item, _serviceOrderManager.CurrentServiceOrder.Items)
             {
@@ -1346,9 +1418,12 @@ public partial class OperatorWindow : Window
         try
         {
             if (_serviceOrderManager?.CurrentServiceOrder == null) return;
+            // C2: group-header rows are interleaved in the list, so SelectedIndex no longer maps
+            // 1:1 to Items. Resolve the target item from the selected display row instead.
+            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Item == null) return;
 
-            int index = ServiceOrderList.SelectedIndex;
-            if (index < 0 || index >= _serviceOrderManager.CurrentServiceOrder.Items.Count) return;
+            int index = _serviceOrderManager.CurrentServiceOrder.Items.IndexOf(display.Item);
+            if (index < 0) return;
 
             _serviceOrderManager.RemoveItem(index);
             await SaveServiceOrderAsync();
@@ -1358,6 +1433,222 @@ public partial class OperatorWindow : Window
         {
             ShowToolError("Remove Service Item", ex.Message);
         }
+    }
+
+    // ─── C2 Service order groups: sidebar wiring ──────────────────
+    // All handlers mirror the established manager -> SaveServiceOrderAsync -> RefreshServiceOrderList
+    // pattern used by item add/edit/settings/remove.
+
+    /// <summary>
+    /// Header "§ Group" button and context "Add Group…": prompt for a name, create the group,
+    /// persist, and re-render the grouped sidebar.
+    /// </summary>
+    private async void AddGroup_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_serviceOrderManager?.CurrentServiceOrder == null) return;
+
+            var name = PromptForText("New Group", "Group name:", "");
+            if (string.IsNullOrWhiteSpace(name)) return;
+
+            _serviceOrderManager.CreateGroup(name);
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Add Group", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Collapse/expand chevron on a group-header row: flip the group's collapsed state,
+    /// persist it, and rebuild the list (a collapsed group contributes only its header row).
+    /// </summary>
+    private async void GroupCollapseToggle_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_serviceOrderManager == null) return;
+            if (sender is not FrameworkElement fe || fe.Tag is not ServiceItemDisplay display) return;
+            if (display.Group == null) return; // "Ungrouped" header is not collapsible.
+
+            _serviceOrderManager.SetGroupCollapsed(display.Group.Id, !display.Group.IsCollapsed);
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Collapse Group", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Rebuild dynamic parts of the sidebar context menu when it opens: populate the
+    /// "Move to Group" submenu from the current groups, and enable/disable item vs group
+    /// actions based on which kind of row is selected.
+    /// </summary>
+    private void ServiceOrderContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        var display = ServiceOrderList.SelectedItem as ServiceItemDisplay;
+        var isItem = display?.Item != null;
+        var isGroupHeader = display?.IsGroupHeader == true && display.Group != null;
+
+        if (MoveToGroupMenu != null)
+        {
+            MoveToGroupMenu.Items.Clear();
+            MoveToGroupMenu.IsEnabled = isItem;
+
+            var order = _serviceOrderManager?.CurrentServiceOrder;
+            if (order != null)
+            {
+                foreach (var group in order.Groups.OrderBy(g => g.Order))
+                {
+                    var mi = new MenuItem { Header = group.Name, Tag = group.Id };
+                    mi.Click += MoveToGroup_Click;
+                    MoveToGroupMenu.Items.Add(mi);
+                }
+
+                if (order.Groups.Count > 0)
+                    MoveToGroupMenu.Items.Add(new Separator());
+
+                var ungroup = new MenuItem { Header = "Ungrouped", Tag = null };
+                ungroup.Click += MoveToGroup_Click;
+                MoveToGroupMenu.Items.Add(ungroup);
+            }
+        }
+
+        if (RenameGroupMenu != null) RenameGroupMenu.IsEnabled = isGroupHeader;
+        if (DeleteGroupMenu != null) DeleteGroupMenu.IsEnabled = isGroupHeader;
+    }
+
+    /// <summary>
+    /// "Move to Group ▸ &lt;name&gt;/Ungrouped": assign the selected item to the chosen group
+    /// (Tag holds the group id, or null to ungroup), persist, and re-render.
+    /// </summary>
+    private async void MoveToGroup_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_serviceOrderManager == null) return;
+            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Item == null) return;
+            if (sender is not MenuItem mi) return;
+
+            var targetGroupId = mi.Tag as string; // null => ungroup
+            _serviceOrderManager.AssignItemToGroup(display.Item.Id, targetGroupId);
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Move to Group", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Context "Rename Group…" on a group-header row: prompt for a new name and persist.
+    /// </summary>
+    private async void RenameGroup_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_serviceOrderManager == null) return;
+            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Group == null) return;
+
+            var name = PromptForText("Rename Group", "Group name:", display.Group.Name);
+            if (string.IsNullOrWhiteSpace(name)) return;
+
+            _serviceOrderManager.RenameGroup(display.Group.Id, name);
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Rename Group", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Context "Delete Group" on a group-header row: remove the group (its items stay in the
+    /// service order and become ungrouped), persist, and re-render.
+    /// </summary>
+    private async void DeleteGroup_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_serviceOrderManager == null) return;
+            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Group == null) return;
+
+            var result = MessageBox.Show(
+                $"Delete group '{display.Group.Name}'? Its items stay in the service and become ungrouped.",
+                "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes) return;
+
+            _serviceOrderManager.DeleteGroup(display.Group.Id);
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Delete Group", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Minimal modal text prompt (no resource dictionaries, inline brushes) used for group
+    /// name entry. Returns the entered text, or null if cancelled/closed.
+    /// </summary>
+    private string? PromptForText(string title, string prompt, string initial)
+    {
+        var window = new Window
+        {
+            Title = title,
+            Width = 340,
+            Height = 160,
+            Owner = this,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize,
+            Background = new SolidColorBrush(Color.FromRgb(0x1A, 0x1D, 0x27))
+        };
+
+        var textBox = new TextBox
+        {
+            Text = initial,
+            Margin = new Thickness(12, 4, 12, 4),
+            FontSize = 14
+        };
+
+        var okButton = new Button
+        {
+            Content = "OK",
+            Width = 80,
+            Margin = new Thickness(0, 0, 12, 12),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            IsDefault = true
+        };
+
+        string? result = null;
+        okButton.Click += (_, _) => { result = textBox.Text; window.DialogResult = true; window.Close(); };
+
+        var panel = new DockPanel();
+        var label = new TextBlock
+        {
+            Text = prompt,
+            Margin = new Thickness(12, 12, 12, 4),
+            Foreground = Brushes.White
+        };
+        DockPanel.SetDock(label, Dock.Top);
+        DockPanel.SetDock(okButton, Dock.Bottom);
+        panel.Children.Add(label);
+        panel.Children.Add(okButton);
+        panel.Children.Add(textBox);
+
+        window.Content = panel;
+        textBox.Focus();
+        textBox.SelectAll();
+        window.ShowDialog();
+        return result;
     }
 
     private void RefreshSlideThumbnails()
