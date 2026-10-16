@@ -260,6 +260,131 @@ public class SongLibraryServiceTests : IDisposable
         Assert.Equal("Then sings my soul", section.Text);
     }
 
+    [Fact]
+    public async Task UpdateSlidesAsync_PersistsLyricEdit_PreservesChordsTimestampsMetadata()
+    {
+        // (a) Create a song on disk with metadata, chords/timestamps inline in the lyrics,
+        //     a non-null ChordChart, a MIDI cue, and loop/bar structure on each section.
+        var folder = Path.Combine(_tempFolder, "Songs", "Grace_Flows");
+        Directory.CreateDirectory(folder);
+        var song = new Song
+        {
+            Title = "Grace Flows Down",
+            Artist = "Christy Nockels",
+            OriginalKey = "G",
+            Bpm = 72,
+            Ccli = "3064143",
+            Themes = "Grace, Communion",
+            ChordChart = new ChordChartData(),
+            FolderPath = folder,
+        };
+        song.MidiCues.Add(new MidiCue { TimestampMs = 1500, Action = MidiCueAction.NextSlide });
+        song.Sections.Add(new Section
+        {
+            Name = "Verse 1",
+            Text = "[G]Amazing {0}grace how [C]sweet the sound",
+            LoopInMs = 1000,
+            LoopOutMs = 5000,
+            StartBar = 1,
+            EndBar = 8,
+            Color = "#AA3366",
+            VocalPickupMs = 250,
+        });
+        song.Sections.Add(new Section
+        {
+            Name = "Chorus",
+            Text = "[D]Grace flows {12000}down and [G]covers me",
+            LoopInMs = 5000,
+            LoopOutMs = 9000,
+            StartBar = 9,
+            EndBar = 16,
+            CanLoop = false,
+        });
+        _songManager.Songs.Add(song);
+        await _songManager.SaveSongAsync(song);
+
+        // (b) Edit slide 1's lyric text and set per-slide background + template via the service.
+        var edited = new List<Section>
+        {
+            new Section
+            {
+                Text = "[G]Amazing {0}grace, my chains are gone",
+                BackgroundImage = "C:/media/sunrise.jpg",
+                TemplateId = "trendy-line",
+            },
+            new Section
+            {
+                // Chorus unchanged — proves the untouched section's chords/timestamps survive.
+                Text = "[D]Grace flows {12000}down and [G]covers me",
+            },
+        };
+        await _service.UpdateSlidesAsync(folder, edited);
+
+        // (c) Reload from disk via a fresh SongManager.
+        var reloadManager = new SongManager(
+            Path.Combine(_tempFolder, "Songs"),
+            Path.Combine(_tempFolder, "Setlists"));
+        await reloadManager.LoadAllSongsAsync();
+        var reloaded = reloadManager.Songs.Single(s => Path.GetFileName(s.FolderPath) == "Grace_Flows");
+
+        // (d) Edited lyric changed; per-slide background/template round-tripped.
+        Assert.Equal(2, reloaded.Sections.Count);
+        var v1 = reloaded.Sections[0];
+        Assert.Equal("[G]Amazing {0}grace, my chains are gone", v1.Text);
+        Assert.Equal("C:/media/sunrise.jpg", v1.BackgroundImage);
+        Assert.Equal("trendy-line", v1.TemplateId);
+
+        // (e) Inline chord [...] and timestamp {...} markers in the UNEDITED section are intact.
+        var chorus = reloaded.Sections[1];
+        Assert.Contains("[D]", chorus.Text);
+        Assert.Contains("{12000}", chorus.Text);
+        Assert.Contains("[G]", chorus.Text);
+
+        // (f) Section structure preserved (loop points, bars, color, vocal pickup, CanLoop).
+        Assert.Equal(1000, v1.LoopInMs);
+        Assert.Equal(5000, v1.LoopOutMs);
+        Assert.Equal(1, v1.StartBar);
+        Assert.Equal(8, v1.EndBar);
+        Assert.Equal("#AA3366", v1.Color);
+        Assert.Equal(250, v1.VocalPickupMs);
+        Assert.False(chorus.CanLoop);
+
+        // (g) Chords/MIDI/metadata preserved.
+        Assert.NotNull(reloaded.ChordChart);
+        Assert.Single(reloaded.MidiCues);
+        Assert.Equal("Grace Flows Down", reloaded.Title);
+        Assert.Equal("Christy Nockels", reloaded.Artist);
+        Assert.Equal("G", reloaded.OriginalKey);
+        Assert.Equal(72, reloaded.Bpm);
+        Assert.Equal("3064143", reloaded.Ccli);
+        Assert.Equal("Grace, Communion", reloaded.Themes);
+    }
+
+    [Fact]
+    public void SectionDeserialization_WithoutNewFields_IsBackwardCompatible()
+    {
+        // A song.json written BEFORE the additive fields existed must still load:
+        // BackgroundImage/TemplateId default to null and deserialization does not throw.
+        const string legacyJson = """
+        {
+            "name": "Verse 1",
+            "loopIn_ms": 1000,
+            "loopOut_ms": 5000,
+            "startBar": 1,
+            "endBar": 8,
+            "text": "[G]Amazing grace"
+        }
+        """;
+
+        var section = System.Text.Json.JsonSerializer.Deserialize<Section>(legacyJson);
+
+        Assert.NotNull(section);
+        Assert.Equal("Verse 1", section!.Name);
+        Assert.Equal("[G]Amazing grace", section.Text);
+        Assert.Null(section.BackgroundImage);
+        Assert.Null(section.TemplateId);
+    }
+
     private Song AddTestSong(string title, string artist, string key)
     {
         var folder = Path.Combine(_tempFolder, "Songs", title.Replace(" ", "_"));

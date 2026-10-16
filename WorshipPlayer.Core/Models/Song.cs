@@ -214,6 +214,20 @@ public class Section
     public double VocalPickupMs { get; set; } = 0;
 
     /// <summary>
+    /// Optional per-section background image path. Null when unset — older songs
+    /// without this field still load (DefaultIgnoreCondition.WhenWritingNull).
+    /// </summary>
+    [JsonPropertyName("backgroundImage")]
+    public string? BackgroundImage { get; set; }
+
+    /// <summary>
+    /// Optional per-section slide template id (matches SlideTemplate.Id).
+    /// Null when unset. Additive and backward-compatible.
+    /// </summary>
+    [JsonPropertyName("templateId")]
+    public string? TemplateId { get; set; }
+
+    /// <summary>
     /// The effective loop-in point for the vocal track (LoopInMs - VocalPickupMs).
     /// </summary>
     [JsonIgnore]

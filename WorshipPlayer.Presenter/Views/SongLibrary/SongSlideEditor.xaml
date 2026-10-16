@@ -28,16 +28,29 @@
                         Click="Save_Click" MinWidth="80"/>
             </StackPanel>
 
-            <!-- Content Grid -->
+            <!-- Content Grid: section list | editor | preview -->
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Left: Editor -->
-                <StackPanel Grid.Column="0">
+                <!-- Left: section list -->
+                <DockPanel Grid.Column="0">
+                    <TextBlock DockPanel.Dock="Top" Text="Slides" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <ListBox x:Name="SectionListBox"
+                             Style="{StaticResource OwcServiceListBox}"
+                             DisplayMemberPath="Name"
+                             MinHeight="150"
+                             SelectionChanged="SectionList_SelectionChanged"/>
+                </DockPanel>
+
+                <!-- Middle: editor -->
+                <StackPanel Grid.Column="2">
                     <!-- Lyrics -->
                     <TextBlock Text="Lyrics" Foreground="{StaticResource OwcTextSecondaryBrush}"
                                FontSize="11" Margin="0,0,0,4"/>
@@ -50,6 +63,7 @@
                              BorderBrush="{StaticResource OwcBorderBrush}"
                              FontSize="13" Padding="8,6"
                              Margin="0,0,0,12"
+                             IsEnabled="False"
                              TextChanged="Lyrics_TextChanged"/>
 
                     <!-- Background per slide -->
@@ -58,12 +72,10 @@
                     <ComboBox x:Name="BackgroundComboBox"
                               Background="{StaticResource OwcSurfaceBrush}"
                               Foreground="{StaticResource OwcTextPrimaryBrush}"
-                              FontSize="12" Padding="8,6" Margin="0,0,0,12">
-                        <ComboBoxItem Content="Default" IsSelected="True"/>
-                        <ComboBoxItem Content="Solid Color"/>
-                        <ComboBoxItem Content="Image"/>
-                        <ComboBoxItem Content="Video"/>
-                    </ComboBox>
+                              FontSize="12" Padding="8,6" Margin="0,0,0,12"
+                              IsEnabled="False"
+                              DisplayMemberPath="Display"
+                              SelectionChanged="Background_SelectionChanged"/>
 
                     <!-- Template -->
                     <TextBlock Text="Template" Foreground="{StaticResource OwcTextSecondaryBrush}"
@@ -71,24 +83,21 @@
                     <ComboBox x:Name="TemplateComboBox"
                               Background="{StaticResource OwcSurfaceBrush}"
                               Foreground="{StaticResource OwcTextPrimaryBrush}"
-                              FontSize="12" Padding="8,6">
-                        <ComboBoxItem Content="Default" IsSelected="True"/>
-                        <ComboBoxItem Content="Title Slide"/>
-                        <ComboBoxItem Content="Verse"/>
-                        <ComboBoxItem Content="Chorus"/>
-                        <ComboBoxItem Content="Bridge"/>
-                    </ComboBox>
+                              FontSize="12" Padding="8,6"
+                              IsEnabled="False"
+                              DisplayMemberPath="Display"
+                              SelectionChanged="Template_SelectionChanged"/>
                 </StackPanel>
 
                 <!-- Right: Preview -->
-                <Border Grid.Column="2" Style="{StaticResource OwcSurfaceBorder}"
+                <Border Grid.Column="4" Style="{StaticResource OwcSurfaceBorder}"
                         Padding="12" MinHeight="200">
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top" Text="Preview"
                                    Foreground="{StaticResource OwcTextSecondaryBrush}"
                                    FontSize="11" Margin="0,0,0,8"/>
                         <TextBlock x:Name="PreviewText"
-                                   Text="Enter lyrics to see preview"
+                                   Text="Select a slide to edit"
                                    Foreground="{StaticResource OwcTextPrimaryBrush}"
                                    FontSize="14" TextWrapping="Wrap"
                                    TextAlignment="Center"

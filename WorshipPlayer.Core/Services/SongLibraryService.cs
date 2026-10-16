@@ -101,6 +101,31 @@ public class SongLibraryService : ISongLibraryService
     }
 
     /// <inheritdoc />
+    public async Task UpdateSlidesAsync(string songId, List<Section> editedSections)
+    {
+        var song = _songManager.Songs.FirstOrDefault(s =>
+            s.FolderPath == songId || Path.GetFileName(s.FolderPath) == songId);
+
+        if (song == null || editedSections == null) return;
+
+        // Copy only the editable per-slide fields back onto the stored sections, matched
+        // by index. Loop points, bars, color, vocal pickup, lighting, and CanLoop are left
+        // untouched; ChordChart, MidiCues, BeatPositionsMs, tracks, and metadata are never
+        // read here. SaveSongAsync re-serializes the whole Song, so everything else survives.
+        var count = Math.Min(song.Sections.Count, editedSections.Count);
+        for (var i = 0; i < count; i++)
+        {
+            var target = song.Sections[i];
+            var edited = editedSections[i];
+            target.Text = edited.Text;
+            target.BackgroundImage = edited.BackgroundImage;
+            target.TemplateId = edited.TemplateId;
+        }
+
+        await _songManager.SaveSongAsync(song);
+    }
+
+    /// <inheritdoc />
     public async Task RecordUsageAsync(SongUsageRecord record)
     {
         await _usageService.LogUsageAsync(record);

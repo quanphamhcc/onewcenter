@@ -41,6 +41,17 @@ public interface ISongLibraryService
     Task UpdateMetadataAsync(SongLibraryItem song);
 
     /// <summary>
+    /// Persist edits made in the slide editor. Copies the per-section lyric
+    /// <see cref="Section.Text"/>, <see cref="Section.BackgroundImage"/>, and
+    /// <see cref="Section.TemplateId"/> (matched by index) onto the stored song's
+    /// sections, leaving loop points, bars, color, vocal pickup, chords, timestamps,
+    /// MIDI cues, and metadata untouched, then re-saves song.json.
+    /// </summary>
+    /// <param name="songId">The song's id (folder path or folder name).</param>
+    /// <param name="editedSections">The edited sections, in the song's section order.</param>
+    Task UpdateSlidesAsync(string songId, List<Section> editedSections);
+
+    /// <summary>
     /// Record a song usage event for CCLI reporting.
     /// </summary>
     Task RecordUsageAsync(SongUsageRecord record);

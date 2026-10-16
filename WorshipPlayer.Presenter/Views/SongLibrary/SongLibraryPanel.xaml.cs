@@ -41,6 +41,13 @@ public partial class SongLibraryPanel : UserControl
     public event EventHandler? EditMetadataRequested;
 
     /// <summary>
+    /// Raised when the user clicks "Edit Slides…". The host (OperatorWindow) reads
+    /// <see cref="SelectedSong"/>, opens the slide editor, and owns the service/save logic —
+    /// keeping this panel service-agnostic, mirroring <see cref="EditMetadataRequested"/>.
+    /// </summary>
+    public event EventHandler? EditSlidesRequested;
+
+    /// <summary>
     /// The currently selected song in the list, or null if none is selected.
     /// Lets the host read the selection without the panel owning service logic.
     /// </summary>
@@ -102,6 +109,11 @@ public partial class SongLibraryPanel : UserControl
     private void EditMetadata_Click(object sender, RoutedEventArgs e)
     {
         EditMetadataRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void EditSlides_Click(object sender, RoutedEventArgs e)
+    {
+        EditSlidesRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)

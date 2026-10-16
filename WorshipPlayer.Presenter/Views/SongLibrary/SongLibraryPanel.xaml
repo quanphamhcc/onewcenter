@@ -32,7 +32,13 @@
                         Content="Edit Metadata…"
                         Style="{StaticResource OwcButtonBase}"
                         FontSize="11" Padding="8,5"
+                        Margin="0,0,8,0"
                         Click="EditMetadata_Click"/>
+                <Button x:Name="EditSlidesButton"
+                        Content="Edit Slides…"
+                        Style="{StaticResource OwcButtonBase}"
+                        FontSize="11" Padding="8,5"
+                        Click="EditSlides_Click"/>
             </StackPanel>
 
             <!-- Search bar -->

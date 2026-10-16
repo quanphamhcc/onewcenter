@@ -1623,6 +1623,7 @@ public partial class OperatorWindow : Window
                         _songLibraryPanel.SongSelected += OnSongSelected;
                         _songLibraryPanel.ImportChordProRequested += OnImportChordProRequested;
                         _songLibraryPanel.EditMetadataRequested += OnEditMetadataRequested;
+                        _songLibraryPanel.EditSlidesRequested += OnEditSlidesRequested;
                     }
                     SongsPanelContent.Content = _songLibraryPanel;
                     SongsPanel.Visibility = Visibility.Visible;
@@ -1783,6 +1784,80 @@ public partial class OperatorWindow : Window
         catch (Exception ex)
         {
             ShowToolError("Edit Metadata", ex.Message);
+        }
+    }
+
+    private void OnEditSlidesRequested(object? sender, EventArgs e)
+    {
+        if (_songLibraryService == null || _songManager == null) return;
+
+        var selected = _songLibraryPanel?.SelectedSong;
+        if (selected == null)
+        {
+            ShowToolError("Edit Slides", "Select a song first.");
+            return;
+        }
+
+        // Resolve the in-memory Song the same robust way OnSongSelected/OnEditMetadataRequested do
+        // (normalized path, then folder name, then title).
+        var song = SongPathResolver.Resolve(_songManager.Songs, selected.Id, selected.Title);
+        if (song == null)
+        {
+            ShowToolError("Edit Slides",
+                $"Could not resolve song (Id='{selected.Id}', Title='{selected.Title}').");
+            return;
+        }
+
+        if (song.Sections.Count == 0)
+        {
+            ShowToolError("Edit Slides", "This song has no slides to edit.");
+            return;
+        }
+
+        // Fire-and-forget: build picker lists from the existing services, show the modal,
+        // then persist. Kept off the sync path because the service lookups are async.
+        _ = EditSongSlidesAsync(song, selected.Id);
+    }
+
+    private async Task EditSongSlidesAsync(Song song, string songId)
+    {
+        if (_songLibraryService == null) return;
+
+        try
+        {
+            // Reuse the existing services for picker choices; degrade to empty lists if a
+            // service is unavailable, never throw. Background images come from the media
+            // library (images only); templates come from the template service.
+            var imagePaths = new List<string>();
+            if (_mediaLibraryService != null)
+            {
+                var media = await _mediaLibraryService.GetByTypeAsync(MediaLibraryType.Image);
+                imagePaths.AddRange(media.Select(m => m.FilePath));
+            }
+
+            var templates = new List<(string Id, string Name)>();
+            if (_templateService != null)
+            {
+                var all = await _templateService.GetAllAsync();
+                templates.AddRange(all.Select(t => (t.Id, t.Name)));
+            }
+
+            // Host the editor UserControl in a modal window (ShowDialog + read Result),
+            // mirroring the SongMetadataEditorWindow consumption pattern.
+            var window = new SongSlideEditorWindow(song.Sections, imagePaths, templates) { Owner = this };
+
+            if (window.ShowDialog() == true && window.Result != null)
+            {
+                // UpdateSlidesAsync copies only Text/BackgroundImage/TemplateId back onto the
+                // stored sections then SaveSongAsync re-serializes the whole Song, so chords,
+                // timestamps, MIDI cues, section structure, and metadata are preserved.
+                await _songLibraryService.UpdateSlidesAsync(songId, window.Result);
+                _songLibraryPanel?.RefreshSongs();
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Edit Slides", ex.Message);
         }
     }
 
