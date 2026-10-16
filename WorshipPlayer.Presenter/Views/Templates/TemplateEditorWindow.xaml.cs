@@ -32,6 +32,8 @@ public partial class TemplateEditorWindow : Window
 
     public bool WasSaved { get; private set; }
 
+    public bool IsNewTemplate { get; set; }
+
     public TemplateEditorWindow()
     {
         InitializeComponent();
@@ -91,7 +93,7 @@ public partial class TemplateEditorWindow : Window
         }
     }
 
-    private void SaveButton_Click(object sender, RoutedEventArgs e)
+    private async void SaveButton_Click(object sender, RoutedEventArgs e)
     {
         // Gather all settings into the template
         if (FormattingTabControl != null)
@@ -135,9 +137,34 @@ public partial class TemplateEditorWindow : Window
             _template.BorderStyle = MarginsTabControl.SelectedBorderStyle;
         }
 
-        WasSaved = true;
-        DialogResult = true;
-        Close();
+        if (_templateService == null)
+        {
+            WasSaved = false;
+            DialogResult = false;
+            Close();
+            return;
+        }
+
+        try
+        {
+            if (IsNewTemplate)
+            {
+                _template.Id = string.Empty;
+                await _templateService.CreateAsync(_template);
+            }
+            else
+            {
+                await _templateService.UpdateAsync(_template);
+            }
+
+            WasSaved = true;
+            DialogResult = true;
+            Close();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Failed to save template: " + ex.Message);
+        }
     }
 
     private void CancelButton_Click(object sender, RoutedEventArgs e)

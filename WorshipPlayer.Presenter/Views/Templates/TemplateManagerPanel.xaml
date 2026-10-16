@@ -29,7 +29,7 @@
                         Style="{StaticResource OwcButtonBase}"
                         FontSize="11" Padding="10,5" Margin="0,0,6,0"
                         Click="DuplicateButton_Click"/>
-                <Button x:Name="RenameButton" Content="Rename"
+                <Button x:Name="RenameButton" Content="Edit"
                         Style="{StaticResource OwcButtonBase}"
                         FontSize="11" Padding="10,5" Margin="0,0,6,0"
                         Click="RenameButton_Click"/>

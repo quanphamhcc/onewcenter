@@ -59,6 +59,7 @@ public partial class TemplateManagerPanel : UserControl
         // Create a new template via the editor window
         var editor = new TemplateEditorWindow
         {
+            IsNewTemplate = true,
             TemplateService = _templateService,
             Owner = Window.GetWindow(this)
         };
@@ -76,14 +77,25 @@ public partial class TemplateManagerPanel : UserControl
         await RefreshTemplatesAsync();
     }
 
-    private void RenameButton_Click(object sender, RoutedEventArgs e)
+    private async void RenameButton_Click(object sender, RoutedEventArgs e)
     {
         if (TemplateListBox.SelectedItem is not TemplateListItem selected) return;
         if (selected.IsBuiltIn) return;
+        if (_templateService == null) return;
 
-        // Rename would typically show an input dialog
-        // For now, the editor window can handle renames
-        EditTemplateRequested?.Invoke(this, selected);
+        var full = await _templateService.GetByIdAsync(selected.Id);
+        if (full == null) return;
+
+        var editor = new TemplateEditorWindow
+        {
+            IsNewTemplate = false,
+            TemplateService = _templateService,
+            Owner = Window.GetWindow(this)
+        };
+        editor.Template = full;
+        editor.ShowDialog();
+        if (editor.WasSaved)
+            await RefreshTemplatesAsync();
     }
 
     private async void DeleteButton_Click(object sender, RoutedEventArgs e)
