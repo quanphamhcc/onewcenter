@@ -1,0 +1,18 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "label": "Edit changes type but not title",
+      "severity": "non-blocking",
+      "confidence": "confirmed",
+      "detail": "AddServiceItemDialog's edit branch sets ItemToEdit.Type only. Title is auto-set to '{Type} Item' at add time and is never updated on edit, so changing a Song to Scripture persists Type=Scripture but the sidebar (bound to Title) still reads 'Song Item' with a scripture icon. Update Title alongside Type in the edit branch, or add a title field to the dialog."
+    },
+    {
+      "label": "Edit test does not cover the UI's actual mutation",
+      "severity": "non-blocking",
+      "confidence": "confirmed",
+      "detail": "EditItem_ThenSave_SurvivesRestart mutates Title and Type directly on the model, but the UI edit path never mutates Title. The round-trip is proven, yet the test gives false confidence that the edit flow persists a title change. Align the test with what the dialog mutates, or add the title field so they match."
+    }
+  ],
+  "reviewDoc": "c:\\Users\\Quang\\Documents\\OneWorshipcenter\\owc-multitrack-feature-lyric-presenter\\owc-multitrack-feature-lyric-presenter/.agents/tasks/service-persistence-review.md"
+}

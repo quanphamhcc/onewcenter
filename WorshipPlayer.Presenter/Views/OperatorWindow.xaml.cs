@@ -395,15 +395,21 @@ public partial class OperatorWindow : Window
         {
             if (_serviceOrderManager == null) return;
 
-            var dlg = new ServiceInfoDialog { Owner = this };
-            if (dlg.ShowDialog() != true || !dlg.Confirmed) return;
+            // Open the Add Service Item dialog directly (no separate name/date entry step).
+            // AddServiceItemDialog creates a default service order on first item add.
+            var dialog = new AddServiceItemDialog { Owner = this };
+            dialog.ServiceOrderManager = _serviceOrderManager;
+            dialog.ItemAdded += (s, item) => { };
+            dialog.ShowDialog();
 
-            _serviceOrderManager.CreateNew(dlg.ServiceName, dlg.ServiceDate);
-            _serviceOrderManager.CurrentServiceOrder!.StartTime = dlg.StartTime;
-            await SaveServiceOrderAsync();
-            _currentServicePath = _serviceOrderManager.GetFilePathFor(_serviceOrderManager.CurrentServiceOrder!);
-            RefreshServiceOrderList();
-            await RefreshServiceListingAsync();
+            if (_serviceOrderManager.CurrentServiceOrder != null)
+            {
+                await SaveServiceOrderAsync();
+                _currentServicePath = _serviceOrderManager.GetFilePathFor(_serviceOrderManager.CurrentServiceOrder);
+                ShowServiceEditor();
+                RefreshServiceOrderList();
+                await RefreshServiceListingAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -748,29 +754,16 @@ public partial class OperatorWindow : Window
     {
         try
         {
-            // When no service is loaded yet, let the user name it and pick a US-format
-            // date/time first (ServiceInfoDialog merges the dark theme safely). If they
-            // cancel, create nothing. This replaces the old hardcoded "New Service"/today.
-            if (_serviceOrderManager != null && _serviceOrderManager.CurrentServiceOrder == null)
-            {
-                var infoDialog = new ServiceInfoDialog { Owner = this };
-                if (infoDialog.ShowDialog() != true || !infoDialog.Confirmed)
-                    return;
-
-                _serviceOrderManager.CreateNew(infoDialog.ServiceName, infoDialog.ServiceDate);
-                if (_serviceOrderManager.CurrentServiceOrder != null)
-                    _serviceOrderManager.CurrentServiceOrder.StartTime = infoDialog.StartTime;
-
-                await SaveServiceOrderAsync();
-                RefreshServiceOrderList();
-            }
-
+            // Open the Add Service Item dialog directly. If no service order exists yet,
+            // AddServiceItemDialog creates a default one on first item add. This matches the
+            // original behavior (no separate name/date entry step before adding items).
             var dialog = new AddServiceItemDialog();
             dialog.Owner = this;
             if (_serviceOrderManager != null)
                 dialog.ServiceOrderManager = _serviceOrderManager;
-            dialog.ItemAdded += (s, item) =>
+            dialog.ItemAdded += async (s, item) =>
             {
+                await SaveServiceOrderAsync();
                 RefreshServiceOrderList();
             };
             dialog.ShowDialog();
