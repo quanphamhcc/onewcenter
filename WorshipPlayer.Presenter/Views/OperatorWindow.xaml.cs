@@ -17,6 +17,7 @@ using WorshipPlayer.Presenter.Views.MediaLibrary;
 using WorshipPlayer.Presenter.Views.Tools;
 using WorshipPlayer.Presenter.Views.Settings;
 using WorshipPlayer.Presenter.Views.ServiceBuilder;
+using WorshipPlayer.Presenter.Views.Templates;
 
 namespace WorshipPlayer.Presenter.Views;
 
@@ -97,6 +98,7 @@ public partial class OperatorWindow : Window
     private IBibleProvider? _bibleProvider;
     private ServiceOrderManager? _serviceOrderManager;
     private SongManager? _songManager;
+    private ITemplateService? _templateService;
 
     // Navigation tab state
     private string _activeTab = "Services";
@@ -480,7 +482,8 @@ public partial class OperatorWindow : Window
         SongUsageService? songUsageService,
         IBibleProvider? bibleProvider,
         ServiceOrderManager? serviceOrderManager,
-        SongManager? songManager)
+        SongManager? songManager,
+        ITemplateService? templateService)
     {
         _songLibraryService = songLibraryService;
         _mediaLibraryService = mediaLibraryService;
@@ -492,6 +495,7 @@ public partial class OperatorWindow : Window
         _bibleProvider = bibleProvider;
         _serviceOrderManager = serviceOrderManager;
         _songManager = songManager;
+        _templateService = templateService;
 
         // Subscribe to alert/countdown events for output window
         if (_alertService != null)
@@ -1823,6 +1827,33 @@ public partial class OperatorWindow : Window
         catch (Exception ex)
         {
             ShowToolError("CCLI Report", ex.Message);
+        }
+    }
+
+    private void ToolTemplates_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var panel = new TemplateManagerPanel();
+            if (_templateService != null)
+                panel.TemplateService = _templateService;
+            var templatesWindow = new Window
+            {
+                Title = "Templates",
+                Width = 720,
+                Height = 560,
+                MinWidth = 480,
+                MinHeight = 360,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F1117")),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Content = panel
+            };
+            templatesWindow.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Templates", ex.Message);
         }
     }
 

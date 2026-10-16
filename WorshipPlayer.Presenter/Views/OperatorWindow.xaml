@@ -195,6 +195,7 @@
                             <MenuItem Header="Countdown" Click="ToolCountdown_Click" />
                             <MenuItem Header="Search" Click="ToolSearch_Click" />
                             <MenuItem Header="CCLI Report" Click="ToolCcliReport_Click" />
+                            <MenuItem Header="Templates" Click="ToolTemplates_Click" />
                         </ContextMenu>
                     </Button.ContextMenu>
                 </Button>

@@ -47,6 +47,7 @@ public class PresenterIntegration : IDisposable
     public CountdownService CountdownService { get; }
     public SongUsageService SongUsageService { get; }
     public BibleDatabaseService BibleDatabaseService { get; }
+    public ITemplateService TemplateService { get; }
 
     // Windows
     private OperatorWindow? _operatorWindow;
@@ -117,6 +118,9 @@ public class PresenterIntegration : IDisposable
 
         var biblePath = Path.Combine(appFolder, "bible.db");
         BibleDatabaseService = new BibleDatabaseService(biblePath);
+
+        var templatesPath = Path.Combine(appFolder, "Templates");
+        TemplateService = new TemplateService(templatesPath);
     }
 
     /// <summary>
@@ -247,7 +251,8 @@ public class PresenterIntegration : IDisposable
                 SongUsageService,
                 BibleDatabaseService,
                 ServiceOrderManager,
-                _songManager);
+                _songManager,
+                TemplateService);
             // F6: give the operator window the single-monitor Go-Live hooks.
             _operatorWindow.SetGoLiveHandlers(HandleGoLiveSingleMonitor, () => IsSingleMonitorOutput);
             _operatorWindow.Closed += (s, e) => _operatorWindow = null;
