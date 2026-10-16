@@ -207,6 +207,59 @@ public class SongLibraryServiceTests : IDisposable
         Assert.Single(history);
     }
 
+    [Fact]
+    public async Task UpdateMetadataAsync_PersistsMetadata_PreservesSections()
+    {
+        // (a) Create a song on disk with a known section (lyrics), then save song.json.
+        var folder = Path.Combine(_tempFolder, "Songs", "Then_Sings");
+        Directory.CreateDirectory(folder);
+        var song = new Song
+        {
+            Title = "Old Title",
+            Artist = "Old Artist",
+            OriginalKey = "C",
+            Bpm = 100,
+            FolderPath = folder
+        };
+        song.Sections.Add(new Section { Name = "Verse 1", Text = "Then sings my soul" });
+        _songManager.Songs.Add(song);
+        await _songManager.SaveSongAsync(song);
+
+        // (b) Update metadata via the service save path.
+        await _service.UpdateMetadataAsync(new WorshipPlayer.Core.Models.Cloud.SongLibraryItem
+        {
+            Id = folder,
+            Title = "New Title",
+            Artist = "New Artist",
+            Key = "D",
+            Bpm = 140,
+            CcliNumber = "7050546",
+            Tags = new List<string> { "Grace", "Easter" }
+        });
+
+        // (c) Reload from disk via a fresh SongManager on the same folders.
+        var reloadManager = new SongManager(
+            Path.Combine(_tempFolder, "Songs"),
+            Path.Combine(_tempFolder, "Setlists"));
+        await reloadManager.LoadAllSongsAsync();
+
+        var reloaded = reloadManager.Songs.Single(s => Path.GetFileName(s.FolderPath) == "Then_Sings");
+
+        // (d) Metadata changed...
+        Assert.Equal("New Title", reloaded.Title);
+        Assert.Equal("New Artist", reloaded.Artist);
+        Assert.Equal("D", reloaded.OriginalKey);
+        Assert.Equal(140, reloaded.Bpm);
+        Assert.Equal("7050546", reloaded.Ccli);
+        Assert.Contains("Grace", reloaded.Themes);
+        Assert.Contains("Easter", reloaded.Themes);
+
+        // ...and sections/lyrics preserved.
+        var section = Assert.Single(reloaded.Sections);
+        Assert.Equal("Verse 1", section.Name);
+        Assert.Equal("Then sings my soul", section.Text);
+    }
+
     private Song AddTestSong(string title, string artist, string key)
     {
         var folder = Path.Combine(_tempFolder, "Songs", title.Replace(" ", "_"));

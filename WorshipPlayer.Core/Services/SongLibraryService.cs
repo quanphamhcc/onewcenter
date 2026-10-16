@@ -92,7 +92,11 @@ public class SongLibraryService : ISongLibraryService
         song.Artist = songItem.Artist;
         song.OriginalKey = songItem.Key;
         song.Bpm = songItem.Bpm;
+        song.Ccli = songItem.CcliNumber ?? "";
+        song.Themes = string.Join(", ", songItem.Tags);
 
+        // SaveSongAsync re-serializes the whole in-memory Song, so Sections/Tracks/ChordChart
+        // are preserved unchanged — only the metadata fields set above are modified.
         await _songManager.SaveSongAsync(song);
     }
 
@@ -181,6 +185,10 @@ public class SongLibraryService : ISongLibraryService
             Artist = song.Artist,
             Key = song.OriginalKey,
             Bpm = song.Bpm,
+            CcliNumber = song.Ccli,
+            Tags = song.Themes
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList(),
             HasBacktracks = song.Tracks.Count > 0,
             HasLyrics = song.Sections.Count > 0,
             CreatedAt = DateTime.MinValue,

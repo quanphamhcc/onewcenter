@@ -1622,6 +1622,7 @@ public partial class OperatorWindow : Window
                             _songLibraryPanel.SongLibraryService = _songLibraryService;
                         _songLibraryPanel.SongSelected += OnSongSelected;
                         _songLibraryPanel.ImportChordProRequested += OnImportChordProRequested;
+                        _songLibraryPanel.EditMetadataRequested += OnEditMetadataRequested;
                     }
                     SongsPanelContent.Content = _songLibraryPanel;
                     SongsPanel.Visibility = Visibility.Visible;
@@ -1716,6 +1717,72 @@ public partial class OperatorWindow : Window
         catch (Exception ex)
         {
             ShowToolError("Import ChordPro", ex.Message);
+        }
+    }
+
+    private void OnEditMetadataRequested(object? sender, EventArgs e)
+    {
+        if (_songLibraryService == null || _songManager == null) return;
+
+        var selected = _songLibraryPanel?.SelectedSong;
+        if (selected == null)
+        {
+            ShowToolError("Edit Metadata", "Select a song first.");
+            return;
+        }
+
+        // Resolve the in-memory Song the same robust way OnSongSelected does
+        // (normalized path, then folder name, then title).
+        var song = SongPathResolver.Resolve(_songManager.Songs, selected.Id, selected.Title);
+        if (song == null)
+        {
+            ShowToolError("Edit Metadata",
+                $"Could not resolve song (Id='{selected.Id}', Title='{selected.Title}').");
+            return;
+        }
+
+        // Host the editor UserControl in a modal window (ShowDialog + read Result),
+        // mirroring the ChordProImportDialog consumption pattern.
+        var tags = string.Join(", ",
+            song.Themes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        var window = new SongMetadataEditorWindow(
+            song.Title, song.Artist, song.OriginalKey,
+            (int)Math.Round(song.Bpm), song.Ccli, tags) { Owner = this };
+
+        if (window.ShowDialog() == true && window.Result != null)
+        {
+            var result = window.Result;
+            var item = new Core.Models.Cloud.SongLibraryItem
+            {
+                Id = selected.Id,
+                Title = result.Title,
+                Artist = result.Artist,
+                Key = result.Key,
+                // Editor BPM is int?; model is double. Empty BPM leaves the stored value unchanged.
+                Bpm = result.Bpm ?? song.Bpm,
+                CcliNumber = result.CcliNumber ?? "",
+                Tags = result.Tags
+            };
+
+            // Fire-and-forget the async persist + list refresh, mirroring ImportChordProFromFileAsync.
+            _ = UpdateSongMetadataAsync(item);
+        }
+    }
+
+    private async Task UpdateSongMetadataAsync(Core.Models.Cloud.SongLibraryItem item)
+    {
+        if (_songLibraryService == null) return;
+
+        try
+        {
+            // UpdateMetadataAsync mutates only metadata fields then calls SaveSongAsync,
+            // which re-serializes the whole Song — sections/lyrics/chords are preserved.
+            await _songLibraryService.UpdateMetadataAsync(item);
+            _songLibraryPanel?.RefreshSongs();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Edit Metadata", ex.Message);
         }
     }
 

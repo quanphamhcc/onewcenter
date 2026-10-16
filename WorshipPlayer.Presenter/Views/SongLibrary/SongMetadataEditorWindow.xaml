@@ -1,0 +1,22 @@
+<Window x:Class="WorshipPlayer.Presenter.Views.SongLibrary.SongMetadataEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WorshipPlayer.Presenter.Views.SongLibrary"
+        Title="Edit Song Metadata"
+        Width="460" Height="560"
+        MinWidth="380" MinHeight="420"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F1117"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <local:SongMetadataEditor x:Name="Editor" Margin="16"/>
+</Window>

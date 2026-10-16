@@ -25,6 +25,9 @@ public class Song
     [JsonPropertyName("themes")]
     public string Themes { get; set; } = "";
 
+    [JsonPropertyName("ccli")]
+    public string Ccli { get; set; } = "";
+
     [JsonPropertyName("bpm")]
     public double Bpm { get; set; } = 120.0;
 

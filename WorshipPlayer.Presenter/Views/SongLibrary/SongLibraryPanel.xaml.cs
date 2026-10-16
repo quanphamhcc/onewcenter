@@ -33,6 +33,19 @@ public partial class SongLibraryPanel : UserControl
     /// </summary>
     public event EventHandler? ImportChordProRequested;
 
+    /// <summary>
+    /// Raised when the user clicks "Edit Metadata…". The host (OperatorWindow) reads
+    /// <see cref="SelectedSong"/>, opens the editor, and owns the service/save logic —
+    /// keeping this panel service-agnostic, mirroring <see cref="ImportChordProRequested"/>.
+    /// </summary>
+    public event EventHandler? EditMetadataRequested;
+
+    /// <summary>
+    /// The currently selected song in the list, or null if none is selected.
+    /// Lets the host read the selection without the panel owning service logic.
+    /// </summary>
+    public SongListItem? SelectedSong => SongListBox?.SelectedItem as SongListItem;
+
     public SongLibraryPanel()
     {
         InitializeComponent();
@@ -84,6 +97,11 @@ public partial class SongLibraryPanel : UserControl
     private void ImportChordPro_Click(object sender, RoutedEventArgs e)
     {
         ImportChordProRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void EditMetadata_Click(object sender, RoutedEventArgs e)
+    {
+        EditMetadataRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)

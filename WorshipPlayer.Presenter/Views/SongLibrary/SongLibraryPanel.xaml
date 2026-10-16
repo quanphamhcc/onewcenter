@@ -19,14 +19,21 @@
                        Foreground="{StaticResource OwcTextPrimaryBrush}"
                        Margin="0,0,0,10"/>
 
-            <!-- Import -->
-            <Button x:Name="ImportChordProButton" DockPanel.Dock="Top"
-                    Content="Import ChordPro…"
-                    Style="{StaticResource OwcButtonBase}"
-                    FontSize="11" Padding="8,5"
-                    HorizontalAlignment="Left"
-                    Margin="0,0,0,10"
-                    Click="ImportChordPro_Click"/>
+            <!-- Actions -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
+                        HorizontalAlignment="Left" Margin="0,0,0,10">
+                <Button x:Name="ImportChordProButton"
+                        Content="Import ChordPro…"
+                        Style="{StaticResource OwcButtonBase}"
+                        FontSize="11" Padding="8,5"
+                        Margin="0,0,8,0"
+                        Click="ImportChordPro_Click"/>
+                <Button x:Name="EditMetadataButton"
+                        Content="Edit Metadata…"
+                        Style="{StaticResource OwcButtonBase}"
+                        FontSize="11" Padding="8,5"
+                        Click="EditMetadata_Click"/>
+            </StackPanel>
 
             <!-- Search bar -->
             <TextBox x:Name="SearchTextBox" DockPanel.Dock="Top"
