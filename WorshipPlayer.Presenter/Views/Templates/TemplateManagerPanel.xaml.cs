@@ -25,7 +25,6 @@ public partial class TemplateManagerPanel : UserControl
     public ObservableCollection<TemplateListItem> Templates { get; } = new();
 
     public event EventHandler<TemplateListItem>? TemplateSelected;
-    public event EventHandler<TemplateListItem>? EditTemplateRequested;
 
     public TemplateManagerPanel()
     {
