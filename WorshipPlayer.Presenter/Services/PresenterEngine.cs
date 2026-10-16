@@ -39,6 +39,10 @@ public class PresenterEngine : IDisposable
     private double _tempoPercent = 100.0;
     private bool _isManualAdvanceMode = false;
 
+    // Per-item auto-advance (roadmap C4). One-shot timer, (re)armed whenever a new item
+    // becomes current and only when that item is configured with the Timer condition.
+    private System.Timers.Timer? _autoAdvanceTimer;
+
     // ─── Public State ──────────────────────────────────────────────
     public ServiceItem? CurrentItem => _serviceOrderManager.CurrentItem;
     public Slide? CurrentSlide => _currentSlideIndex >= 0 && _currentSlideIndex < _currentSlides.Count
@@ -663,6 +667,12 @@ public class PresenterEngine : IDisposable
 
     private void OnServiceItemChanged(object? sender, ServiceItemChangedEventArgs e)
     {
+        // Per-item auto-advance: cancel any pending timer from the previous item, then
+        // re-arm only if the NEW item opts in via the Timer condition. Items with no
+        // settings or Manual/AudioEnd/VideoEnd never start a timer, so they behave
+        // exactly as before (acceptance criterion 4).
+        RestartAutoAdvanceTimer(e.NewItem);
+
         // Load slides for the new service item
         if (e.NewItem != null)
         {
@@ -721,9 +731,74 @@ public class PresenterEngine : IDisposable
         });
     }
 
+    /// <summary>
+    /// Stop/dispose any pending auto-advance timer and, if the given item is configured
+    /// with the Timer "After" condition, start a fresh one-shot timer for its delay.
+    /// </summary>
+    private void RestartAutoAdvanceTimer(ServiceItem? newItem)
+    {
+        if (_autoAdvanceTimer != null)
+        {
+            _autoAdvanceTimer.Stop();
+            _autoAdvanceTimer.Dispose();
+            _autoAdvanceTimer = null;
+        }
+
+        var settings = newItem?.AutoAdvanceSettings;
+        if (settings == null || settings.AutoAdvanceAfterCondition != AutoAdvanceAfterCondition.Timer)
+            return;
+
+        // Guard against a non-positive delay (treat as default) so the timer is valid.
+        double delay = settings.AutoAdvanceDelayMs > 0 ? settings.AutoAdvanceDelayMs : 5000;
+
+        var timer = new System.Timers.Timer(delay) { AutoReset = false };
+        timer.Elapsed += (_, _) => FireAutoAdvance();
+        _autoAdvanceTimer = timer;
+        timer.Start();
+    }
+
+    /// <summary>
+    /// Invoked when a per-item auto-advance timer elapses. Asks the pure
+    /// <see cref="AutoAdvanceResolver"/> what to do for the current item, then executes
+    /// the decision via the manager (which raises ItemChanged for the UI to render).
+    /// </summary>
+    private void FireAutoAdvance()
+    {
+        var order = _serviceOrderManager.CurrentServiceOrder;
+        var currentId = _serviceOrderManager.CurrentItem?.Id;
+        if (order == null || currentId == null)
+            return;
+
+        var decision = AutoAdvanceResolver.Resolve(order, currentId);
+        switch (decision.Action)
+        {
+            case AutoAdvanceAction.NextItem:
+                _serviceOrderManager.NextItem();
+                break;
+
+            case AutoAdvanceAction.GoToItem:
+                int index = order.Items.FindIndex(i => i.Id == decision.TargetItemId);
+                if (index >= 0)
+                    _serviceOrderManager.GoToItem(index);
+                break;
+
+            case AutoAdvanceAction.None:
+            default:
+                // Do nothing.
+                break;
+        }
+    }
+
     public void Dispose()
     {
         _serviceOrderManager.ItemChanged -= OnServiceItemChanged;
+
+        if (_autoAdvanceTimer != null)
+        {
+            _autoAdvanceTimer.Stop();
+            _autoAdvanceTimer.Dispose();
+            _autoAdvanceTimer = null;
+        }
     }
 }
 

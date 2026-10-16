@@ -1313,6 +1313,41 @@ public partial class OperatorWindow : Window
         }
     }
 
+    private void ItemSettings_Click(object sender, RoutedEventArgs e)
+    {
+        OpenSelectedItemSettings();
+    }
+
+    /// <summary>
+    /// Open the per-item auto-advance settings for the selected service item (roadmap C4).
+    /// Mirrors <see cref="EditSelectedServiceItem"/>: read the selection, edit the item's
+    /// AutoAdvanceSettings in a modal, then persist via the existing ServiceOrder save path.
+    /// </summary>
+    private async void OpenSelectedItemSettings()
+    {
+        try
+        {
+            if (_serviceOrderManager?.CurrentServiceOrder == null) return;
+            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display) return;
+
+            var window = new ItemSettingsWindow(display.Item, _serviceOrderManager.CurrentServiceOrder.Items)
+            {
+                Owner = this
+            };
+
+            if (window.ShowDialog() == true && window.Result != null)
+            {
+                display.Item.AutoAdvanceSettings = window.Result;
+                await SaveServiceOrderAsync();
+                RefreshServiceOrderList();
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Item Settings", ex.Message);
+        }
+    }
+
     private async void RemoveServiceItem_Click(object sender, RoutedEventArgs e)
     {
         try

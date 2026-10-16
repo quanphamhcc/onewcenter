@@ -47,11 +47,23 @@
                         <ComboBox x:Name="GoToComboBox" Margin="0,0,0,12"
                                   Background="{StaticResource OwcSurfaceBrush}"
                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
-                                  FontSize="12" Padding="8,6">
+                                  FontSize="12" Padding="8,6"
+                                  SelectionChanged="GoToComboBox_SelectionChanged">
                             <ComboBoxItem Content="Next Item" IsSelected="True"/>
                             <ComboBoxItem Content="Specific Item"/>
                             <ComboBoxItem Content="Loop"/>
                         </ComboBox>
+
+                        <!-- Specific Item target (shown only when GoTo = Specific Item) -->
+                        <StackPanel x:Name="GoToTargetPanel" Visibility="Collapsed">
+                            <TextBlock Text="Target Item" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                                       FontSize="11" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="GoToTargetComboBox" Margin="0,0,0,12"
+                                      DisplayMemberPath="Title"
+                                      Background="{StaticResource OwcSurfaceBrush}"
+                                      Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                      FontSize="12" Padding="8,6"/>
+                        </StackPanel>
 
                         <!-- After Condition -->
                         <TextBlock Text="After Condition" Foreground="{StaticResource OwcTextSecondaryBrush}"
@@ -59,11 +71,25 @@
                         <ComboBox x:Name="AfterConditionComboBox" Margin="0,0,0,12"
                                   Background="{StaticResource OwcSurfaceBrush}"
                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
-                                  FontSize="12" Padding="8,6">
+                                  FontSize="12" Padding="8,6"
+                                  SelectionChanged="AfterConditionComboBox_SelectionChanged">
                             <ComboBoxItem Content="Manual" IsSelected="True"/>
                             <ComboBoxItem Content="Time Delay"/>
                             <ComboBoxItem Content="End of Media"/>
                         </ComboBox>
+
+                        <!-- Auto-Advance Delay (shown only when After = Time Delay) -->
+                        <StackPanel x:Name="DelayPanel" Visibility="Collapsed">
+                            <TextBlock Text="Auto-Advance Delay (ms)"
+                                       Foreground="{StaticResource OwcTextSecondaryBrush}"
+                                       FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox x:Name="DelayTextBox" Margin="0,0,0,12"
+                                     Text="5000"
+                                     Background="{StaticResource OwcSurfaceBrush}"
+                                     Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                     BorderBrush="{StaticResource OwcBorderBrush}"
+                                     FontSize="12" Padding="8,6"/>
+                        </StackPanel>
 
                         <!-- Transition Fade Time -->
                         <TextBlock Text="Transition Fade Time"

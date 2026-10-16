@@ -250,6 +250,7 @@
                         <ListBox.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Edit" Click="EditServiceItem_Click" />
+                                <MenuItem Header="Item Settings…" Click="ItemSettings_Click" />
                                 <MenuItem Header="Remove" Click="RemoveServiceItem_Click" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
@@ -276,6 +277,9 @@
                         <Button Content="Edit Item" Padding="6,5" Margin="0,2" FontSize="10"
                                 Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
                                 Click="EditServiceItem_Click" Cursor="Hand" />
+                        <Button Content="Item Settings" Padding="6,5" Margin="0,2" FontSize="10"
+                                Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
+                                Click="ItemSettings_Click" Cursor="Hand" />
                         <Button Content="Remove Item" Padding="6,5" Margin="0,2" FontSize="10"
                                 Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
                                 Click="RemoveServiceItem_Click" Cursor="Hand" />
