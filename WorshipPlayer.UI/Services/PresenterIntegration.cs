@@ -202,7 +202,9 @@ public class PresenterIntegration : IDisposable
         {
             var serviceName = ServiceOrderManager.CurrentServiceOrder?.Name ?? "Unknown Service";
             var serviceDate = DateTime.TryParse(ServiceOrderManager.CurrentServiceOrder?.Date, out var d) ? d : DateTime.Today;
-            await SongUsageService.LogUsageAsync(song.Title, song.FolderPath, serviceName, serviceDate);
+            // Use the record overload (via the testable Core mapper) so the song's Artist and
+            // CCLI number are captured into each SongUsageRecord for CCLI reporting.
+            await SongUsageService.LogUsageAsync(SongUsageMapper.FromSong(song, serviceName, serviceDate));
         }
         catch (Exception ex)
         {

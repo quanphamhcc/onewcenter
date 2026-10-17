@@ -202,6 +202,75 @@ public class CcliReportServiceTests : IDisposable
         Assert.True(File.Exists(outputPath));
     }
 
+    [Fact]
+    public async Task ExportCsvAsync_RespectsDateRange_ExcludesOutOfRangePlays()
+    {
+        // The service stamps DatePlayed = UtcNow when logging, so a window entirely in the past
+        // must exclude the just-logged play.
+        await LogTestUsage("In Window", "iw-1", "Artist", "111");
+
+        var outputPath = Path.Combine(_tempFolder, "range_report.csv");
+        await _service.ExportCsvAsync(
+            new DateTime(2000, 1, 1),
+            new DateTime(2000, 12, 31),
+            outputPath);
+
+        var content = await File.ReadAllTextAsync(outputPath);
+        Assert.DoesNotContain("In Window", content);
+        var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Single(lines); // Header only — the play is outside the queried window.
+    }
+
+    [Fact]
+    public async Task GetReportAsync_RespectsDateRange_ExcludesOutOfRangePlays()
+    {
+        await LogTestUsage("Recent", "r-1", "Artist", "222");
+
+        var report = await _service.GetReportAsync(
+            new DateTime(2000, 1, 1),
+            new DateTime(2000, 12, 31));
+
+        Assert.Empty(report);
+    }
+
+    [Fact]
+    public async Task ExportCsvAsync_WithLicenseNumber_WritesLicenseHeaderLine()
+    {
+        await LogTestUsage("Amazing Grace", "ag-1", "John Newton", "12345");
+
+        var outputPath = Path.Combine(_tempFolder, "licensed_report.csv");
+        await _service.ExportCsvAsync(
+            DateTime.UtcNow.AddHours(-1),
+            DateTime.UtcNow.AddHours(1),
+            outputPath,
+            "CCLI-55555");
+
+        var content = await File.ReadAllTextAsync(outputPath);
+        Assert.Contains("CCLI License #", content);
+        Assert.Contains("CCLI-55555", content);
+        // Column header still present after the license line.
+        Assert.Contains("Song Title,Artist,CCLI Number,Play Count,Last Played", content);
+    }
+
+    [Fact]
+    public async Task ExportCsvAsync_WithoutLicenseNumber_OmitsLicenseHeaderLine()
+    {
+        await LogTestUsage("Amazing Grace", "ag-1", "John Newton", "12345");
+
+        var outputPath = Path.Combine(_tempFolder, "unlicensed_report.csv");
+        await _service.ExportCsvAsync(
+            DateTime.UtcNow.AddHours(-1),
+            DateTime.UtcNow.AddHours(1),
+            outputPath,
+            "");
+
+        var content = await File.ReadAllTextAsync(outputPath);
+        Assert.DoesNotContain("CCLI License #", content);
+        // First non-empty line is the column header.
+        var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.StartsWith("Song Title,Artist,CCLI Number,Play Count,Last Played", lines[0]);
+    }
+
     private async Task LogTestUsage(string title, string songId, string artist, string ccliNumber)
     {
         await _usageService.LogUsageAsync(new SongUsageRecord

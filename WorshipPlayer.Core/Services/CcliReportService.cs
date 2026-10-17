@@ -51,11 +51,26 @@ public class CcliReportService
     /// <param name="from">Start date (inclusive).</param>
     /// <param name="to">End date (inclusive).</param>
     /// <param name="outputPath">Output CSV file path.</param>
-    public async Task ExportCsvAsync(DateTime from, DateTime to, string outputPath)
+    public Task ExportCsvAsync(DateTime from, DateTime to, string outputPath)
+        => ExportCsvAsync(from, to, outputPath, null);
+
+    /// <summary>
+    /// Export a CCLI report to a CSV file, optionally prefixed with the church's CCLI license number.
+    /// </summary>
+    /// <param name="from">Start date (inclusive).</param>
+    /// <param name="to">End date (inclusive).</param>
+    /// <param name="outputPath">Output CSV file path.</param>
+    /// <param name="ccliLicenseNumber">
+    /// Optional CCLI license number. When non-empty, a leading "CCLI License #,&lt;value&gt;" line is
+    /// written before the column header; when null/empty, the output is identical to the 3-arg overload.
+    /// </param>
+    public async Task ExportCsvAsync(DateTime from, DateTime to, string outputPath, string? ccliLicenseNumber)
     {
         var report = await GetReportAsync(from, to);
 
         var sb = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(ccliLicenseNumber))
+            sb.AppendLine($"CCLI License #,\"{EscapeCsv(ccliLicenseNumber)}\"");
         sb.AppendLine("Song Title,Artist,CCLI Number,Play Count,Last Played");
 
         foreach (var entry in report)

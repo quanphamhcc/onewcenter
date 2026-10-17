@@ -97,6 +97,7 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*"/>
                         <DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="150"/>
+                        <DataGridTextColumn Header="CCLI Number" Binding="{Binding CcliNumber}" Width="110"/>
                         <DataGridTextColumn Header="Times Played" Binding="{Binding TimesPlayed}" Width="100"/>
                         <DataGridTextColumn Header="Last Played" Binding="{Binding LastPlayed, StringFormat=d}" Width="110"/>
                     </DataGrid.Columns>

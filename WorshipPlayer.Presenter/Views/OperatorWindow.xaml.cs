@@ -95,6 +95,9 @@ public partial class OperatorWindow : Window
     private IAlertService? _alertService;
     private ICountdownService? _countdownService;
     private SongUsageService? _songUsageService;
+    // J4: constructed lazily from _songUsageService (construct-from-dependency pattern) so the CCLI
+    // report dialog loads/exports through the shared Core CcliReportService — no longer test-only.
+    private CcliReportService? _ccliReportService;
     private IBibleProvider? _bibleProvider;
     private ServiceOrderManager? _serviceOrderManager;
     private SongManager? _songManager;
@@ -2426,10 +2429,41 @@ public partial class OperatorWindow : Window
         {
             var dialog = new CcliReportDialog();
             dialog.Owner = this;
+
             if (_songUsageService != null)
             {
-                _ = LoadCcliReportDataAsync(dialog);
+                // Construct the CCLI report service from its dependency (lazily, once) and wire the
+                // dialog's data-load and CSV-export callbacks through it, so both honor the selected
+                // date range and include the CCLI Number.
+                _ccliReportService ??= new CcliReportService(_songUsageService);
+                var reportService = _ccliReportService;
+
+                dialog.QueryAsync = async (from, to) =>
+                {
+                    var entries = await reportService.GetReportAsync(from, to);
+                    return entries
+                        .Select(entry => new CcliReportItem
+                        {
+                            Title = entry.SongTitle,
+                            Artist = entry.Artist,
+                            CcliNumber = entry.CcliNumber,
+                            TimesPlayed = entry.PlayCount,
+                            LastPlayed = entry.LastPlayed
+                        })
+                        .ToList();
+                };
+
+                dialog.ExportAsync = (from, to, path) =>
+                    reportService.ExportCsvAsync(from, to, path, _engine?.Settings?.CcliLicenseNumber);
+
+                // Initial load honors the dialog's default From/To (last 3 months → today).
+                if (dialog.FromDatePicker.SelectedDate is DateTime initialFrom
+                    && dialog.ToDatePicker.SelectedDate is DateTime initialTo)
+                {
+                    _ = dialog.LoadForRangeAsync(initialFrom, initialTo);
+                }
             }
+
             dialog.ShowDialog();
         }
         catch (Exception ex)
@@ -2462,33 +2496,6 @@ public partial class OperatorWindow : Window
         catch (Exception ex)
         {
             ShowToolError("Templates", ex.Message);
-        }
-    }
-
-    private async Task LoadCcliReportDataAsync(CcliReportDialog dialog)
-    {
-        if (_songUsageService == null) return;
-
-        try
-        {
-            var records = await _songUsageService.GetAllAsync();
-            var reportItems = records
-                .GroupBy(r => r.SongTitle)
-                .Select(g => new CcliReportItem
-                {
-                    Title = g.Key,
-                    Artist = g.First().Artist,
-                    TimesPlayed = g.Count(),
-                    LastPlayed = g.Max(r => r.DatePlayed)
-                })
-                .OrderByDescending(i => i.TimesPlayed)
-                .ToList();
-
-            dialog.SetReportData(reportItems);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"CCLI report loading failed: {ex.Message}");
         }
     }
 

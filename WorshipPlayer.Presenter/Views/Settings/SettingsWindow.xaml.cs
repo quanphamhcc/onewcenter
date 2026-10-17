@@ -61,7 +61,7 @@ public partial class SettingsWindow : Window
             return sectionName switch
             {
                 "Defaults" => _defaultsSection ??= new DefaultsSection(),
-                "Footer" => _footerSection ??= new FooterSection(),
+                "Footer" => GetFooterSection(),
                 "Interface" => _interfaceSection ??= new InterfaceSection(),
                 "Bibles" => _biblesSection ??= new BiblesSection(),
                 "Screen Config" => GetScreenConfigSection(),
@@ -98,6 +98,12 @@ public partial class SettingsWindow : Window
                 PresenterSettings.StageDisplay = _screenConfigSection.StageDisplayIndex;
             }
 
+            // Persist the CCLI license number from the Footer section if it's been loaded.
+            if (_footerSection != null && PresenterSettings != null)
+            {
+                PresenterSettings.CcliLicenseNumber = _footerSection.CcliLicenseNumber;
+            }
+
             OnSaveRequested?.Invoke();
             MessageBox.Show("Settings saved successfully.", "Settings",
                 MessageBoxButton.OK, MessageBoxImage.Information);
@@ -112,6 +118,19 @@ public partial class SettingsWindow : Window
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private FooterSection GetFooterSection()
+    {
+        if (_footerSection == null)
+        {
+            _footerSection = new FooterSection();
+            if (PresenterSettings != null)
+            {
+                _footerSection.SetCcliLicenseNumber(PresenterSettings.CcliLicenseNumber);
+            }
+        }
+        return _footerSection;
     }
 
     private ScreenConfigSection GetScreenConfigSection()
