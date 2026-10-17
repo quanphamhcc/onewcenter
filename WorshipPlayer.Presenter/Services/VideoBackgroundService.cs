@@ -9,6 +9,12 @@ namespace WorshipPlayer.Presenter.Services;
 /// </summary>
 public class VideoBackgroundService : IDisposable
 {
+    // The LibVLC native core must be initialized exactly ONCE per process, before any
+    // LibVLC instance is constructed. OutputWindow is created multiple times (recreated after
+    // close), so each window builds its own LibVLC/MediaPlayer, but Core.Initialize() runs only once.
+    private static readonly object _coreInitLock = new();
+    private static bool _coreInitialized;
+
     private LibVLC? _libVLC;
     private MediaPlayer? _mediaPlayer;
     private bool _isInitialized;
@@ -62,6 +68,16 @@ public class VideoBackgroundService : IDisposable
 
         try
         {
+            // Load the native libvlc core exactly once per process before constructing any LibVLC.
+            lock (_coreInitLock)
+            {
+                if (!_coreInitialized)
+                {
+                    LibVLCSharp.Shared.Core.Initialize();
+                    _coreInitialized = true;
+                }
+            }
+
             _libVLC = new LibVLC("--no-audio", "--video-title=MotionBackground");
             _mediaPlayer = new MediaPlayer(_libVLC);
             _isInitialized = true;

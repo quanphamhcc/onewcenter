@@ -16,6 +16,11 @@
   <ItemGroup>
     <PackageReference Include="LibVLCSharp" Version="3.8.5" />
     <PackageReference Include="LibVLCSharp.WPF" Version="3.8.5" />
+    <!-- Native libvlc 3.0.x runtime that LibVLCSharp 3.8.x binds to. The managed binding and
+         native payload are versioned independently; 3.0.21 is the long-established stable build
+         proven with the LibVLCSharp 3.8.x line. Without this the native core is absent and
+         new LibVLC(...) throws, so no video renders. -->
+    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
   </ItemGroup>
 
   <ItemGroup>

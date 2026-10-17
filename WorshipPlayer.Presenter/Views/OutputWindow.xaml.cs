@@ -124,6 +124,12 @@ public partial class OutputWindow : Window
 
         _alertTimer?.Stop();
         _videoPlaybackService.PlaybackEnded -= OnVideoPlaybackEnded;
+
+        // Detach the MediaPlayers from the real VideoView surfaces BEFORE disposing the services,
+        // so the VideoView does not touch a MediaPlayer that is about to be released (native-handle race).
+        BackgroundVideoView.MediaPlayer = null;
+        FullScreenVideoView.MediaPlayer = null;
+
         _videoBackgroundService.Dispose();
         _videoPlaybackService.Dispose();
     }
@@ -328,6 +334,10 @@ public partial class OutputWindow : Window
     {
         if (string.IsNullOrEmpty(videoPath)) return;
 
+        // If LibVLC is unavailable, leave lyric mode unchanged (do not blank the output).
+        if (!_videoPlaybackService.IsInitialized || _videoPlaybackService.Player == null)
+            return;
+
         _isVideoMode = true;
 
         // Hide lyric layers
@@ -335,14 +345,11 @@ public partial class OutputWindow : Window
         SlideB.Visibility = Visibility.Collapsed;
         LogoWatermark.Visibility = Visibility.Collapsed;
 
-        // Show and bind full-screen video view
+        // Bind the real VideoView to the playback MediaPlayer and show it full-screen.
+        FullScreenVideoView.MediaPlayer = _videoPlaybackService.Player;
         FullScreenVideoView.Visibility = Visibility.Visible;
-        if (_videoPlaybackService.Player != null)
-        {
-            // VLC not in XAML — video assigned programmatically when available
-        }
 
-        // Start playback
+        // Start playback (Play() stops/replaces any prior media first)
         _videoPlaybackService.Play(videoPath);
     }
 
@@ -492,13 +499,16 @@ public partial class OutputWindow : Window
     private void StartMotionBackground(string videoPath, double opacity)
     {
         _videoBackgroundService.SetOpacity(opacity);
-        // BackgroundVideoView.Opacity = opacity; // VLC not in XAML
-        BackgroundVideoView.Visibility = Visibility.Visible;
 
-        if (_videoBackgroundService.Player != null)
-        {
-            // VLC not in XAML — video assigned programmatically when available
-        }
+        // If LibVLC is unavailable (missing native payload / init failure), leave the old
+        // lyric-only behavior unchanged: do not show an empty VideoView surface.
+        if (!_videoBackgroundService.IsInitialized || _videoBackgroundService.Player == null)
+            return;
+
+        // Bind the real VideoView to the background MediaPlayer (idempotent assignment).
+        BackgroundVideoView.MediaPlayer = _videoBackgroundService.Player;
+        BackgroundVideoView.Opacity = opacity;
+        BackgroundVideoView.Visibility = Visibility.Visible;
 
         _videoBackgroundService.PlayBackground(videoPath, loop: true);
     }

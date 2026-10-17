@@ -583,6 +583,20 @@ public partial class OperatorWindow : Window
             CurrentItemTitle.Text = e.NewItem?.Title ?? "";
             CurrentItemSubtitle.Text = e.NewItem?.Type.ToString() ?? "";
 
+            // 7.2: route a Video service item to full-screen playback on the output. The pure
+            // resolver decides whether this item plays video and with which path; a non-video item
+            // leaves video mode so lyrics/slides resume. Slides for a video item are still loaded by
+            // the engine but OutputWindow.ShowSlide no-ops while in video mode.
+            var videoRoute = VideoRouteResolver.Resolve(e.NewItem);
+            if (videoRoute.PlayVideo)
+            {
+                _outputWindow?.ShowVideo(videoRoute.VideoPath);
+            }
+            else if (_outputWindow?.IsVideoMode == true)
+            {
+                _outputWindow.StopVideo();
+            }
+
             // BUG A: ensure the sidebar reflects the loaded service. On startup the service order
             // is auto-loaded asynchronously (ServiceOrderManager.LoadAsync) AFTER the operator
             // window has already run its initial RefreshServiceOrderList() against an empty order.
