@@ -28,6 +28,7 @@ public class PresenterIntegration : IDisposable
     private readonly MidiCueService _midiCueService;
     private readonly AppSettings _appSettings;
     private readonly PresenterSettings _presenterSettings;
+    private readonly PresenterSettingsService _presenterSettingsService;
     private readonly SongManager _songManager;
 
     // Presenter services
@@ -70,12 +71,14 @@ public class PresenterIntegration : IDisposable
         MidiCueService midiCueService,
         AppSettings appSettings,
         PresenterSettings presenterSettings,
+        PresenterSettingsService presenterSettingsService,
         SongManager songManager)
     {
         _audioEngine = audioEngine;
         _midiCueService = midiCueService;
         _appSettings = appSettings;
         _presenterSettings = presenterSettings;
+        _presenterSettingsService = presenterSettingsService;
         _songManager = songManager;
 
         // Create ServiceOrderManager (uses ServiceOrders folder next to app)
@@ -421,11 +424,9 @@ public class PresenterIntegration : IDisposable
     {
         try
         {
-            var appFolder = AppDomain.CurrentDomain.BaseDirectory;
-            var path = Path.Combine(appFolder, "presenter-settings.json");
-            var json = System.Text.Json.JsonSerializer.Serialize(settings,
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(path, json);
+            // Persistence is owned by the single PresenterSettingsService (file-backed).
+            _presenterSettingsService.Settings = settings;
+            _presenterSettingsService.SaveAsync().GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {

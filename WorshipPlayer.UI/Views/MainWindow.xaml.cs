@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private LightingService _lightingService = null!;
     private MidiCueService _midiCueService = null!;
     private PresenterIntegration? _presenterIntegration;
+    private PresenterSettingsService _presenterSettingsService = null!;
 
     private Song? _currentSong;
     private int _currentSectionIndex = -1;
@@ -171,8 +172,10 @@ public partial class MainWindow : Window
         _audioEngine.PlaybackStopped += AudioEngine_PlaybackStopped;
 
         // Initialize Presenter Integration
-        var presenterSettings = LoadPresenterSettings();
-        _presenterIntegration = new PresenterIntegration(_audioEngine, _midiCueService, _settings, presenterSettings, _songManager);
+        _presenterSettingsService = new PresenterSettingsService(Path.Combine(appFolder, "presenter-settings.json"));
+        await _presenterSettingsService.LoadAsync();
+        var presenterSettings = _presenterSettingsService.Settings;
+        _presenterIntegration = new PresenterIntegration(_audioEngine, _midiCueService, _settings, presenterSettings, _presenterSettingsService, _songManager);
         _presenterIntegration.Initialize();
         _presenterIntegration.SongLoadRequested += PresenterIntegration_SongLoadRequested;
         _presenterIntegration.StatusMessage += PresenterIntegration_StatusMessage;
@@ -1499,39 +1502,6 @@ public partial class MainWindow : Window
 }";
             File.WriteAllText(songJsonPath, defaultSongJson);
         }
-    }
-
-    // ─── Presenter Settings Load/Save ──────────────────────────────
-
-    private static string GetPresenterSettingsPath()
-    {
-        var appFolder = AppDomain.CurrentDomain.BaseDirectory;
-        return Path.Combine(appFolder, "presenter-settings.json");
-    }
-
-    private static PresenterSettings LoadPresenterSettings()
-    {
-        var path = GetPresenterSettingsPath();
-        if (File.Exists(path))
-        {
-            try
-            {
-                var json = File.ReadAllText(path);
-                var settings = System.Text.Json.JsonSerializer.Deserialize<PresenterSettings>(json,
-                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (settings != null) return settings;
-            }
-            catch { }
-        }
-        return new PresenterSettings();
-    }
-
-    private static void SavePresenterSettings(PresenterSettings settings)
-    {
-        var path = GetPresenterSettingsPath();
-        var json = System.Text.Json.JsonSerializer.Serialize(settings,
-            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(path, json);
     }
 
     private void PopulateDisplayManager(WorshipPlayer.Presenter.Services.DisplayManager displayManager)
