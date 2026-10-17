@@ -100,9 +100,11 @@ public class PresenterIntegration : IDisposable
         // Create ThemeManager
         ThemeManager = new ThemeManager();
 
-        // Create additional services for panels and tools
-        var usagePath = Path.Combine(appFolder, "song-usage.json");
-        SongUsageService = new SongUsageService(usagePath);
+        // Create additional services for panels and tools.
+        // Song usage is persisted in the shared SQLite app.db (migrated from song-usage.json),
+        // constructed the same way the Bible db is below.
+        var appDbPath = Path.Combine(appFolder, "app.db");
+        SongUsageService = new SongUsageService(appDbPath);
         SongLibraryService = new SongLibraryService(_songManager, SongUsageService);
 
         var mediaPath = Path.Combine(appFolder, "Media");

@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Xunit;
 using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Services;
@@ -7,6 +8,7 @@ namespace WorshipPlayer.Tests;
 /// <summary>
 /// Unit tests for CcliReportService.
 /// Tests report generation, CSV export format, and empty date range handling.
+/// Uses a temp SQLite app.db behind SongUsageService (unchanged public API).
 /// </summary>
 public class CcliReportServiceTests : IDisposable
 {
@@ -19,15 +21,26 @@ public class CcliReportServiceTests : IDisposable
         _tempFolder = Path.Combine(Path.GetTempPath(), $"CcliTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempFolder);
 
-        var usagePath = Path.Combine(_tempFolder, "usage.json");
-        _usageService = new SongUsageService(usagePath);
+        var dbPath = Path.Combine(_tempFolder, "app.db");
+        _usageService = new SongUsageService(dbPath);
         _service = new CcliReportService(_usageService);
     }
 
     public void Dispose()
     {
+        SqliteConnection.ClearAllPools();
+
         if (Directory.Exists(_tempFolder))
-            Directory.Delete(_tempFolder, true);
+        {
+            try
+            {
+                Directory.Delete(_tempFolder, true);
+            }
+            catch (IOException)
+            {
+                // Best-effort cleanup of a temp folder; ignore a transient OS lock.
+            }
+        }
     }
 
     [Fact]

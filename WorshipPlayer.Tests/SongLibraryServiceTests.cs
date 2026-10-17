@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Xunit;
 using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Services;
@@ -7,6 +8,7 @@ namespace WorshipPlayer.Tests;
 /// <summary>
 /// Unit tests for SongLibraryService.
 /// Tests search (case-insensitive), filter by key, and sorting.
+/// SongUsageService now persists to a temp SQLite app.db (unchanged public API).
 /// </summary>
 public class SongLibraryServiceTests : IDisposable
 {
@@ -22,20 +24,32 @@ public class SongLibraryServiceTests : IDisposable
 
         var songsFolder = Path.Combine(_tempFolder, "Songs");
         var setlistsFolder = Path.Combine(_tempFolder, "Setlists");
-        var usagePath = Path.Combine(_tempFolder, "usage.json");
+        var dbPath = Path.Combine(_tempFolder, "app.db");
 
         Directory.CreateDirectory(songsFolder);
         Directory.CreateDirectory(setlistsFolder);
 
         _songManager = new SongManager(songsFolder, setlistsFolder);
-        _usageService = new SongUsageService(usagePath);
+        _usageService = new SongUsageService(dbPath);
         _service = new SongLibraryService(_songManager, _usageService);
     }
 
     public void Dispose()
     {
+        // Release SQLite file handles so the temp .db under _tempFolder can be deleted on Windows.
+        SqliteConnection.ClearAllPools();
+
         if (Directory.Exists(_tempFolder))
-            Directory.Delete(_tempFolder, true);
+        {
+            try
+            {
+                Directory.Delete(_tempFolder, true);
+            }
+            catch (IOException)
+            {
+                // Best-effort cleanup of a temp folder.
+            }
+        }
     }
 
     [Fact]

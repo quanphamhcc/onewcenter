@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Xunit;
 using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Services;
@@ -67,7 +68,7 @@ public class SongUsageMappingTests
         Directory.CreateDirectory(tempFolder);
         try
         {
-            var usageService = new SongUsageService(Path.Combine(tempFolder, "usage.json"));
+            var usageService = new SongUsageService(Path.Combine(tempFolder, "app.db"));
             var reportService = new CcliReportService(usageService);
 
             var song = new Song
@@ -91,8 +92,19 @@ public class SongUsageMappingTests
         }
         finally
         {
+            // Release SQLite file handles so the temp .db under tempFolder can be deleted on Windows.
+            SqliteConnection.ClearAllPools();
             if (Directory.Exists(tempFolder))
-                Directory.Delete(tempFolder, true);
+            {
+                try
+                {
+                    Directory.Delete(tempFolder, true);
+                }
+                catch (IOException)
+                {
+                    // Best-effort cleanup of a temp folder.
+                }
+            }
         }
     }
 
