@@ -53,9 +53,9 @@ public partial class MainWindow : Window
     {
         // Initialize services - try multiple paths to find Songs folder
         var appFolder = AppDomain.CurrentDomain.BaseDirectory;
-        var settingsPath = Path.Combine(appFolder, "settings.json");
+        var appDbPath = Path.Combine(appFolder, "app.db");
 
-        _settingsService = new SettingsService(settingsPath);
+        _settingsService = new SettingsService(appDbPath);
         await _settingsService.LoadAsync();
         _settings = _settingsService.Settings;
 
@@ -172,7 +172,7 @@ public partial class MainWindow : Window
         _audioEngine.PlaybackStopped += AudioEngine_PlaybackStopped;
 
         // Initialize Presenter Integration
-        _presenterSettingsService = new PresenterSettingsService(Path.Combine(appFolder, "presenter-settings.json"));
+        _presenterSettingsService = new PresenterSettingsService(appDbPath);
         await _presenterSettingsService.LoadAsync();
         var presenterSettings = _presenterSettingsService.Settings;
         _presenterIntegration = new PresenterIntegration(_audioEngine, _midiCueService, _settings, presenterSettings, _presenterSettingsService, _songManager);
