@@ -122,3 +122,35 @@ Hầu hết là net-new; một số đã có interface/DTO nhưng chưa có HTTP
 1. **Phase 0 (Settings persistence)** — nền tảng, mở khóa nhiều feature khác.
 2. Hoặc nếu muốn thấy kết quả nhanh: **Phase 1 — G5/G6/G1 Template** hoặc **D5 ChordPro** (Core đã sẵn, chỉ nối dây).
 3. **E2 Bible data** nếu scripture là ưu tiên dùng thực tế mỗi Chủ nhật.
+
+---
+
+## CẬP NHẬT — Hoàn thiện feature dở dang (sau Phase 1)
+
+Tất cả đã merge vào `main` (HEAD `5cf1ed8`), mỗi feature build sạch + test pass + review APPROVED. **Chưa xác nhận UI bằng tay** (app WPF).
+
+| Feature | Trạng thái | Kết quả |
+|---|---|---|
+| C2 Service order groups | ✅ DONE | Create/rename/delete/assign/collapse group; sidebar nhóm thu gọn; xóa nhóm giữ item |
+| C3 Bulk edit | ✅ DONE | Toggle multi-select + "Apply to selected"; per-field opt-in; `BulkEditService` thuần Core |
+| E3 Scripture auto-split | ✅ DONE | Panel route qua Core `ScriptureSlideGenerator` (một splitter); `PresenterEngine.LoadScriptureSlides` |
+| E5 Reference/translation display | ✅ DONE | Toggle show/hide reference + translation, lưu trong `PresenterSettings` |
+| 7.1 Motion backgrounds | ✅ DONE (cần kiểm UI) | `VideoView` thật thay placeholder; native LibVLC payload; render video nền |
+| 7.2 Video service item | ✅ DONE (cần kiểm UI) | `VideoRouteResolver` route item Video → `ShowVideo`; dispose an toàn |
+| J4 CCLI report | ✅ DONE (auto-submit defer) | UI route qua `CcliReportService` + cột CCLI Number + date range; bắt Artist/Ccli; Footer license persist |
+
+### Lưu ý / defer
+- **7.1/7.2 video:** rendering + loop + hiệu năng cần kiểm bằng mắt khi chạy app. Video full-screen có tiếng hiện phát câm (core `--no-audio` dùng chung) — follow-up.
+- **J4 auto-submit lên API CCLI:** defer — cần API endpoint + credentials CCLI (không có trong codebase).
+
+### Vẫn còn — bị chặn bởi tài nguyên ngoài
+- **E2** Bible 66 sách → cần nguồn dữ liệu KJV/WEB public domain.
+- **H7** NDI thật → cần NewTek NDI SDK (native + license).
+- **M2/M3** Cloud API + sync → cần backend server tồn tại.
+
+### Vẫn còn — làm được nhưng chưa làm (nhóm "chưa làm" ban đầu)
+- Settings persistence: **L2, L3 (một phần Footer đã xong qua J4), L4, L8, L9, L10**
+- Slide grid: **11.1** nền thumbnail, **11.5** kéo-thả + hover sửa/xóa, **11.10** pop-out preview, **F4** gán media làm nền slide
+- **L5** import Bible XML, **L7/I8** stage layout editor, **E4** scripture templates
+- Import: **C6** PCO, **C7** ProPresenter, **D3** CCLI SongSelect (cần online)
+- Cloud/account khác: **M1, M4, M5, M6, H8**
