@@ -113,16 +113,18 @@ public class PresenterIntegration : IDisposable
         GlobalSearchService = new GlobalSearchService(_songManager, ServiceOrderManager);
         ExportService = new ExportService();
 
-        var alertTemplatesPath = Path.Combine(appFolder, "alert-templates.json");
-        AlertService = new AlertService(alertTemplatesPath);
+        // Alert templates are persisted in the shared SQLite app.db (migrated from
+        // alert-templates.json), constructed the same way SongUsageService is above.
+        AlertService = new AlertService(appDbPath);
 
         CountdownService = new CountdownService();
 
         var biblePath = Path.Combine(appFolder, "bible.db");
         BibleDatabaseService = new BibleDatabaseService(biblePath);
 
-        var templatesPath = Path.Combine(appFolder, "Templates");
-        TemplateService = new TemplateService(templatesPath);
+        // Custom slide templates are persisted in the shared SQLite app.db (migrated from
+        // the Templates/*.json folder); built-ins stay code-seeded.
+        TemplateService = new TemplateService(appDbPath);
     }
 
     /// <summary>
