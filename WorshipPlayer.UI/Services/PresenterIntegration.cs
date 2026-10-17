@@ -107,8 +107,11 @@ public class PresenterIntegration : IDisposable
         SongUsageService = new SongUsageService(appDbPath);
         SongLibraryService = new SongLibraryService(_songManager, SongUsageService);
 
+        // Media asset binaries stay on disk under the Media folder; their metadata is persisted
+        // in the shared SQLite app.db (migrated from the per-asset *_metadata.json sidecars),
+        // reusing the same appDbPath as the sibling services above.
         var mediaPath = Path.Combine(appFolder, "Media");
-        MediaLibraryService = new MediaLibraryService(mediaPath);
+        MediaLibraryService = new MediaLibraryService(mediaPath, appDbPath);
 
         GlobalSearchService = new GlobalSearchService(_songManager, ServiceOrderManager);
         ExportService = new ExportService();

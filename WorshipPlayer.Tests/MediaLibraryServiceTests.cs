@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Data.Sqlite;
 using Xunit;
 using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Services;
@@ -5,38 +8,62 @@ using WorshipPlayer.Core.Services;
 namespace WorshipPlayer.Tests;
 
 /// <summary>
-/// Unit tests for MediaLibraryService.
-/// Tests path sanitization, file type validation, and search capabilities.
+/// Unit tests for MediaLibraryService (metadata now SQLite-backed via app.db; asset binaries
+/// stay on disk). Tests path sanitization, file type validation, search/filter parity, and the
+/// one-time *_metadata.json sidecar import. Each test injects a temp media folder plus a temp
+/// app.db and clears SQLite connection pools in teardown so the temp .db file can be deleted on
+/// Windows (mirrors AlertServiceTests discipline).
 /// </summary>
 public class MediaLibraryServiceTests : IDisposable
 {
     private readonly string _tempFolder;
+    private readonly string _dbPath;
     private readonly MediaLibraryService _service;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public MediaLibraryServiceTests()
     {
         _tempFolder = Path.Combine(Path.GetTempPath(), $"MediaLibTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempFolder);
-        _service = new MediaLibraryService(_tempFolder);
+        _dbPath = Path.Combine(_tempFolder, "app.db");
+        _service = new MediaLibraryService(_tempFolder, _dbPath);
     }
 
     public void Dispose()
     {
+        SqliteConnection.ClearAllPools();
+
         if (Directory.Exists(_tempFolder))
-            Directory.Delete(_tempFolder, true);
+        {
+            try
+            {
+                Directory.Delete(_tempFolder, true);
+            }
+            catch (IOException)
+            {
+                // Best-effort cleanup of a temp folder; ignore a transient OS lock.
+            }
+        }
     }
 
     [Fact]
     public void Constructor_CreatesLibraryFolder()
     {
         var folder = Path.Combine(Path.GetTempPath(), $"MediaLib_New_{Guid.NewGuid():N}");
+        var dbPath = Path.Combine(folder, "app.db");
         try
         {
-            var service = new MediaLibraryService(folder);
+            var service = new MediaLibraryService(folder, dbPath);
             Assert.True(Directory.Exists(folder));
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (Directory.Exists(folder))
                 Directory.Delete(folder, true);
         }
@@ -233,6 +260,138 @@ public class MediaLibraryServiceTests : IDisposable
     public void GetLibraryPath_ReturnsConfiguredPath()
     {
         Assert.Equal(_tempFolder, _service.GetLibraryPath());
+    }
+
+    // ─── One-time sidecar import tests ─────────────────────────────────────
+
+    [Fact]
+    public async Task ImportsLegacySidecarsOnFirstUse_AndLeavesSidecarAndAssetOnDisk()
+    {
+        // Fresh media folder + db, no service touched yet.
+        var folder = Path.Combine(Path.GetTempPath(), $"MediaLibSidecar_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        var dbPath = Path.Combine(folder, "app.db");
+        try
+        {
+            // Hand-write an asset file plus its *_metadata.json sidecar.
+            var assetPath = Path.Combine(folder, "legacy.png");
+            await File.WriteAllBytesAsync(assetPath, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+
+            var sidecarPath = assetPath + "_metadata.json";
+            var item = new MediaLibraryItem
+            {
+                Id = "legacy-media-1",
+                Name = "legacy",
+                FilePath = assetPath,
+                MediaType = MediaLibraryType.Image,
+                Tags = new List<string> { "worship", "background" }
+            };
+            await File.WriteAllTextAsync(sidecarPath, JsonSerializer.Serialize(item, JsonOptions));
+
+            var service = new MediaLibraryService(folder, dbPath);
+            var all = await service.GetAllAsync();
+
+            var loaded = Assert.Single(all);
+            Assert.Equal("legacy", loaded.Name);
+            Assert.Equal(MediaLibraryType.Image, loaded.MediaType);
+            Assert.Contains("worship", loaded.Tags);
+
+            // The sidecar file is left on disk (least-destructive) and the asset is untouched.
+            Assert.True(File.Exists(sidecarPath));
+            Assert.True(File.Exists(assetPath));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, true);
+        }
+    }
+
+    [Fact]
+    public async Task ImportsLegacySidecars_SecondInstance_DoesNotDuplicate()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), $"MediaLibSidecarDup_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        var dbPath = Path.Combine(folder, "app.db");
+        try
+        {
+            var assetPath = Path.Combine(folder, "once.png");
+            await File.WriteAllBytesAsync(assetPath, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+            var sidecarPath = assetPath + "_metadata.json";
+            var item = new MediaLibraryItem
+            {
+                Id = "once-1",
+                Name = "once",
+                FilePath = assetPath,
+                MediaType = MediaLibraryType.Image
+            };
+            await File.WriteAllTextAsync(sidecarPath, JsonSerializer.Serialize(item, JsonOptions));
+
+            var first = new MediaLibraryService(folder, dbPath);
+            var afterFirst = await first.GetAllAsync();
+            Assert.Single(afterFirst);
+
+            // A second service against the SAME app.db with the SAME sidecar present must not
+            // re-import (empty-table guard).
+            var second = new MediaLibraryService(folder, dbPath);
+            var afterSecond = await second.GetAllAsync();
+            Assert.Single(afterSecond);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, true);
+        }
+    }
+
+    [Fact]
+    public async Task ImportsLegacySidecars_MalformedFile_IsSkipped_DoesNotThrow()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), $"MediaLibSidecarBad_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        var dbPath = Path.Combine(folder, "app.db");
+        try
+        {
+            // One valid sidecar...
+            var goodAsset = Path.Combine(folder, "good.png");
+            await File.WriteAllBytesAsync(goodAsset, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+            await File.WriteAllTextAsync(
+                goodAsset + "_metadata.json",
+                JsonSerializer.Serialize(
+                    new MediaLibraryItem { Id = "good-1", Name = "good", FilePath = goodAsset },
+                    JsonOptions));
+
+            // ...and one malformed sidecar alongside it.
+            await File.WriteAllTextAsync(
+                Path.Combine(folder, "bad.png_metadata.json"),
+                "{ not valid json ]");
+
+            var service = new MediaLibraryService(folder, dbPath);
+            var all = await service.GetAllAsync();
+
+            var loaded = Assert.Single(all);
+            Assert.Equal("good", loaded.Name);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, true);
+        }
+    }
+
+    [Fact]
+    public async Task NewImports_DoNotWriteSidecarFiles()
+    {
+        var testFile = CreateTestFile("newimport.jpg");
+
+        var item = await _service.ImportAsync(testFile);
+
+        // The copied asset exists on disk, but no *_metadata.json sidecar is written for it.
+        Assert.True(File.Exists(item.FilePath));
+        Assert.False(File.Exists(item.FilePath + "_metadata.json"));
     }
 
     /// <summary>
