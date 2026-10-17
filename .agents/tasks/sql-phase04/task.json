@@ -1,7 +1,7 @@
 {
   "task_id": "task-sql-phase04-settings",
   "task_description": "SQL migration Phase 4: consolidate the two PresenterSettings JSON writers into one PresenterSettingsService, then back both SettingsService (AppSettings) and PresenterSettingsService (PresenterSettings) with the shared SQLite app.db via the Phase-0 AppDatabase helper. Single-row (Id=1, DataJson TEXT) table per store, defensive one-time JSON import, enums-as-strings parity, public API preserved. Scope strictly to the two settings stores, their construction sites (MainWindow + PresenterIntegration), and their tests. Do NOT touch service-orders or songs.",
-  "status": "pending",
+  "status": "completed",
   "feature_order": ["FEAT-001", "FEAT-002"],
   "blocked_reason": null
 }
