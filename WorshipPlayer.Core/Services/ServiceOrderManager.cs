@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Data.Sqlite;
 using WorshipPlayer.Core.Models;
 
 namespace WorshipPlayer.Core.Services;
@@ -9,10 +10,44 @@ namespace WorshipPlayer.Core.Services;
 /// This is a shared service used by both the Backtrack Player and Presenter.
 /// Lives in Core so both UI modules can access it.
 /// </summary>
+/// <remarks>
+/// Phase 5 SQL migration: Service Orders now also live in the shared SQLite application
+/// database (app.db, <c>ServiceOrders</c> table) via <see cref="AppDatabase"/>, reusing the
+/// same helper the media/alert/song-usage stores use (no second helper, no EF; bible.db stays
+/// separate). The on-disk JSON files REMAIN authoritative and are still written/read exactly as
+/// before — the public API is path-oriented (<see cref="GetFilePathFor"/> /
+/// <see cref="LoadAsync(string)"/> / <see cref="SaveAsync(string?)"/> /
+/// <see cref="ListServiceFilesAsync"/>) and the UI treats a file path as a service's identity
+/// (including an out-of-band <c>File.Delete(path)</c> for deletes). SQLite is kept as a
+/// reconciled MIRROR keyed by the normalized file path: <see cref="SaveAsync"/> upserts a row,
+/// <see cref="LoadAsync"/> refreshes the loaded order's row, and
+/// <see cref="LoadAllAsync"/>/<see cref="ListServiceFilesAsync"/> upsert each scanned file and
+/// prune rows whose file no longer exists (absorbing the UI's out-of-band delete). All mirror
+/// DB work is wrapped so a DB failure never changes the file-based public behavior or the
+/// <see cref="ItemChanged"/>/<see cref="ServiceOrderLoaded"/> events. On first init, if the
+/// table is empty and <c>*.json</c> files exist, they are imported once (defensively,
+/// non-duplicating, never throwing); the JSON files are LEFT ON DISK. This preserves every
+/// observable behavior byte-for-byte while delivering Phase 5's goal of Service Orders in app.db.
+/// </remarks>
 public class ServiceOrderManager
 {
     private readonly string _serviceOrdersBasePath;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly AppDatabase _database;
+    private bool _initialized = false;
+
+    private const string CreateSchemaSql = @"
+CREATE TABLE IF NOT EXISTS ServiceOrders (
+    FilePath        TEXT PRIMARY KEY,
+    Id              TEXT NOT NULL DEFAULT '',
+    Name            TEXT NOT NULL DEFAULT '',
+    Date            TEXT NOT NULL DEFAULT '',
+    StartTime       TEXT NULL,
+    ServiceType     TEXT NOT NULL DEFAULT '',
+    LastWriteUtc    TEXT NOT NULL DEFAULT '',
+    DataJson        TEXT NOT NULL
+);
+";
 
     public ServiceOrder? CurrentServiceOrder { get; private set; }
     public int CurrentItemIndex { get; private set; } = -1;
@@ -30,7 +65,15 @@ public class ServiceOrderManager
     /// </summary>
     public event EventHandler<ServiceOrder>? ServiceOrderLoaded;
 
-    public ServiceOrderManager(string serviceOrdersBasePath)
+    /// <summary>
+    /// Create the manager against the ServiceOrders folder (the on-disk JSON files, which stay
+    /// authoritative) and a database path for the SQLite mirror (conceptually
+    /// &lt;appFolder&gt;/app.db — the caller passes the path, exactly like
+    /// <see cref="MediaLibraryService"/>). When <paramref name="databasePath"/> is null, the
+    /// standard app-folder <c>app.db</c> (<see cref="AppDatabase.DefaultPath"/>) is used, so the
+    /// existing single-arg call sites keep compiling and behaving unchanged.
+    /// </summary>
+    public ServiceOrderManager(string serviceOrdersBasePath, string? databasePath = null)
     {
         _serviceOrdersBasePath = serviceOrdersBasePath;
         _jsonOptions = new JsonSerializerOptions
@@ -39,6 +82,7 @@ public class ServiceOrderManager
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             Converters = { new JsonStringEnumConverter() }
         };
+        _database = new AppDatabase(databasePath ?? AppDatabase.DefaultPath);
     }
 
     /// <summary>
@@ -58,6 +102,11 @@ public class ServiceOrderManager
             {
                 CurrentServiceOrder = serviceOrder;
                 CurrentItemIndex = serviceOrder.Items.Count > 0 ? 0 : -1;
+
+                // Keep the SQLite mirror fresh for files edited out-of-band. Best-effort only:
+                // a DB failure must never change the file-based load behavior or the event.
+                await UpsertRowSafeAsync(serviceOrder, filePath);
+
                 ServiceOrderLoaded?.Invoke(this, serviceOrder);
             }
 
@@ -86,6 +135,10 @@ public class ServiceOrderManager
 
         var json = JsonSerializer.Serialize(CurrentServiceOrder, _jsonOptions);
         await File.WriteAllTextAsync(filePath, json);
+
+        // Mirror the saved order into app.db keyed by the normalized file path (= identity).
+        // Best-effort: the JSON file is authoritative and already written above.
+        await UpsertRowSafeAsync(CurrentServiceOrder, filePath);
     }
 
     /// <summary>
@@ -380,6 +433,7 @@ public class ServiceOrderManager
             return orders;
         }
 
+        var scanned = new List<(string path, ServiceOrder order)>();
         foreach (var file in Directory.GetFiles(_serviceOrdersBasePath, "*.json"))
         {
             try
@@ -387,10 +441,17 @@ public class ServiceOrderManager
                 var json = await File.ReadAllTextAsync(file);
                 var order = JsonSerializer.Deserialize<ServiceOrder>(json, _jsonOptions);
                 if (order != null)
+                {
                     orders.Add(order);
+                    scanned.Add((file, order));
+                }
             }
             catch { }
         }
+
+        // Reconcile the SQLite mirror with the files that are actually on disk (upsert present,
+        // prune vanished). Best-effort; the returned list/ordering comes only from the scan above.
+        await ReconcileSafeAsync(scanned);
 
         return orders.OrderByDescending(o => o.Date).ToList();
     }
@@ -412,6 +473,7 @@ public class ServiceOrderManager
             return files;
         }
 
+        var scanned = new List<(string path, ServiceOrder order)>();
         foreach (var file in Directory.GetFiles(_serviceOrdersBasePath, "*.json"))
         {
             try
@@ -419,10 +481,18 @@ public class ServiceOrderManager
                 var json = await File.ReadAllTextAsync(file);
                 var order = JsonSerializer.Deserialize<ServiceOrder>(json, _jsonOptions);
                 if (order != null)
+                {
                     files.Add(new ServiceFileInfo(file, new FileInfo(file).LastWriteTimeUtc, order));
+                    scanned.Add((file, order));
+                }
             }
             catch { }
         }
+
+        // Reconcile the SQLite mirror with the on-disk files (upsert present, prune vanished —
+        // this absorbs the UI's out-of-band File.Delete). Best-effort; the returned list and its
+        // (scan) ordering are untouched so ServiceListingBuilder behavior stays identical.
+        await ReconcileSafeAsync(scanned);
 
         return files;
     }
@@ -466,6 +536,248 @@ public class ServiceOrderManager
         }
 
         return order;
+    }
+
+    // ─── SQLite mirror (Phase 5) ──────────────────────────────────
+    // The on-disk JSON files are authoritative; these helpers keep an app.db mirror in sync.
+    // Everything here is best-effort and never allowed to surface an exception into the
+    // file-based public behavior or the ItemChanged/ServiceOrderLoaded events.
+
+    /// <summary>
+    /// Create the ServiceOrders schema (idempotent) and run the one-time JSON import once per
+    /// process via the <see cref="_initialized"/> guard. Mirrors
+    /// <see cref="MediaLibraryService"/>'s EnsureInitializedAsync.
+    /// </summary>
+    private async Task EnsureInitializedAsync()
+    {
+        if (_initialized) return;
+
+        _database.EnsureDirectory();
+
+        using var connection = _database.CreateConnection();
+        await connection.OpenAsync();
+
+        using (var schemaCmd = connection.CreateCommand())
+        {
+            schemaCmd.CommandText = CreateSchemaSql;
+            await schemaCmd.ExecuteNonQueryAsync();
+        }
+
+        await ImportFilesIfNeededAsync(connection);
+
+        _initialized = true;
+    }
+
+    /// <summary>
+    /// Best-effort wrapper around <see cref="UpsertRowAsync"/>: ensures the schema exists then
+    /// upserts the mirror row, swallowing any DB failure so the authoritative JSON path is
+    /// unaffected.
+    /// </summary>
+    private async Task UpsertRowSafeAsync(ServiceOrder order, string filePath)
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            using var connection = _database.CreateConnection();
+            await connection.OpenAsync();
+            await UpsertRowAsync(connection, null, order, filePath);
+        }
+        catch
+        {
+            // The JSON file is the source of truth and is already written/read; a mirror
+            // failure must never break the public behavior.
+        }
+    }
+
+    /// <summary>
+    /// Best-effort reconcile: upsert every scanned (path, order) pair and prune any mirror row
+    /// whose FilePath is no longer among the scanned files (absorbs the UI's out-of-band
+    /// File.Delete). Swallows any DB failure.
+    /// </summary>
+    private async Task ReconcileSafeAsync(IReadOnlyList<(string path, ServiceOrder order)> scanned)
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            using var connection = _database.CreateConnection();
+            await connection.OpenAsync();
+
+            using var transaction = connection.BeginTransaction();
+
+            var keepPaths = new List<string>(scanned.Count);
+            foreach (var (path, order) in scanned)
+            {
+                var normalized = NormalizePath(path);
+                keepPaths.Add(normalized);
+                await UpsertRowAsync(connection, transaction, order, path);
+            }
+
+            // Prune rows whose file is gone. Build a parameterized NOT IN list.
+            using (var deleteCmd = connection.CreateCommand())
+            {
+                deleteCmd.Transaction = transaction;
+                if (keepPaths.Count == 0)
+                {
+                    deleteCmd.CommandText = "DELETE FROM ServiceOrders";
+                }
+                else
+                {
+                    var paramNames = new List<string>(keepPaths.Count);
+                    for (int i = 0; i < keepPaths.Count; i++)
+                    {
+                        var p = "@keep" + i;
+                        paramNames.Add(p);
+                        deleteCmd.Parameters.AddWithValue(p, keepPaths[i]);
+                    }
+                    deleteCmd.CommandText =
+                        $"DELETE FROM ServiceOrders WHERE FilePath NOT IN ({string.Join(",", paramNames)})";
+                }
+                await deleteCmd.ExecuteNonQueryAsync();
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            // Files are authoritative; a mirror reconcile failure is non-fatal.
+        }
+    }
+
+    /// <summary>
+    /// Insert or update the mirror row for an order keyed by its normalized file path. Promotes
+    /// the fields the listing/sorting consume (Id, Name, Date, StartTime, ServiceType,
+    /// LastWriteUtc) and keeps the whole order serialized in DataJson (with the manager's
+    /// _jsonOptions) so it round-trips losslessly. Mirrors <see cref="MediaLibraryService"/>'s
+    /// upsert shape.
+    /// </summary>
+    private async Task UpsertRowAsync(SqliteConnection connection, SqliteTransaction? transaction, ServiceOrder order, string filePath)
+    {
+        var normalized = NormalizePath(filePath);
+
+        using var cmd = connection.CreateCommand();
+        if (transaction != null)
+            cmd.Transaction = transaction;
+
+        cmd.CommandText = @"
+            INSERT INTO ServiceOrders (FilePath, Id, Name, Date, StartTime, ServiceType, LastWriteUtc, DataJson)
+            VALUES (@FilePath, @Id, @Name, @Date, @StartTime, @ServiceType, @LastWriteUtc, @DataJson)
+            ON CONFLICT(FilePath) DO UPDATE SET
+                Id = excluded.Id,
+                Name = excluded.Name,
+                Date = excluded.Date,
+                StartTime = excluded.StartTime,
+                ServiceType = excluded.ServiceType,
+                LastWriteUtc = excluded.LastWriteUtc,
+                DataJson = excluded.DataJson";
+        BindOrder(cmd, order, normalized, filePath);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Bind an order's promoted columns + DataJson. StartTime is stored as an ISO-8601 round-trip
+    /// string or NULL (preserving the nullable semantics). LastWriteUtc comes from the file when
+    /// it exists else UtcNow.
+    /// </summary>
+    private void BindOrder(SqliteCommand cmd, ServiceOrder order, string normalizedPath, string filePath)
+    {
+        cmd.Parameters.AddWithValue("@FilePath", normalizedPath);
+        cmd.Parameters.AddWithValue("@Id", order.Id ?? "");
+        cmd.Parameters.AddWithValue("@Name", order.Name ?? "");
+        cmd.Parameters.AddWithValue("@Date", order.Date ?? "");
+        cmd.Parameters.AddWithValue("@StartTime",
+            order.StartTime.HasValue
+                ? order.StartTime.Value.ToString("o")
+                : (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@ServiceType", order.ServiceType ?? "");
+
+        var lastWrite = File.Exists(filePath)
+            ? new FileInfo(filePath).LastWriteTimeUtc
+            : DateTime.UtcNow;
+        cmd.Parameters.AddWithValue("@LastWriteUtc", lastWrite.ToString("o"));
+
+        cmd.Parameters.AddWithValue("@DataJson", JsonSerializer.Serialize(order, _jsonOptions));
+    }
+
+    /// <summary>
+    /// Defensive one-time import: if the ServiceOrders table is empty AND <c>*.json</c> files
+    /// exist under the base path, import each as a mirror row once. Preserves historical ids/dates
+    /// (assigns a GUID id only when missing). Tolerates a missing folder, missing/malformed files
+    /// (skips the single bad file and continues) — never throws. The empty-table guard makes this
+    /// non-duplicating. JSON files are LEFT ON DISK and remain authoritative. Mirrors
+    /// <see cref="MediaLibraryService"/>'s ImportSidecarsIfNeededAsync.
+    /// </summary>
+    private async Task ImportFilesIfNeededAsync(SqliteConnection connection)
+    {
+        try
+        {
+            if (!Directory.Exists(_serviceOrdersBasePath))
+                return;
+
+            using (var countCmd = connection.CreateCommand())
+            {
+                countCmd.CommandText = "SELECT COUNT(*) FROM ServiceOrders";
+                var count = Convert.ToInt64(await countCmd.ExecuteScalarAsync());
+                if (count > 0)
+                    return;
+            }
+
+            var jsonFiles = Directory.GetFiles(_serviceOrdersBasePath, "*.json");
+            if (jsonFiles.Length == 0)
+                return;
+
+            using var transaction = connection.BeginTransaction();
+            foreach (var file in jsonFiles)
+            {
+                ServiceOrder? order;
+                try
+                {
+                    var json = await File.ReadAllTextAsync(file);
+                    order = JsonSerializer.Deserialize<ServiceOrder>(json, _jsonOptions);
+                }
+                catch
+                {
+                    // Skip a single malformed file and continue with the rest.
+                    continue;
+                }
+
+                if (order == null)
+                    continue;
+
+                if (string.IsNullOrEmpty(order.Id))
+                    order.Id = Guid.NewGuid().ToString();
+
+                var normalized = NormalizePath(file);
+                using var insertCmd = connection.CreateCommand();
+                insertCmd.Transaction = transaction;
+                insertCmd.CommandText = @"
+                    INSERT OR IGNORE INTO ServiceOrders (FilePath, Id, Name, Date, StartTime, ServiceType, LastWriteUtc, DataJson)
+                    VALUES (@FilePath, @Id, @Name, @Date, @StartTime, @ServiceType, @LastWriteUtc, @DataJson)";
+                BindOrder(insertCmd, order, normalized, file);
+                await insertCmd.ExecuteNonQueryAsync();
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            // A malformed/locked folder or file must never throw — leave the table as-is.
+        }
+    }
+
+    /// <summary>
+    /// Normalize a file path to its full, canonical form so the mirror key matches the UI's
+    /// notion of a service's identity regardless of how the path was passed in.
+    /// </summary>
+    private static string NormalizePath(string filePath)
+    {
+        try
+        {
+            return Path.GetFullPath(filePath);
+        }
+        catch
+        {
+            return filePath;
+        }
     }
 
     private string GetDefaultFilePath(ServiceOrder order)

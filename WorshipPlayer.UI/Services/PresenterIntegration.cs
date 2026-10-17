@@ -81,12 +81,17 @@ public class PresenterIntegration : IDisposable
         _presenterSettingsService = presenterSettingsService;
         _songManager = songManager;
 
-        // Create ServiceOrderManager (uses ServiceOrders folder next to app)
+        // Shared SQLite application database path (app.db next to the app), reused by the
+        // service-order / song-usage / media / alert / template stores below.
         var appFolder = AppDomain.CurrentDomain.BaseDirectory;
+        var appDbPath = Path.Combine(appFolder, "app.db");
+
+        // Create ServiceOrderManager (JSON files under the ServiceOrders folder stay
+        // authoritative; the shared app.db is a reconciled mirror — Phase 5 SQL migration).
         var serviceOrdersPath = Path.Combine(appFolder, "ServiceOrders");
         if (!Directory.Exists(serviceOrdersPath))
             Directory.CreateDirectory(serviceOrdersPath);
-        ServiceOrderManager = new ServiceOrderManager(serviceOrdersPath);
+        ServiceOrderManager = new ServiceOrderManager(serviceOrdersPath, appDbPath);
 
         // Create PresenterEngine
         PresenterEngine = new PresenterEngine(ServiceOrderManager, _presenterSettings);
@@ -105,8 +110,7 @@ public class PresenterIntegration : IDisposable
 
         // Create additional services for panels and tools.
         // Song usage is persisted in the shared SQLite app.db (migrated from song-usage.json),
-        // constructed the same way the Bible db is below.
-        var appDbPath = Path.Combine(appFolder, "app.db");
+        // constructed the same way the Bible db is below (reuses appDbPath from above).
         SongUsageService = new SongUsageService(appDbPath);
         SongLibraryService = new SongLibraryService(_songManager, SongUsageService);
 
