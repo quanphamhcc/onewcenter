@@ -1,18 +1,33 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Models.Bible;
+using WorshipPlayer.Core.Services;
 using WorshipPlayer.Core.Services.Interfaces;
 
 namespace WorshipPlayer.Presenter.Views.Scripture;
 
 /// <summary>
 /// Panel for browsing and looking up Bible scripture by reference.
-/// Uses IBibleProvider for verse retrieval.
+/// Uses IBibleProvider for verse retrieval and the Core ScriptureSlideGenerator
+/// (the single splitting implementation) to produce presentation slides.
 /// </summary>
 public partial class ScriptureBrowserPanel : UserControl
 {
     private IBibleProvider? _bibleProvider;
+
+    // E3: the ONE splitter. The panel no longer flattens/splits verses itself — it
+    // delegates all slide creation to the Core generator.
+    private readonly ScriptureSlideGenerator _generator = new();
+
+    // Last parsed reference + verses, retained so toggling a display option can
+    // regenerate slides without re-querying the Bible provider.
+    private ScriptureReference? _currentReference;
+    private List<BibleVerse>? _currentVerses;
+
+    // The slides produced by the generator for the current lookup (what gets presented).
+    private List<Slide>? _currentSlides;
 
     public IBibleProvider? BibleProvider
     {
@@ -20,13 +35,37 @@ public partial class ScriptureBrowserPanel : UserControl
         set => _bibleProvider = value;
     }
 
-    public event EventHandler<ScriptureLookupResult>? AddToServiceRequested;
+    /// <summary>
+    /// Presenter settings used to seed/persist the E5 display-option defaults
+    /// (ScriptureShowReference / ScriptureShowTranslationName). Optional: when null,
+    /// the panel falls back to session-only checkbox state (both default to true).
+    /// </summary>
+    public PresenterSettings? Settings { get; set; }
 
-    private ScriptureLookupResult? _currentResult;
+    /// <summary>
+    /// Fired when the operator asks to present the generated scripture slides.
+    /// Carries the slides produced by the Core generator for the current lookup.
+    /// </summary>
+    public event EventHandler<List<Slide>>? PresentSlidesRequested;
 
     public ScriptureBrowserPanel()
     {
         InitializeComponent();
+        Loaded += OnLoaded;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        // Seed the toggle defaults from persisted settings (E5 / AC3). Guard against
+        // the Checked/Unchecked handlers running during seed by assigning directly;
+        // IsChecked assignment raises Options_Changed, but with no lookup result yet
+        // that handler is a no-op for slide regeneration and simply re-persists the
+        // same values, which is harmless.
+        if (Settings != null)
+        {
+            ShowReferenceCheckBox.IsChecked = Settings.ScriptureShowReference;
+            ShowTranslationCheckBox.IsChecked = Settings.ScriptureShowTranslationName;
+        }
     }
 
     private void LookUp_Click(object sender, RoutedEventArgs e)
@@ -71,19 +110,21 @@ public partial class ScriptureBrowserPanel : UserControl
             var verses = await _bibleProvider.GetVersesAsync(parsedRef);
             if (verses != null && verses.Count > 0)
             {
+                _currentReference = parsedRef;
+                _currentVerses = verses;
+
+                // In-panel preview text (unchanged) so the operator still sees the passage.
                 var displayText = string.Join(" ", verses.Select(v => $"{v.Verse} {v.Text}"));
                 ResultsText.Text = displayText;
                 ResultsText.Visibility = Visibility.Visible;
                 EmptyStateText.Visibility = Visibility.Collapsed;
                 ErrorText.Visibility = Visibility.Collapsed;
-                AddToServiceButton.IsEnabled = true;
 
-                _currentResult = new ScriptureLookupResult
-                {
-                    Reference = reference,
-                    Translation = translation,
-                    Text = displayText
-                };
+                // E3: produce slides via the Core generator (the single splitter),
+                // honoring the E5 display-option toggles.
+                RegenerateSlides();
+
+                AddToServiceButton.IsEnabled = _currentSlides is { Count: > 0 };
             }
             else
             {
@@ -96,11 +137,55 @@ public partial class ScriptureBrowserPanel : UserControl
         }
     }
 
+    /// <summary>
+    /// Rebuild <see cref="_currentSlides"/> from the retained verses using the Core
+    /// generator with options reflecting the current E5 toggles. No-op when no lookup
+    /// has resolved yet.
+    /// </summary>
+    private void RegenerateSlides()
+    {
+        if (_currentReference == null || _currentVerses == null)
+        {
+            _currentSlides = null;
+            return;
+        }
+
+        var options = new ScriptureSlideGenerator.SlideGenerationOptions
+        {
+            ShowReference = ShowReferenceCheckBox.IsChecked == true,
+            ShowTranslationName = ShowTranslationCheckBox.IsChecked == true
+            // LinesPerSlide / MaxCharsPerLine / ShowVerseNumbers keep generator defaults.
+        };
+
+        _currentSlides = _generator.GenerateSlides(_currentVerses, _currentReference, options);
+    }
+
+    /// <summary>
+    /// E5 toggle handler: persist the new defaults (when settings are available) and,
+    /// if a lookup result exists, regenerate the slides so toggling changes generated
+    /// slide content immediately.
+    /// </summary>
+    private void Options_Changed(object sender, RoutedEventArgs e)
+    {
+        // IsLoaded guards against the InitializeComponent-time Checked events firing
+        // before the panel (and Settings) are ready.
+        if (!IsLoaded) return;
+
+        if (Settings != null)
+        {
+            Settings.ScriptureShowReference = ShowReferenceCheckBox.IsChecked == true;
+            Settings.ScriptureShowTranslationName = ShowTranslationCheckBox.IsChecked == true;
+        }
+
+        RegenerateSlides();
+        AddToServiceButton.IsEnabled = _currentSlides is { Count: > 0 };
+    }
+
     private void AddToService_Click(object sender, RoutedEventArgs e)
     {
-        if (_currentResult != null)
+        if (_currentSlides is { Count: > 0 })
         {
-            AddToServiceRequested?.Invoke(this, _currentResult);
+            PresentSlidesRequested?.Invoke(this, _currentSlides);
         }
     }
 
@@ -111,7 +196,9 @@ public partial class ScriptureBrowserPanel : UserControl
         ResultsText.Visibility = Visibility.Collapsed;
         EmptyStateText.Visibility = Visibility.Collapsed;
         AddToServiceButton.IsEnabled = false;
-        _currentResult = null;
+        _currentReference = null;
+        _currentVerses = null;
+        _currentSlides = null;
     }
 
     private static string GetComboBoxText(ComboBox comboBox)
@@ -120,15 +207,4 @@ public partial class ScriptureBrowserPanel : UserControl
             return item.Content?.ToString() ?? string.Empty;
         return string.Empty;
     }
-}
-
-/// <summary>
-/// Result of a scripture lookup.
-/// </summary>
-public class ScriptureLookupResult
-{
-    public string Reference { get; set; } = string.Empty;
-    public string Translation { get; set; } = "KJV";
-    public string Text { get; set; } = string.Empty;
-    public string? OrganizationId { get; set; }
 }

@@ -284,6 +284,81 @@ public class ScriptureSlideGeneratorTests
         Assert.Equal("Gen 1:1", slides[0].Content.Subtitle);
     }
 
+    // ─── E3: long-passage auto-split (exact slide count) ───────────────
+
+    [Fact]
+    public void GenerateSlides_LongPassage_AutoSplitsIntoExactSlideCount()
+    {
+        // 12 short verses, each estimating to exactly 1 line (text + verse number
+        // well under MaxCharsPerLine). At LinesPerSlide = 2 the generator packs 2
+        // verses per slide → exactly 6 slides.
+        var verses = CreateMultipleVerses(12, "Short verse.");
+        var reference = CreateTestReference();
+        var options = new ScriptureSlideGenerator.SlideGenerationOptions
+        {
+            LinesPerSlide = 2,
+            MaxCharsPerLine = 80
+        };
+
+        var slides = _generator.GenerateSlides(verses, reference, options);
+
+        Assert.Equal(6, slides.Count);
+    }
+
+    // ─── E5: ShowReference toggle changes slide content ────────────────
+
+    [Fact]
+    public void GenerateSlides_ShowReferenceToggle_ChangesSubtitle()
+    {
+        var verses = CreateMultipleVerses(3, "Some verse text here.");
+        var reference = CreateTestReference();
+
+        var withReference = _generator.GenerateSlides(verses, reference,
+            new ScriptureSlideGenerator.SlideGenerationOptions
+            {
+                ShowReference = true,
+                ShowTranslationName = false
+            });
+        var withoutReference = _generator.GenerateSlides(verses, reference,
+            new ScriptureSlideGenerator.SlideGenerationOptions
+            {
+                ShowReference = false,
+                ShowTranslationName = false
+            });
+
+        // Reference present when true, absent when false → content differs.
+        Assert.Contains(reference.ToReferenceString(), withReference[0].Content.Subtitle);
+        Assert.DoesNotContain(reference.ToReferenceString(), withoutReference[0].Content.Subtitle);
+        Assert.NotEqual(withReference[0].Content.Subtitle, withoutReference[0].Content.Subtitle);
+    }
+
+    // ─── E5: ShowTranslationName toggle changes slide content ──────────
+
+    [Fact]
+    public void GenerateSlides_ShowTranslationNameToggle_ChangesSubtitle()
+    {
+        var verses = CreateMultipleVerses(3, "Some verse text here.");
+        var reference = CreateTestReference(); // TranslationId = "KJV"
+
+        var withTranslation = _generator.GenerateSlides(verses, reference,
+            new ScriptureSlideGenerator.SlideGenerationOptions
+            {
+                ShowReference = false,
+                ShowTranslationName = true
+            });
+        var withoutTranslation = _generator.GenerateSlides(verses, reference,
+            new ScriptureSlideGenerator.SlideGenerationOptions
+            {
+                ShowReference = false,
+                ShowTranslationName = false
+            });
+
+        // Translation id present when true, absent when false → content differs.
+        Assert.Contains("KJV", withTranslation[0].Content.Subtitle);
+        Assert.DoesNotContain("KJV", withoutTranslation[0].Content.Subtitle);
+        Assert.NotEqual(withTranslation[0].Content.Subtitle, withoutTranslation[0].Content.Subtitle);
+    }
+
     private static ScriptureReference CreateTestReference()
     {
         return new ScriptureReference

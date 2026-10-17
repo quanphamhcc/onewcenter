@@ -407,6 +407,37 @@ public class PresenterEngine : IDisposable
     }
 
     /// <summary>
+    /// Load an externally generated set of slides (e.g. scripture slides produced by
+    /// <see cref="ScriptureSlideGenerator"/> from the Scripture tab) directly into the
+    /// engine and emit the first one. Mirrors <see cref="LoadStandaloneSong"/>: it sets
+    /// the slide list + index under <c>_stateLock</c> and fires a single SlideChanged for
+    /// slide 0 so the existing OnSlideChanged → OutputWindow.ShowSlide path renders it.
+    /// Does not touch song/service-item state beyond the slide list.
+    /// </summary>
+    public void LoadScriptureSlides(List<Slide> slides)
+    {
+        Slide? firstSlide;
+        lock (_stateLock)
+        {
+            _currentSlides = slides ?? new List<Slide>();
+            _currentSlideIndex = _currentSlides.Count > 0 ? 0 : -1;
+            firstSlide = _currentSlideIndex >= 0 ? _currentSlides[0] : null;
+        }
+
+        if (firstSlide != null)
+        {
+            SlideChanged?.Invoke(this, new SlideChangedEventArgs
+            {
+                PreviousSlide = null,
+                NewSlide = firstSlide,
+                Transition = SlideTransition.Fade,
+                TransitionDurationMs = 500,
+                IsLogo = false
+            });
+        }
+    }
+
+    /// <summary>
     /// Generate slides from a song's sections[].text field.
     /// Uses ChordChartData timing when available for auto-advance.
     /// This is the bridge between the backtrack's song data and the presenter's slide system.

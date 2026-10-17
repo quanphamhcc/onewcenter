@@ -52,6 +52,20 @@
                        Foreground="{StaticResource OwcTextMutedBrush}"
                        FontSize="11" Margin="0,0,0,8"/>
 
+            <!-- E5: display-option toggles (bound to the slide generator's options) -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                <CheckBox x:Name="ShowReferenceCheckBox"
+                          Content="Show reference" IsChecked="True"
+                          Foreground="{StaticResource OwcTextSecondaryBrush}"
+                          FontSize="12" Margin="0,0,16,0"
+                          Checked="Options_Changed" Unchecked="Options_Changed"/>
+                <CheckBox x:Name="ShowTranslationCheckBox"
+                          Content="Show translation" IsChecked="True"
+                          Foreground="{StaticResource OwcTextSecondaryBrush}"
+                          FontSize="12"
+                          Checked="Options_Changed" Unchecked="Options_Changed"/>
+            </StackPanel>
+
             <!-- Add to service button -->
             <Button x:Name="AddToServiceButton" DockPanel.Dock="Bottom"
                     Content="Add to Service" IsEnabled="False"

@@ -114,6 +114,23 @@ public class PresenterSettings
     [JsonPropertyName("stageFontSizeMultiplier")]
     public double StageFontSizeMultiplier { get; set; } = 0.8;
 
+    // ─── Scripture Slide Display (E5) ──────────────────────────────
+    /// <summary>
+    /// Default for the Scripture panel's "Show reference" toggle — whether generated
+    /// scripture slides include the reference (e.g. "John 3:16") in the subtitle.
+    /// Additive/backward-compatible: a missing JSON key deserializes to this default.
+    /// </summary>
+    [JsonPropertyName("scriptureShowReference")]
+    public bool ScriptureShowReference { get; set; } = true;
+
+    /// <summary>
+    /// Default for the Scripture panel's "Show translation" toggle — whether generated
+    /// scripture slides include the translation name (e.g. "KJV") in the subtitle.
+    /// Additive/backward-compatible: a missing JSON key deserializes to this default.
+    /// </summary>
+    [JsonPropertyName("scriptureShowTranslationName")]
+    public bool ScriptureShowTranslationName { get; set; } = true;
+
     // ─── CCLI / Copyright ──────────────────────────────────────────
     /// <summary>
     /// Church's CCLI license number (displayed on lyric slides).
