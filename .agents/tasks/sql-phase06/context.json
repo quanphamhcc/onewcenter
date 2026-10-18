@@ -1,0 +1,33 @@
+{
+  "project_type": ".NET 8 WPF worship app. Solution WorshipBacktrackPlayer.sln: WorshipPlayer.Core (net8.0 class lib, data/services), WorshipPlayer.Presenter (net8.0-windows), WorshipPlayer.UI (net8.0-windows WPF), WorshipPlayer.Audio, WorshipPlayer.Tests (net8.0, xUnit).",
+  "language": "C#",
+  "build_system": "dotnet SDK / MSBuild. WorshipPlayer.Core and WorshipPlayer.Tests are net8.0 (cross-platform, run anywhere). UI/Presenter are net8.0-windows (WPF). The Tests project cannot ProjectReference Presenter (net8.0-windows), so it <Compile Include> links specific Presenter service .cs files directly (see WorshipPlayer.Tests.csproj).",
+  "test_framework": "xUnit 2.6.6 (Microsoft.NET.Test.Sdk 17.8.0, xunit.runner.visualstudio 2.5.6). Microsoft.Data.Sqlite 8.0.0 referenced by both Core and Tests.",
+  "build_command": "dotnet build \"c:\\Users\\Quang\\Documents\\OneWorshipcenter\\owc-multitrack-feature-lyric-presenter\\owc-multitrack-feature-lyric-presenter\\.worktrees\\sql-phase06\\WorshipBacktrackPlayer.sln\" -c Debug",
+  "test_command": "dotnet test \"c:\\Users\\Quang\\Documents\\OneWorshipcenter\\owc-multitrack-feature-lyric-presenter\\owc-multitrack-feature-lyric-presenter\\.worktrees\\sql-phase06\\WorshipPlayer.Tests\\WorshipPlayer.Tests.csproj\"",
+  "verification_instructions": "1) Build the solution (expect 0 errors, exactly 4 pre-existing warnings: MediaLibraryPanel._currentView CS0414 x2, ChordChartWindow CS8604, WaveformEditorWindow._inReviewMode CS0414). 2) Run the targeted song tests with --filter \"FullyQualifiedName~Song|FullyQualifiedName~ChordPro\" (baseline 69 passed) during iteration. 3) Run the FULL test suite before finalizing (baseline 607 pass on main). Any new failure vs baseline is a regression and must be fixed, not accepted.",
+  "snapshot_or_generated_files": "None. app.db / song.json / setlist files are runtime data created under the build output or user-chosen folders; none are committed. Tests create their own temp folders + temp app.db under Path.GetTempPath().",
+  "environment_constraints": "Windows. SQLite holds file locks: EVERY test class that opens an app.db MUST call Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools() in its Dispose/teardown before deleting the temp folder, or cleanup fails intermittently (pattern already in SongLibraryServiceTests.Dispose and BibleDatabaseServiceTests). All file I/O uses absolute paths; step agents' cwd is the main repo, so use absolute worktree paths and git -C <worktree>.",
+  "contribution_requirements": "No AGENTS.md/CONTRIBUTING.md in the repo. Conventions are inferred from the already-merged Phase 0-5 code: reuse AppDatabase (no second helper, no EF), bible.db stays separate, store DDL is CREATE TABLE IF NOT EXISTS run on init, one new SqliteConnection per operation (CreateConnection), string enums + WhenWritingNull for JSON round-trip. Commit locally on branch feature/sql-phase06-songs; never push.",
+  "key_patterns": "Phase-5 MIRROR pattern in ServiceOrderManager.cs is the exact precedent to follow: (a) optional 'string? databasePath = null' ctor arg defaulting to AppDatabase.DefaultPath; (b) a private _initialized guard + EnsureInitializedAsync that runs CREATE TABLE IF NOT EXISTS then a one-time import; (c) UpsertRowSafeAsync / ReconcileSafeAsync wrappers that try/catch-and-swallow so a DB failure NEVER changes the authoritative file behavior or events; (d) DataJson column holding the full object graph serialized with the manager's _jsonOptions, plus promoted columns for listing/search; (e) PRIMARY KEY = normalized path; (f) one-time import guarded by empty-table check, INSERT OR IGNORE, tolerate missing/malformed files, never throw, leave JSON on disk. SongUsageService.cs shows the EnsureInitializedAsync + ImportLegacyJsonIfNeededAsync shape and FormatDate/ParseDate helpers.",
+  "relevant_files": [
+    "WorshipPlayer.Core/Services/SongManager.cs  (TO MODIFY — add Songs + Setlists mirror; keep BackupSongJson + registry untouched; ctor gains optional databasePath)",
+    "WorshipPlayer.Core/Services/SongLibraryService.cs  (STUDY — reads/filters off in-memory _songManager.Songs only; likely NO change needed)",
+    "WorshipPlayer.Core/Services/SongPathResolver.cs  (REUSE — Normalize() is the identity key; do not change)",
+    "WorshipPlayer.Core/Services/ServiceOrderManager.cs  (REFERENCE — the Phase-5 mirror to copy structurally)",
+    "WorshipPlayer.Core/Services/SongUsageService.cs  (REFERENCE — EnsureInitialized/import shape)",
+    "WorshipPlayer.Core/Services/AppDatabase.cs  (REUSE — connection/path factory; DefaultPath)",
+    "WorshipPlayer.Core/Models/Song.cs  (Song/Section/TrackInfo/LightingPreset/MidiCue; FolderPath is [JsonIgnore])",
+    "WorshipPlayer.Core/Models/Setlist.cs  (Setlist/SetlistEntry)",
+    "WorshipPlayer.Core/Models/ChordChartData.cs",
+    "WorshipPlayer.Core/Models/Cloud/SongLibraryItem.cs  (library DTO)",
+    "WorshipPlayer.UI/Views/MainWindow.xaml.cs  (TO MODIFY — line 131 new SongManager(songsPath, setlistsPath) → pass app.db path as 3rd arg)",
+    "WorshipPlayer.UI/Services/PresenterIntegration.cs  (STUDY — line 115 new SongLibraryService(_songManager, SongUsageService); appDbPath computed at lines 85-86; no change expected)",
+    "WorshipPlayer.Tests/SongLibraryServiceTests.cs  (TO MODIFY — inject temp app.db as 3rd SongManager arg incl. reload managers at ~255 and ~338)",
+    "WorshipPlayer.Tests/SongPathResolverTests.cs  (TO MODIFY — SongManagerDedupTests inject temp app.db + add ClearAllPools in Dispose)",
+    "WorshipPlayer.Tests/ChordProImportTests.cs  (TO MODIFY — inject temp app.db + add ClearAllPools in Dispose)",
+    "WorshipPlayer.Tests/SongManagerSqliteMirrorTests.cs  (NEW — import + FolderPath-contract tests)",
+    ".agents/tasks/sql-migration-surface.md  (survey; domains #1 Songs, #9 Setlists; section 5 callouts 1-2 are the hard parts — in the MAIN repo, not the worktree)"
+  ],
+  "directory_structure": "WorshipPlayer.Core/Services holds the migrated stores (AppDatabase, ServiceOrderManager, SongUsageService, MediaLibraryService, SettingsService) and the Phase-6 targets (SongManager, SongLibraryService, SongPathResolver). Models under WorshipPlayer.Core/Models (+ Models/Cloud, Models/Bible). UI construction in WorshipPlayer.UI/Views/MainWindow.xaml.cs and WorshipPlayer.UI/Services/PresenterIntegration.cs. Tests in WorshipPlayer.Tests (flat). Prior-phase planning artifacts under .agents/tasks/sql-phase0X."
+}

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Data.Sqlite;
 using WorshipPlayer.Core.Models;
 
 namespace WorshipPlayer.Core.Services;
@@ -7,16 +8,46 @@ namespace WorshipPlayer.Core.Services;
 /// <summary>
 /// Manages loading, saving, and organizing songs and setlists.
 /// </summary>
+/// <remarks>
+/// Phase 6 SQL migration: Songs now ALSO live in the shared SQLite application database
+/// (app.db, <c>Songs</c> table) via <see cref="AppDatabase"/>, following the Phase-5
+/// <see cref="ServiceOrderManager"/> MIRROR pattern (no second helper, no EF; bible.db stays
+/// separate). The on-disk <c>song.json</c> files, <c>song.json.N</c> backups, and
+/// <c>_song_registry.json</c> REMAIN authoritative and are written/read exactly as before.
+/// SQLite is a reconciled MIRROR keyed by <see cref="SongPathResolver.Normalize"/> of the song's
+/// folder path: <see cref="SaveSongAsync"/> upserts a row after writing the authoritative
+/// song.json, and <see cref="LoadAllSongsAsync"/> reconciles the table against the in-memory list
+/// (upsert present, prune vanished). All mirror DB work is best-effort/try-catch-swallow so a DB
+/// failure never changes the file-based behavior or the in-memory <see cref="Songs"/> list. On
+/// first init, if the table is empty and on-disk song folders exist, they are imported once
+/// (defensively, non-duplicating, never throwing); the JSON files are LEFT ON DISK.
+/// </remarks>
 public class SongManager
 {
     private readonly string _songsBasePath;
     private readonly string _setlistsBasePath;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly AppDatabase _database;
+    private bool _initialized = false;
+
+    private const string CreateSongsSchemaSql = @"
+CREATE TABLE IF NOT EXISTS Songs (
+    FolderPath    TEXT PRIMARY KEY,
+    Title         TEXT NOT NULL DEFAULT '',
+    Artist        TEXT NOT NULL DEFAULT '',
+    OriginalKey   TEXT NOT NULL DEFAULT '',
+    Ccli          TEXT NOT NULL DEFAULT '',
+    Themes        TEXT NOT NULL DEFAULT '',
+    Bpm           REAL NOT NULL DEFAULT 0,
+    LastWriteUtc  TEXT NOT NULL DEFAULT '',
+    DataJson      TEXT NOT NULL
+);
+";
 
     public List<Song> Songs { get; private set; } = new();
     public List<Setlist> Setlists { get; private set; } = new();
 
-    public SongManager(string songsBasePath, string setlistsBasePath)
+    public SongManager(string songsBasePath, string setlistsBasePath, string? databasePath = null)
     {
         _songsBasePath = songsBasePath;
         _setlistsBasePath = setlistsBasePath;
@@ -26,6 +57,7 @@ public class SongManager
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             Converters = { new JsonStringEnumConverter() }
         };
+        _database = new AppDatabase(databasePath ?? AppDatabase.DefaultPath);
     }
 
     /// <summary>
@@ -66,6 +98,11 @@ public class SongManager
 
         // Also load songs from the registry (songs added from outside the base path)
         await LoadSongsFromRegistryAsync();
+
+        // Reconcile the SQLite mirror with the songs that ended up in the in-memory list
+        // (dedup already applied above). Best-effort: the in-memory list and its ordering come
+        // only from the folder scan + registry load; a DB failure here is swallowed.
+        await ReconcileSongsSafeAsync(Songs);
     }
 
     /// <summary>
@@ -155,6 +192,10 @@ public class SongManager
 
         var json = JsonSerializer.Serialize(song, _jsonOptions);
         await File.WriteAllTextAsync(songJsonPath, json);
+
+        // Mirror the saved song into app.db keyed by the normalized folder path (= identity).
+        // Best-effort: song.json is authoritative and already written above.
+        await UpsertSongRowSafeAsync(song);
     }
 
     /// <summary>
@@ -362,5 +403,277 @@ public class SongManager
     {
         var invalid = Path.GetInvalidFileNameChars();
         return new string(name.Where(c => !invalid.Contains(c)).ToArray());
+    }
+
+    // ─── SQLite mirror (Phase 6) ──────────────────────────────────
+    // The on-disk song.json files (plus song.json.N backups and _song_registry.json) are
+    // authoritative; these helpers keep an app.db mirror in sync. Everything here is best-effort
+    // and never allowed to surface an exception into the file-based public behavior or the
+    // in-memory Songs list.
+
+    /// <summary>
+    /// Create the Songs schema (idempotent) and run the one-time song.json import once per
+    /// process via the <see cref="_initialized"/> guard. Mirrors
+    /// <see cref="ServiceOrderManager"/>'s EnsureInitializedAsync.
+    /// </summary>
+    private async Task EnsureInitializedAsync()
+    {
+        if (_initialized) return;
+
+        _database.EnsureDirectory();
+
+        using var connection = _database.CreateConnection();
+        await connection.OpenAsync();
+
+        using (var schemaCmd = connection.CreateCommand())
+        {
+            schemaCmd.CommandText = CreateSongsSchemaSql;
+            await schemaCmd.ExecuteNonQueryAsync();
+        }
+
+        await ImportSongsIfNeededAsync(connection);
+
+        _initialized = true;
+    }
+
+    /// <summary>
+    /// Best-effort wrapper: ensure the schema exists then upsert the mirror row for a single
+    /// song, swallowing any DB failure so the authoritative song.json path is unaffected.
+    /// </summary>
+    private async Task UpsertSongRowSafeAsync(Song song)
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            using var connection = _database.CreateConnection();
+            await connection.OpenAsync();
+            await UpsertSongRowAsync(connection, null, song);
+        }
+        catch
+        {
+            // song.json is the source of truth and is already written; a mirror failure must
+            // never break the public behavior.
+        }
+    }
+
+    /// <summary>
+    /// Best-effort reconcile: upsert every loaded song and prune any mirror row whose FolderPath
+    /// is no longer among the loaded set (absorbs out-of-band removals). Swallows any DB failure.
+    /// </summary>
+    private async Task ReconcileSongsSafeAsync(IReadOnlyList<Song> loaded)
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            using var connection = _database.CreateConnection();
+            await connection.OpenAsync();
+
+            using var transaction = connection.BeginTransaction();
+
+            var keepKeys = new List<string>(loaded.Count);
+            foreach (var song in loaded)
+            {
+                var normalized = SongPathResolver.Normalize(song.FolderPath);
+                keepKeys.Add(normalized);
+                await UpsertSongRowAsync(connection, transaction, song);
+            }
+
+            // Prune rows whose song is gone. Build a parameterized NOT IN list.
+            using (var deleteCmd = connection.CreateCommand())
+            {
+                deleteCmd.Transaction = transaction;
+                if (keepKeys.Count == 0)
+                {
+                    deleteCmd.CommandText = "DELETE FROM Songs";
+                }
+                else
+                {
+                    var paramNames = new List<string>(keepKeys.Count);
+                    for (int i = 0; i < keepKeys.Count; i++)
+                    {
+                        var p = "@keep" + i;
+                        paramNames.Add(p);
+                        deleteCmd.Parameters.AddWithValue(p, keepKeys[i]);
+                    }
+                    deleteCmd.CommandText =
+                        $"DELETE FROM Songs WHERE FolderPath NOT IN ({string.Join(",", paramNames)})";
+                }
+                await deleteCmd.ExecuteNonQueryAsync();
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            // song.json files are authoritative; a mirror reconcile failure is non-fatal.
+        }
+    }
+
+    /// <summary>
+    /// Insert or update the mirror row for a song keyed by its normalized folder path. Promotes
+    /// the fields listing/search consume (Title, Artist, OriginalKey, Ccli, Themes, Bpm,
+    /// LastWriteUtc) and keeps the whole song serialized in DataJson (with the manager's
+    /// _jsonOptions) so it round-trips losslessly. Mirrors
+    /// <see cref="ServiceOrderManager"/>'s UpsertRowAsync.
+    /// </summary>
+    private async Task UpsertSongRowAsync(SqliteConnection connection, SqliteTransaction? transaction, Song song)
+    {
+        var normalized = SongPathResolver.Normalize(song.FolderPath);
+
+        using var cmd = connection.CreateCommand();
+        if (transaction != null)
+            cmd.Transaction = transaction;
+
+        cmd.CommandText = @"
+            INSERT INTO Songs (FolderPath, Title, Artist, OriginalKey, Ccli, Themes, Bpm, LastWriteUtc, DataJson)
+            VALUES (@FolderPath, @Title, @Artist, @OriginalKey, @Ccli, @Themes, @Bpm, @LastWriteUtc, @DataJson)
+            ON CONFLICT(FolderPath) DO UPDATE SET
+                Title = excluded.Title,
+                Artist = excluded.Artist,
+                OriginalKey = excluded.OriginalKey,
+                Ccli = excluded.Ccli,
+                Themes = excluded.Themes,
+                Bpm = excluded.Bpm,
+                LastWriteUtc = excluded.LastWriteUtc,
+                DataJson = excluded.DataJson";
+        BindSong(cmd, song, normalized);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Bind a song's promoted columns + DataJson. LastWriteUtc comes from the folder's song.json
+    /// when it exists else UtcNow, serialized ISO-8601 round-trip ('o').
+    /// </summary>
+    private void BindSong(SqliteCommand cmd, Song song, string normalizedKey)
+    {
+        cmd.Parameters.AddWithValue("@FolderPath", normalizedKey);
+        cmd.Parameters.AddWithValue("@Title", song.Title ?? "");
+        cmd.Parameters.AddWithValue("@Artist", song.Artist ?? "");
+        cmd.Parameters.AddWithValue("@OriginalKey", song.OriginalKey ?? "");
+        cmd.Parameters.AddWithValue("@Ccli", song.Ccli ?? "");
+        cmd.Parameters.AddWithValue("@Themes", song.Themes ?? "");
+        cmd.Parameters.AddWithValue("@Bpm", song.Bpm);
+
+        var songJsonPath = string.IsNullOrEmpty(song.FolderPath)
+            ? null
+            : Path.Combine(song.FolderPath, "song.json");
+        var lastWrite = (songJsonPath != null && File.Exists(songJsonPath))
+            ? File.GetLastWriteTimeUtc(songJsonPath)
+            : DateTime.UtcNow;
+        cmd.Parameters.AddWithValue("@LastWriteUtc", lastWrite.ToString("o"));
+
+        cmd.Parameters.AddWithValue("@DataJson", JsonSerializer.Serialize(song, _jsonOptions));
+    }
+
+    /// <summary>
+    /// Defensive one-time import: if the Songs table is empty AND song folders exist under the
+    /// base path (or are referenced by _song_registry.json), import each as a mirror row once.
+    /// Tolerates missing folders, missing/malformed files (skips the single bad file and
+    /// continues) — never throws. The empty-table guard makes this non-duplicating. JSON files
+    /// are LEFT ON DISK and remain authoritative; backups and the registry file are untouched.
+    /// Mirrors <see cref="ServiceOrderManager"/>'s ImportFilesIfNeededAsync.
+    /// </summary>
+    private async Task ImportSongsIfNeededAsync(SqliteConnection connection)
+    {
+        try
+        {
+            if (!Directory.Exists(_songsBasePath))
+                return;
+
+            using (var countCmd = connection.CreateCommand())
+            {
+                countCmd.CommandText = "SELECT COUNT(*) FROM Songs";
+                var count = Convert.ToInt64(await countCmd.ExecuteScalarAsync());
+                if (count > 0)
+                    return;
+            }
+
+            using var transaction = connection.BeginTransaction();
+            var inserted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // 1) Subdirectories of the base path with a song.json.
+            foreach (var dir in Directory.GetDirectories(_songsBasePath))
+            {
+                await ImportOneSongAsync(connection, transaction, dir, inserted);
+            }
+
+            // 2) External folders referenced by the registry file.
+            var registryPath = Path.Combine(_songsBasePath, "_song_registry.json");
+            if (File.Exists(registryPath))
+            {
+                List<string>? paths = null;
+                try
+                {
+                    var regJson = await File.ReadAllTextAsync(registryPath);
+                    paths = JsonSerializer.Deserialize<List<string>>(regJson, _jsonOptions);
+                }
+                catch
+                {
+                    // Malformed registry — skip external import, base-path import still applies.
+                }
+
+                if (paths != null)
+                {
+                    foreach (var dir in paths)
+                        await ImportOneSongAsync(connection, transaction, dir, inserted);
+                }
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            // A malformed/locked folder or file must never throw — leave the table as-is.
+        }
+    }
+
+    /// <summary>
+    /// Import a single song folder as a mirror row (INSERT OR IGNORE). Skips missing dirs/files,
+    /// skips keys already inserted this pass, and swallows a single malformed file.
+    /// </summary>
+    private async Task ImportOneSongAsync(SqliteConnection connection, SqliteTransaction transaction, string dir, HashSet<string> inserted)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+                return;
+
+            var normalized = SongPathResolver.Normalize(dir);
+            if (!inserted.Add(normalized))
+                return;
+
+            var songJsonPath = Path.Combine(dir, "song.json");
+            if (!File.Exists(songJsonPath))
+                return;
+
+            Song? song;
+            try
+            {
+                var json = await File.ReadAllTextAsync(songJsonPath);
+                song = JsonSerializer.Deserialize<Song>(json, _jsonOptions);
+            }
+            catch
+            {
+                // Skip a single malformed file and continue with the rest.
+                return;
+            }
+
+            if (song == null)
+                return;
+
+            song.FolderPath = dir;
+
+            using var insertCmd = connection.CreateCommand();
+            insertCmd.Transaction = transaction;
+            insertCmd.CommandText = @"
+                INSERT OR IGNORE INTO Songs (FolderPath, Title, Artist, OriginalKey, Ccli, Themes, Bpm, LastWriteUtc, DataJson)
+                VALUES (@FolderPath, @Title, @Artist, @OriginalKey, @Ccli, @Themes, @Bpm, @LastWriteUtc, @DataJson)";
+            BindSong(insertCmd, song, normalized);
+            await insertCmd.ExecuteNonQueryAsync();
+        }
+        catch
+        {
+            // One bad folder must not abort the rest of the import.
+        }
     }
 }
