@@ -340,8 +340,10 @@ public partial class OperatorWindow : Window
             SetTabInactive(TabScripture);
             SetTabInactive(TabMedia);
             SetTabActive(TabServices);
-            // Services list is a non-presentation screen: hide the left sidebar + center header.
-            SetSidebarVisible(false);
+            // Sidebar + center header follow SERVICE state, not the tab: once a service is
+            // loaded they stay visible on every tab (including this Services list); hidden only
+            // when nothing is loaded (fresh Home).
+            SetSidebarVisible(_serviceOrderManager?.CurrentServiceOrder != null);
 
             await RefreshServiceListingAsync();
         }
@@ -2274,9 +2276,11 @@ public partial class OperatorWindow : Window
         ScripturePanel.Visibility = Visibility.Collapsed;
         MediaPanel.Visibility = Visibility.Collapsed;
         ErrorPanel.Visibility = Visibility.Collapsed;
-        // Non-presentation screens hide the left sidebar + center header; the "Live" case
-        // below re-shows them via ShowServiceEditor().
-        SetSidebarVisible(false);
+        // Sidebar + center header follow SERVICE state, not the tab: once a service is loaded
+        // they stay visible on every tab (Live/Services/Songs/Scripture/Media); hidden only
+        // when nothing is loaded (fresh Home). The "Live" case below re-shows them explicitly
+        // via ShowServiceEditor() regardless.
+        SetSidebarVisible(_serviceOrderManager?.CurrentServiceOrder != null);
 
         // Reset all tab button styles
         SetTabInactive(TabLive);
@@ -2313,6 +2317,7 @@ public partial class OperatorWindow : Window
                         _songLibraryPanel.ImportChordProRequested += OnImportChordProRequested;
                         _songLibraryPanel.EditMetadataRequested += OnEditMetadataRequested;
                         _songLibraryPanel.EditSlidesRequested += OnEditSlidesRequested;
+                        _songLibraryPanel.AddSongToServiceRequested += OnAddSongToServiceRequested;
                     }
                     SongsPanelContent.Content = _songLibraryPanel;
                     SongsPanel.Visibility = Visibility.Visible;
@@ -2376,6 +2381,50 @@ public partial class OperatorWindow : Window
             // Non-fatal: nothing resolved — surface it instead of silently doing nothing.
             System.Diagnostics.Debug.WriteLine(
                 $"OnSongSelected: could not resolve song (Id='{songItem.Id}', Title='{songItem.Title}').");
+        }
+    }
+
+    /// <summary>
+    /// Songs tab "+ Add" button: add the chosen library song to the CURRENTLY LOADED service
+    /// order, mirroring the Add/Edit Service Item dialog's song path (BuildTitle -> ApplySong ->
+    /// AddItem -> SaveServiceOrderAsync -> RefreshServiceOrderList so the sidebar updates). With
+    /// no service loaded it notifies and no-ops (never crashes); the whole body is guarded.
+    /// </summary>
+    private async void OnAddSongToServiceRequested(object? sender, SongListItem item)
+    {
+        try
+        {
+            if (_serviceOrderManager?.CurrentServiceOrder == null)
+            {
+                ShowToolError("Add Song", "Open or create a service first.");
+                return;
+            }
+            if (_songManager == null) return;
+
+            // Resolve robustly (normalized path, then folder name, then title) — same path
+            // OnSongSelected uses — so folder-scan vs. registry casing differences don't miss.
+            var song = SongPathResolver.Resolve(_songManager.Songs, item.Id, item.Title);
+            if (song == null)
+            {
+                ShowToolError("Add Song",
+                    $"Could not resolve song '{item.Title}' in the library.");
+                return;
+            }
+
+            // Build the ServiceItem exactly like AddServiceItemDialog does for a Song, so the
+            // sidebar label (Title) and link (SongFolder) match the picker.
+            var title = ServiceItemMapper.BuildTitle(ServiceItemType.Song, null, song, null);
+            var serviceItem = new ServiceItem { Type = ServiceItemType.Song, Title = title };
+            ServiceItemMapper.ApplySong(serviceItem, song);
+            serviceItem.Title = title;
+
+            _serviceOrderManager.AddItem(serviceItem);
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Add Song", ex.Message);
         }
     }
 

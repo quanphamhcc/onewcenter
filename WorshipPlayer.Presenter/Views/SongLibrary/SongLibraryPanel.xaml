@@ -112,16 +112,29 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="Transparent" Padding="8,6">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Title}"
-                                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
-                                                   FontSize="13" FontWeight="SemiBold"/>
-                                        <TextBlock Foreground="{StaticResource OwcTextSecondaryBrush}"
-                                                   FontSize="11">
-                                            <Run Text="{Binding Artist}"/>
-                                            <Run Text=" | Key: "/><Run Text="{Binding Key}"/>
-                                        </TextBlock>
-                                    </StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding Title}"
+                                                       Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                                       FontSize="13" FontWeight="SemiBold"/>
+                                            <TextBlock Foreground="{StaticResource OwcTextSecondaryBrush}"
+                                                       FontSize="11">
+                                                <Run Text="{Binding Artist}"/>
+                                                <Run Text=" | Key: "/><Run Text="{Binding Key}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Content="+ Add"
+                                                Style="{StaticResource OwcButtonBase}"
+                                                FontSize="10" Padding="8,4"
+                                                VerticalAlignment="Center"
+                                                Tag="{Binding}"
+                                                Click="AddToService_Click"/>
+                                    </Grid>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>

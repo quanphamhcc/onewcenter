@@ -137,4 +137,38 @@ public class ServiceItemMapperTests
 
         Assert.Equal("Typed Fallback", title);
     }
+
+    /// <summary>
+    /// Mirrors the Songs-tab "+ Add" handler's Core-side logic (BuildTitle -> new ServiceItem
+    /// -> ApplySong -> AddItem) without WPF: the item appended to the current order must carry
+    /// the song's Title and FolderPath so the sidebar label and playback link match the picker.
+    /// No SaveAsync call, so no data files are touched.
+    /// </summary>
+    [Fact]
+    public void AddSongToService_ProducesExpectedSidebarTitleAndSongFolder()
+    {
+        // Base path is required by the ctor, but this test never calls SaveAsync, so no file
+        // is written (uses a unique temp path purely to satisfy the constructor).
+        var manager = new ServiceOrderManager(
+            Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()));
+        manager.CreateNew("Sunday", "2024-01-07");
+
+        var song = new Song
+        {
+            Title = "Amazing Grace",
+            FolderPath = Path.Combine("Songs", "Amazing Grace")
+        };
+
+        var title = ServiceItemMapper.BuildTitle(ServiceItemType.Song, null, song, null);
+        var item = new ServiceItem { Type = ServiceItemType.Song, Title = title };
+        ServiceItemMapper.ApplySong(item, song);
+        item.Title = title;
+
+        manager.AddItem(item);
+
+        var added = Assert.Single(manager.CurrentServiceOrder!.Items);
+        Assert.Equal(ServiceItemType.Song, added.Type);
+        Assert.Equal("Amazing Grace", added.Title);
+        Assert.Equal(Path.Combine("Songs", "Amazing Grace"), added.SongFolder);
+    }
 }

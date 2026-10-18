@@ -28,6 +28,14 @@ public partial class SongLibraryPanel : UserControl
     public event EventHandler<SongListItem>? SongSelected;
 
     /// <summary>
+    /// Raised when the user clicks a row's "+ Add" button. Carries that row's
+    /// <see cref="SongListItem"/>. The host (OperatorWindow) resolves the library song and
+    /// adds it to the current service order — keeping this panel service-agnostic, mirroring
+    /// <see cref="SongSelected"/>. Adding via this button does NOT change list selection.
+    /// </summary>
+    public event EventHandler<SongListItem>? AddSongToServiceRequested;
+
+    /// <summary>
     /// Raised when the user clicks "Import ChordPro…". The host (OperatorWindow) owns the
     /// dialog + service logic, keeping this panel service-agnostic — mirrors MediaLibraryPanel.ImportRequested.
     /// </summary>
@@ -142,6 +150,14 @@ public partial class SongLibraryPanel : UserControl
         Songs.Clear();
         foreach (var song in sorted)
             Songs.Add(song);
+    }
+
+    private void AddToService_Click(object sender, RoutedEventArgs e)
+    {
+        // The button's Tag is bound to the row's SongListItem, so this works regardless of
+        // list selection (reading Tag, not SongListBox.SelectedItem, keeps selection intact).
+        if (((FrameworkElement)sender).Tag is SongListItem item)
+            AddSongToServiceRequested?.Invoke(this, item);
     }
 
     private void SongList_SelectionChanged(object sender, SelectionChangedEventArgs e)
