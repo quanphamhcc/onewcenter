@@ -36,10 +36,7 @@
 
                 <!-- Search -->
                 <TextBox x:Name="SearchTextBox" Grid.Column="2"
-                         Background="{StaticResource OwcSurfaceBrush}"
-                         Foreground="{StaticResource OwcTextPrimaryBrush}"
-                         BorderBrush="{StaticResource OwcBorderBrush}"
-                         FontSize="12" Padding="8,6"
+                         Style="{StaticResource OwcTextBox}"
                          TextChanged="Search_TextChanged"/>
 
                 <!-- View toggle -->

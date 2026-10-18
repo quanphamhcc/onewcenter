@@ -29,14 +29,10 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBox x:Name="ReferenceTextBox"
-                         Background="{StaticResource OwcSurfaceBrush}"
-                         Foreground="{StaticResource OwcTextPrimaryBrush}"
-                         BorderBrush="{StaticResource OwcBorderBrush}"
-                         FontSize="13" Padding="8,6"
+                         Style="{StaticResource OwcTextBox}"
                          KeyDown="ReferenceTextBox_KeyDown"/>
                 <ComboBox x:Name="TranslationComboBox" Grid.Column="2"
-                          Background="{StaticResource OwcSurfaceBrush}"
-                          Foreground="{StaticResource OwcTextPrimaryBrush}"
+                          Style="{StaticResource OwcDarkComboBox}"
                           FontSize="12" Padding="6,4" MinWidth="70">
                     <ComboBoxItem Content="KJV" IsSelected="True"/>
                     <ComboBoxItem Content="WEB"/>

@@ -253,6 +253,26 @@
         </Style.Triggers>
     </Style>
 
+    <!-- Nav-tab Button (top-nav pill). Transparent surface, secondary text, medium weight.
+         Keyed — apply explicitly. Active state is driven in code-behind by setting Foreground
+         (cyan) and the bottom BorderBrush, so this style only provides the resting/hover look. -->
+    <Style x:Key="OwcNavTabButton" TargetType="Button" BasedOn="{StaticResource OwcButtonBase}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource OwcTextSecondaryBrush}" />
+        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+
+    <!-- Compact Button (sidebar/toolbar actions). Small surface chip, light text,
+         rounded via OwcButtonBase template. Keyed — apply explicitly. -->
+    <Style x:Key="OwcCompactButton" TargetType="Button" BasedOn="{StaticResource OwcButtonBase}">
+        <Setter Property="Background" Value="{StaticResource OwcSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource OwcTextPrimaryBrush}" />
+        <Setter Property="Padding" Value="8,5" />
+        <Setter Property="FontSize" Value="11" />
+    </Style>
+
     <!-- Accent Button Style (Primary action) -->
     <Style x:Key="OwcAccentButton" TargetType="Button" BasedOn="{StaticResource OwcButtonBase}">
         <Setter Property="Background" Value="{StaticResource OwcAccentBrush}" />

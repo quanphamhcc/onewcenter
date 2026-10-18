@@ -31,7 +31,7 @@
             <!-- Audience Preview -->
             <Border x:Name="AudiencePreviewBorder" Grid.Column="0"
                     Background="#1A1D27" CornerRadius="10"
-                    BorderBrush="#2A2E3A" BorderThickness="2"
+                    BorderBrush="#2A2E3A" BorderThickness="1"
                     Cursor="Hand" MouseLeftButtonDown="AudiencePreview_Click">
                 <Grid>
                     <TextBlock x:Name="CurrentSlidePreview" Text="(blank)"
@@ -53,7 +53,7 @@
 
             <!-- Stage Preview -->
             <Border Grid.Column="2" Background="#1A1D27" CornerRadius="10"
-                    BorderBrush="#2A2E3A" BorderThickness="2"
+                    BorderBrush="#2A2E3A" BorderThickness="1"
                     Cursor="Hand" MouseLeftButtonDown="StagePreview_Click">
                 <Grid>
                     <!-- STAGE preview: monospace chord-over-lyric layout (green chord row above white lyric row) -->
@@ -96,13 +96,13 @@
         </Grid>
 
         <!-- ROW 1: HEADER BAR -->
-        <Border Grid.Row="1" Background="#1A1D27" Padding="12,6"
+        <Border Grid.Row="1" Background="#1A1D27" Padding="16,10"
                 BorderBrush="#2A2E3A" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="20" />
-                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="24" />
+                    <ColumnDefinition Width="260" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -111,95 +111,102 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="OWC" FontSize="16" FontWeight="Bold"
+                <TextBlock Grid.Column="0" Text="OWC" FontSize="18" FontWeight="Bold"
                            Foreground="#00D4FF" VerticalAlignment="Center" />
 
                 <Border Grid.Column="2" Background="#252A36" CornerRadius="6"
                         BorderBrush="#2A2E3A" BorderThickness="1"
-                        VerticalAlignment="Center" Height="28">
-                    <TextBlock Text="  Search... (Ctrl+K)" FontSize="11"
+                        VerticalAlignment="Center" Height="30" Padding="8,0">
+                    <TextBlock Text="Search... (Ctrl+K)" FontSize="12"
                                Foreground="#4A5068" VerticalAlignment="Center" />
                 </Border>
 
-                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                    <TextBlock Text="Devices:" FontSize="10" Foreground="#8B92A5" VerticalAlignment="Center" Margin="0,0,3,0" />
-                    <TextBlock x:Name="ConnectedDevicesCount" Text="0" FontSize="10" FontWeight="Bold" Foreground="#00E676" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="Devices:" FontSize="11" Foreground="#8B92A5" VerticalAlignment="Center" Margin="0,0,4,0" />
+                    <TextBlock x:Name="ConnectedDevicesCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#00E676" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
                     <Ellipse x:Name="NdiStatusDot" Width="7" Height="7" Fill="#4A5068" VerticalAlignment="Center" Margin="0,0,4,0" />
-                    <TextBlock x:Name="NdiStatusText" Text="NDI OFF" FontSize="9" Foreground="#8B92A5" VerticalAlignment="Center" Margin="0,0,4,0" />
-                    <Button x:Name="NdiToggleButton" Content="OFF" FontSize="8" Padding="6,2"
+                    <TextBlock x:Name="NdiStatusText" Text="NDI OFF" FontSize="11" Foreground="#8B92A5" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <Button x:Name="NdiToggleButton" Content="OFF" FontSize="10" Padding="8,3"
                             Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
                             Click="NdiToggle_Click" Cursor="Hand" />
                     <TextBlock x:Name="NdiToggleStatusText" Text="Inactive" Visibility="Collapsed" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                    <TextBlock Text="Theme:" FontSize="10" Foreground="#8B92A5" VerticalAlignment="Center" Margin="0,0,4,0" />
-                    <ComboBox x:Name="ThemeSelector" Width="110" Height="24" FontSize="10"
+                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="Theme:" FontSize="11" Foreground="#8B92A5" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <ComboBox x:Name="ThemeSelector" Width="120" Height="28" FontSize="11"
                               Background="#252A36" Foreground="#F0F2F5" BorderBrush="#2A2E3A" BorderThickness="1"
                               SelectionChanged="ThemeSelector_SelectionChanged" />
                 </StackPanel>
 
                 <CheckBox x:Name="ChordToggleCheckBox" Grid.Column="7" Content="Chords"
-                          FontSize="10" Foreground="#F0F2F5" VerticalAlignment="Center" Margin="0,0,10,0"
+                          FontSize="11" Foreground="#F0F2F5" VerticalAlignment="Center" Margin="0,0,16,0"
                           Checked="ChordToggle_Changed" Unchecked="ChordToggle_Changed" />
 
-                <Button Grid.Column="8" Content="&#x2699;" FontSize="16" Padding="4,1"
+                <Button Grid.Column="8" Content="&#x2699;" FontSize="16" Padding="6,2"
                         Background="Transparent" Foreground="#8B92A5" BorderBrush="Transparent" BorderThickness="0"
                         VerticalAlignment="Center" Click="DisplaySettings_Click" Cursor="Hand" />
             </Grid>
         </Border>
 
         <!-- ROW 2: NAVIGATION TABS -->
-        <Border Grid.Row="2" Background="#1A1D27" Padding="12,4"
+        <Border Grid.Row="2" Background="#1A1D27" Padding="16,8"
                 BorderBrush="#2A2E3A" BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal">
-                <!-- Live tab (first). Status dot recolored in code-behind: gray when idle,
-                     live pink when PresenterEngine.IsLive. Inline brushes only - this file
-                     uses NO resource dictionaries. -->
-                <Button x:Name="TabLive" FontSize="11" FontWeight="SemiBold"
-                        Padding="10,4" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
-                        BorderBrush="Transparent" BorderThickness="0,0,0,2"
-                        Click="TabLive_Click" Cursor="Hand">
-                    <StackPanel Orientation="Horizontal">
-                        <Ellipse x:Name="LiveTabDot" Width="8" Height="8" Fill="#8B92A5"
-                                 VerticalAlignment="Center" Margin="0,0,6,0" />
-                        <TextBlock Text="Live" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
-                <Button x:Name="TabServices" Content="Services" FontSize="11" FontWeight="SemiBold"
-                        Padding="10,4" Margin="0,0,2,0" Background="Transparent" Foreground="#00D4FF"
-                        BorderBrush="#00D4FF" BorderThickness="0,0,0,2"
-                        Click="TabServices_Click" Cursor="Hand" />
-                <Button x:Name="TabSongs" Content="Songs" FontSize="11" FontWeight="SemiBold"
-                        Padding="10,4" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
-                        BorderBrush="Transparent" BorderThickness="0,0,0,2"
-                        Click="TabSongs_Click" Cursor="Hand" />
-                <Button x:Name="TabScripture" Content="Scripture" FontSize="11" FontWeight="SemiBold"
-                        Padding="10,4" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
-                        BorderBrush="Transparent" BorderThickness="0,0,0,2"
-                        Click="TabScripture_Click" Cursor="Hand" />
-                <Button x:Name="TabMedia" Content="Media" FontSize="11" FontWeight="SemiBold"
-                        Padding="10,4" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
-                        BorderBrush="Transparent" BorderThickness="0,0,0,2"
-                        Click="TabMedia_Click" Cursor="Hand" />
-                <Button x:Name="TabTools" Content="Tools &#x25BE;" FontSize="11" FontWeight="SemiBold"
-                        Padding="10,4" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
-                        BorderBrush="Transparent" BorderThickness="0,0,0,2"
-                        Click="TabTools_Click" Cursor="Hand">
-                    <Button.ContextMenu>
-                        <ContextMenu x:Name="ToolsContextMenu">
-                            <MenuItem Header="Alert" Click="ToolAlert_Click" />
-                            <MenuItem Header="Countdown" Click="ToolCountdown_Click" />
-                            <MenuItem Header="Search" Click="ToolSearch_Click" />
-                            <MenuItem Header="CCLI Report" Click="ToolCcliReport_Click" />
-                            <MenuItem Header="Templates" Click="ToolTemplates_Click" />
-                        </ContextMenu>
-                    </Button.ContextMenu>
-                </Button>
-            </StackPanel>
+            <!-- Rounded "pill" container holds the top-nav tabs (reference style). The pill is a
+                 container only; each tab keeps its own bottom-border active indicator, which the
+                 code-behind SetTabActive/SetTabInactive toggles via Foreground + BorderBrush. -->
+            <Border Background="#252A36" CornerRadius="8"
+                    BorderBrush="#2A2E3A" BorderThickness="1" Padding="4"
+                    HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal">
+                    <!-- Live tab (first). Status dot recolored in code-behind: gray when idle,
+                         live pink when PresenterEngine.IsLive. Inline brushes only - this file
+                         uses NO resource dictionaries. -->
+                    <Button x:Name="TabLive" FontSize="12" FontWeight="SemiBold"
+                            Padding="12,6" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
+                            BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                            Click="TabLive_Click" Cursor="Hand">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="LiveTabDot" Width="8" Height="8" Fill="#8B92A5"
+                                     VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock Text="Live" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="TabServices" Content="Services" FontSize="12" FontWeight="SemiBold"
+                            Padding="12,6" Margin="0,0,2,0" Background="Transparent" Foreground="#00D4FF"
+                            BorderBrush="#00D4FF" BorderThickness="0,0,0,2"
+                            Click="TabServices_Click" Cursor="Hand" />
+                    <Button x:Name="TabSongs" Content="Songs" FontSize="12" FontWeight="SemiBold"
+                            Padding="12,6" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
+                            BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                            Click="TabSongs_Click" Cursor="Hand" />
+                    <Button x:Name="TabScripture" Content="Scripture" FontSize="12" FontWeight="SemiBold"
+                            Padding="12,6" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
+                            BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                            Click="TabScripture_Click" Cursor="Hand" />
+                    <Button x:Name="TabMedia" Content="Media" FontSize="12" FontWeight="SemiBold"
+                            Padding="12,6" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
+                            BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                            Click="TabMedia_Click" Cursor="Hand" />
+                    <Button x:Name="TabTools" Content="Tools &#x25BE;" FontSize="12" FontWeight="SemiBold"
+                            Padding="12,6" Background="Transparent" Foreground="#8B92A5"
+                            BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                            Click="TabTools_Click" Cursor="Hand">
+                        <Button.ContextMenu>
+                            <ContextMenu x:Name="ToolsContextMenu">
+                                <MenuItem Header="Alert" Click="ToolAlert_Click" />
+                                <MenuItem Header="Countdown" Click="ToolCountdown_Click" />
+                                <MenuItem Header="Search" Click="ToolSearch_Click" />
+                                <MenuItem Header="CCLI Report" Click="ToolCcliReport_Click" />
+                                <MenuItem Header="Templates" Click="ToolTemplates_Click" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                </StackPanel>
+            </Border>
         </Border>
 
         <!-- ROW 3: MAIN CONTENT -->
@@ -310,31 +317,36 @@
                                    VerticalAlignment="Center" Margin="16,20" />
                     </Grid>
 
-                    <StackPanel Grid.Row="2" Margin="8,4,8,8">
-                        <Button Content="+ Add Item" Padding="6,5" Margin="0,2" FontSize="11" FontWeight="SemiBold"
+                    <!-- Compact action toolbar (replaces the former tall stack of fat gray buttons).
+                         A tidy WrapPanel of small chips. Every x:Name and Click handler is preserved;
+                         item-level actions are also available via the ServiceOrderList context menu.
+                         "+ Add" is the primary action (cyan); ApplyToSelectedBtn stays Collapsed and
+                         the Bulk toggle flips its Visibility in code-behind. -->
+                    <WrapPanel Grid.Row="2" Margin="8,6,8,8">
+                        <Button Content="+ Add" Padding="8,5" Margin="0,0,4,4" FontSize="11" FontWeight="SemiBold"
                                 Background="#252A36" Foreground="#00D4FF" BorderBrush="Transparent" BorderThickness="0"
-                                Click="NewService_Click" Cursor="Hand" />
-                        <Button Content="Edit Item" Padding="6,5" Margin="0,2" FontSize="10"
+                                Click="NewService_Click" Cursor="Hand" ToolTip="Add item" />
+                        <Button Content="Edit" Padding="8,5" Margin="0,0,4,4" FontSize="11"
                                 Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
-                                Click="EditServiceItem_Click" Cursor="Hand" />
-                        <Button Content="Item Settings" Padding="6,5" Margin="0,2" FontSize="10"
+                                Click="EditServiceItem_Click" Cursor="Hand" ToolTip="Edit item" />
+                        <Button Content="Settings" Padding="8,5" Margin="0,0,4,4" FontSize="11"
                                 Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
-                                Click="ItemSettings_Click" Cursor="Hand" />
-                        <Button Content="Remove Item" Padding="6,5" Margin="0,2" FontSize="10"
+                                Click="ItemSettings_Click" Cursor="Hand" ToolTip="Item settings" />
+                        <Button Content="Remove" Padding="8,5" Margin="0,0,4,4" FontSize="11"
                                 Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
-                                Click="RemoveServiceItem_Click" Cursor="Hand" />
+                                Click="RemoveServiceItem_Click" Cursor="Hand" ToolTip="Remove item" />
                         <!-- C3 Bulk edit: visible only while the Bulk toggle is on. -->
-                        <Button x:Name="ApplyToSelectedBtn" Content="Apply to selected…" Padding="6,5" Margin="0,2"
-                                FontSize="10" Visibility="Collapsed"
+                        <Button x:Name="ApplyToSelectedBtn" Content="Apply to selected…" Padding="8,5" Margin="0,0,4,4"
+                                FontSize="11" Visibility="Collapsed"
                                 Background="#252A36" Foreground="#00D4FF" BorderBrush="Transparent" BorderThickness="0"
                                 Click="ApplyToSelected_Click" Cursor="Hand" />
-                        <Button Content="Edit Service" Padding="6,5" Margin="0,2" FontSize="10"
+                        <Button Content="Edit Service" Padding="8,5" Margin="0,0,4,4" FontSize="11"
                                 Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
-                                Click="EditService_Click" Cursor="Hand" />
-                        <Button Content="Load Service" Padding="6,5" Margin="0,2" FontSize="10"
+                                Click="EditService_Click" Cursor="Hand" ToolTip="Edit service" />
+                        <Button Content="Load Service" Padding="8,5" Margin="0,0,4,4" FontSize="11"
                                 Background="#252A36" Foreground="#F0F2F5" BorderBrush="Transparent" BorderThickness="0"
-                                Click="LoadService_Click" Cursor="Hand" />
-                    </StackPanel>
+                                Click="LoadService_Click" Cursor="Hand" ToolTip="Load service" />
+                    </WrapPanel>
                 </Grid>
             </Border>
 
@@ -346,7 +358,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Current item header -->
-                <Border Grid.Row="0" Background="#1A1D27" Padding="12,6"
+                <Border Grid.Row="0" Background="#1A1D27" Padding="16,8"
                         BorderBrush="#2A2E3A" BorderThickness="0,0,0,1">
                     <Grid>
                         <StackPanel VerticalAlignment="Center">
@@ -425,7 +437,7 @@
         </Grid>
 
         <!-- ROW 4: TRANSPORT BAR -->
-        <Border Grid.Row="4" Background="#1A1D27" Padding="10,0"
+        <Border Grid.Row="4" Background="#1A1D27" Padding="16,0"
                 BorderBrush="#2A2E3A" BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>

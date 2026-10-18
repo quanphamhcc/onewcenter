@@ -31,7 +31,7 @@
                          TextChanged="SearchTextBox_TextChanged" />
             </StackPanel>
 
-            <Button Content="+ New Service" Style="{StaticResource OwcAccentButton}"
+            <Button Content="+ New Service" Style="{StaticResource OwcBlueButton}"
                     HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="130"
                     Click="NewService_Click" />
         </Grid>

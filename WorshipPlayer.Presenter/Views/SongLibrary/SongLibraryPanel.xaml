@@ -43,18 +43,9 @@
 
             <!-- Search bar -->
             <TextBox x:Name="SearchTextBox" DockPanel.Dock="Top"
-                     Background="{StaticResource OwcSurfaceBrush}"
-                     Foreground="{StaticResource OwcTextPrimaryBrush}"
-                     BorderBrush="{StaticResource OwcBorderBrush}"
-                     FontSize="12" Padding="8,6"
+                     Style="{StaticResource OwcTextBox}"
                      Margin="0,0,0,8"
-                     TextChanged="SearchTextBox_TextChanged">
-                <TextBox.Style>
-                    <Style TargetType="TextBox">
-                        <Setter Property="Tag" Value="Search songs..."/>
-                    </Style>
-                </TextBox.Style>
-            </TextBox>
+                     TextChanged="SearchTextBox_TextChanged"/>
 
             <!-- Filters -->
             <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
