@@ -25,6 +25,13 @@ public partial class AddServiceItemDialog : Window
     public ServiceOrderManager? ServiceOrderManager { get; set; }
 
     /// <summary>
+    /// The library songs offered in the Song picker (property-injected, mirroring the
+    /// <see cref="ServiceOrderManager"/> injection style). Each entry's Title + Artist
+    /// is shown; picking one links the item via <see cref="ServiceItem.SongFolder"/>.
+    /// </summary>
+    public IReadOnlyList<Song> SongLibrary { get; set; } = Array.Empty<Song>();
+
+    /// <summary>
     /// When set (before ShowDialog), the dialog opens in EDIT mode: fields are
     /// pre-populated from this item, and on confirm the item is mutated in place
     /// instead of a new one being added.
@@ -55,8 +62,31 @@ public partial class AddServiceItemDialog : Window
         Loaded += AddServiceItemDialog_Loaded;
     }
 
+    /// <summary>
+    /// Backing item for the song picker combo: carries the real <see cref="Song"/> and
+    /// a "Title — Artist" display string.
+    /// </summary>
+    private sealed class SongPickerItem
+    {
+        public Song Song { get; }
+        public string Display { get; }
+
+        public SongPickerItem(Song song)
+        {
+            Song = song;
+            Display = string.IsNullOrWhiteSpace(song.Artist)
+                ? song.Title
+                : $"{song.Title} — {song.Artist}";
+        }
+    }
+
     private void AddServiceItemDialog_Loaded(object sender, RoutedEventArgs e)
     {
+        // Populate the song picker from the injected library (used in both add + edit).
+        SongPickerComboBox.ItemsSource = SongLibrary
+            .Select(s => new SongPickerItem(s))
+            .ToList();
+
         if (ItemToEdit != null)
         {
             // Edit mode: reflect the item's current type and relabel the UI.
@@ -64,6 +94,26 @@ public partial class AddServiceItemDialog : Window
             AddItemButton.Content = "Save";
             SelectComboBoxItem(ItemTypeComboBox, ItemTypeToText(ItemToEdit.Type));
             ItemTitleTextBox.Text = ItemToEdit.Title;
+
+            // Pre-select the linked song / pre-fill the scripture reference so the
+            // picker opens on the item's existing content.
+            if (ItemToEdit.Type == ServiceItemType.Song)
+            {
+                var linked = SongPathResolver.Resolve(SongLibrary, ItemToEdit.SongFolder, ItemToEdit.Title);
+                if (linked != null)
+                {
+                    var match = ((IEnumerable<SongPickerItem>)SongPickerComboBox.ItemsSource)
+                        .FirstOrDefault(i => ReferenceEquals(i.Song, linked));
+                    if (match != null)
+                        SongPickerComboBox.SelectedItem = match;
+                }
+            }
+            else if (ItemToEdit.Type == ServiceItemType.Scripture)
+            {
+                ScriptureReferenceTextBox.Text = ItemToEdit.ScriptureReference;
+            }
+
+            UpdatePickerVisibility();
 
             // Also surface the current service's name + date so they can be edited
             // from the same dialog (phuong an A).
@@ -94,7 +144,42 @@ public partial class AddServiceItemDialog : Window
                 ServiceDateFormatter.UsDateFormat,
                 System.Globalization.CultureInfo.GetCultureInfo("en-US"));
         }
+
+        // Add mode: show the picker that matches the default/selected type.
+        UpdatePickerVisibility();
     }
+
+    /// <summary>
+    /// Show the Song picker only for Song, the Scripture reference box only for
+    /// Scripture, and hide both for every other item type.
+    /// </summary>
+    private void UpdatePickerVisibility()
+    {
+        if (SongPickerPanel == null || ScripturePanel == null) return;
+
+        var type = TextToItemType(GetComboBoxText(ItemTypeComboBox));
+        SongPickerPanel.Visibility = type == ServiceItemType.Song
+            ? Visibility.Visible : Visibility.Collapsed;
+        ScripturePanel.Visibility = type == ServiceItemType.Scripture
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ItemTypeComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        UpdatePickerVisibility();
+    }
+
+    private void SongPickerComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        // Auto-fill the Item name from the picked song. The name stays an editable
+        // override — the user can still change it afterward.
+        if (SongPickerComboBox.SelectedItem is SongPickerItem picked)
+            ItemTitleTextBox.Text = picked.Song.Title;
+    }
+
+    /// <summary>The library song currently chosen in the picker, or null.</summary>
+    private Song? SelectedSong =>
+        (SongPickerComboBox.SelectedItem as SongPickerItem)?.Song;
 
     private async void AddItem_Click(object sender, RoutedEventArgs e)
     {
@@ -145,9 +230,25 @@ public partial class AddServiceItemDialog : Window
                     }
                 }
 
+                var selectedSong = SelectedSong;
+                var scriptureRef = ScriptureReferenceTextBox.Text;
+
                 ItemToEdit.Type = itemType;
-                if (!string.IsNullOrWhiteSpace(ItemTitleTextBox.Text))
-                    ItemToEdit.Title = ItemTitleTextBox.Text.Trim();
+                // Single source of truth for the Title across all types.
+                ItemToEdit.Title = ServiceItemMapper.BuildTitle(
+                    itemType, ItemTitleTextBox.Text, selectedSong, scriptureRef);
+
+                // Re-apply the type-specific link (SongFolder / ScriptureReference).
+                if (itemType == ServiceItemType.Song && selectedSong != null)
+                    ServiceItemMapper.ApplySong(ItemToEdit, selectedSong);
+                else if (itemType == ServiceItemType.Scripture)
+                    ServiceItemMapper.ApplyScripture(ItemToEdit, scriptureRef);
+
+                // ApplySong/ApplyScripture may re-set Title; keep BuildTitle as the
+                // authoritative value (it already accounts for both).
+                ItemToEdit.Title = ServiceItemMapper.BuildTitle(
+                    itemType, ItemTitleTextBox.Text, selectedSong, scriptureRef);
+
                 ItemEdited?.Invoke(this, ItemToEdit);
             }
             else if (ServiceOrderManager != null)
@@ -186,15 +287,27 @@ public partial class AddServiceItemDialog : Window
                         ServiceOrderManager.CurrentServiceOrder.StartTime = startTime;
                 }
 
-                var title = string.IsNullOrWhiteSpace(ItemTitleTextBox.Text)
-                    ? $"{SelectedItemType} Item"
-                    : ItemTitleTextBox.Text.Trim();
+                var selectedSong = SelectedSong;
+                var scriptureRef = ScriptureReferenceTextBox.Text;
+
+                var title = ServiceItemMapper.BuildTitle(
+                    itemType, ItemTitleTextBox.Text, selectedSong, scriptureRef);
 
                 var serviceItem = new ServiceItem
                 {
                     Type = itemType,
                     Title = title
                 };
+
+                // Link the type-specific content (SongFolder / ScriptureReference).
+                if (itemType == ServiceItemType.Song && selectedSong != null)
+                    ServiceItemMapper.ApplySong(serviceItem, selectedSong);
+                else if (itemType == ServiceItemType.Scripture)
+                    ServiceItemMapper.ApplyScripture(serviceItem, scriptureRef);
+
+                // Keep the computed Title authoritative (ApplySong/ApplyScripture may
+                // have changed it, and both agree with BuildTitle here).
+                serviceItem.Title = title;
 
                 ServiceOrderManager.AddItem(serviceItem);
 

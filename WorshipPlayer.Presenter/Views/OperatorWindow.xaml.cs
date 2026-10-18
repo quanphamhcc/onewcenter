@@ -408,6 +408,7 @@ public partial class OperatorWindow : Window
             // Service name + date fields and creates a brand-new service order.
             var dialog = new AddServiceItemDialog { Owner = this, CreateNewService = true };
             dialog.ServiceOrderManager = _serviceOrderManager;
+            dialog.SongLibrary = _songManager?.Songs ?? (IReadOnlyList<Song>)Array.Empty<Song>();
             dialog.ItemAdded += (s, item) => { };
             dialog.ShowDialog();
 
@@ -830,6 +831,7 @@ public partial class OperatorWindow : Window
             dialog.Owner = this;
             if (_serviceOrderManager != null)
                 dialog.ServiceOrderManager = _serviceOrderManager;
+            dialog.SongLibrary = _songManager?.Songs ?? (IReadOnlyList<Song>)Array.Empty<Song>();
             dialog.ItemAdded += async (s, item) =>
             {
                 await SaveServiceOrderAsync();
@@ -1435,6 +1437,7 @@ public partial class OperatorWindow : Window
             {
                 Owner = this,
                 ServiceOrderManager = _serviceOrderManager,
+                SongLibrary = _songManager?.Songs ?? (IReadOnlyList<Song>)Array.Empty<Song>(),
                 ItemToEdit = display.Item
             };
             dialog.ItemEdited += async (s, item) =>

@@ -56,7 +56,8 @@
                            FontSize="11" Margin="0,0,0,4"/>
                 <ComboBox x:Name="ItemTypeComboBox" Margin="0,0,0,12"
                           Style="{StaticResource OwcDarkComboBox}"
-                          FontSize="13" Padding="8,6">
+                          FontSize="13" Padding="8,6"
+                          SelectionChanged="ItemTypeComboBox_SelectionChanged">
                     <ComboBoxItem Content="Song" IsSelected="True"/>
                     <ComboBoxItem Content="Scripture"/>
                     <ComboBoxItem Content="Announcement"/>
@@ -65,6 +66,30 @@
                     <ComboBoxItem Content="Blank"/>
                     <ComboBoxItem Content="Custom"/>
                 </ComboBox>
+
+                <!-- Song picker: shown only for Item Type = Song. Pick a real library
+                     song (Title — Artist); selecting one auto-fills Item name and links
+                     the item via SongFolder. -->
+                <StackPanel x:Name="SongPickerPanel">
+                    <TextBlock Text="Song" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="SongPickerComboBox" Margin="0,0,0,12"
+                              Style="{StaticResource OwcDarkComboBox}"
+                              FontSize="13" Padding="8,6"
+                              IsEditable="True" IsTextSearchEnabled="True" IsReadOnly="False"
+                              DisplayMemberPath="Display"
+                              ToolTip="Search and pick a song from the library"
+                              SelectionChanged="SongPickerComboBox_SelectionChanged"/>
+                </StackPanel>
+
+                <!-- Scripture reference: shown only for Item Type = Scripture. -->
+                <StackPanel x:Name="ScripturePanel" Visibility="Collapsed">
+                    <TextBlock Text="Scripture reference" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox x:Name="ScriptureReferenceTextBox" Style="{StaticResource OwcTextBox}"
+                             Margin="0,0,0,12"
+                             ToolTip="e.g. John 3:16"/>
+                </StackPanel>
 
                 <!-- Item name / title (shown in the service order list) -->
                 <TextBlock Text="Item name" Foreground="{StaticResource OwcTextSecondaryBrush}"
