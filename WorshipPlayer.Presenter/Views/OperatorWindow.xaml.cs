@@ -246,6 +246,8 @@ public partial class OperatorWindow : Window
         HomePanel.Visibility = Visibility.Visible;
         ServicesListPanel.Visibility = Visibility.Collapsed;
         ServicesPanel.Visibility = Visibility.Collapsed;
+        // Home is a non-presentation screen: hide the left sidebar + center header.
+        SetSidebarVisible(false);
 
         _ = RefreshServiceListingInitialAsync();
     }
@@ -338,6 +340,8 @@ public partial class OperatorWindow : Window
             SetTabInactive(TabScripture);
             SetTabInactive(TabMedia);
             SetTabActive(TabServices);
+            // Services list is a non-presentation screen: hide the left sidebar + center header.
+            SetSidebarVisible(false);
 
             await RefreshServiceListingAsync();
         }
@@ -361,6 +365,8 @@ public partial class OperatorWindow : Window
         MediaPanel.Visibility = Visibility.Collapsed;
         ErrorPanel.Visibility = Visibility.Collapsed;
         ServicesPanel.Visibility = Visibility.Visible;
+        // The slide grid IS the Live presentation surface: show the left sidebar + center header.
+        SetSidebarVisible(true);
 
         // Showing the slide-editing grid IS the Live presentation surface, so reflect that in
         // the top nav: the Live tab becomes active (the Live-status dot is driven separately
@@ -1022,6 +1028,29 @@ public partial class OperatorWindow : Window
         {
             SidebarColumn.Width = new GridLength(220);
             SidebarCollapseBtn.Content = "\u25C0"; // left arrow
+        }
+    }
+
+    /// <summary>
+    /// Show/hide the left SERVICE ORDER sidebar AND the center current-item header together.
+    /// Visible = the presentation (Live) surface; hidden = Home/Services/Songs/Scripture/Media.
+    /// Collapses the Border AND zeroes SidebarColumn.Width so no invisible strip captures clicks.
+    /// Honors the user's existing collapse choice (_isSidebarCollapsed) when re-showing; does not
+    /// mutate _isSidebarCollapsed, so the narrow/wide preference survives a Home round-trip.
+    /// </summary>
+    private void SetSidebarVisible(bool visible)
+    {
+        if (visible)
+        {
+            ServiceOrderSidebar.Visibility = Visibility.Visible;
+            SidebarColumn.Width = new GridLength(_isSidebarCollapsed ? 48 : 200);
+            CurrentItemHeader.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            ServiceOrderSidebar.Visibility = Visibility.Collapsed;
+            SidebarColumn.Width = new GridLength(0);
+            CurrentItemHeader.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -2245,6 +2274,9 @@ public partial class OperatorWindow : Window
         ScripturePanel.Visibility = Visibility.Collapsed;
         MediaPanel.Visibility = Visibility.Collapsed;
         ErrorPanel.Visibility = Visibility.Collapsed;
+        // Non-presentation screens hide the left sidebar + center header; the "Live" case
+        // below re-shows them via ShowServiceEditor().
+        SetSidebarVisible(false);
 
         // Reset all tab button styles
         SetTabInactive(TabLive);

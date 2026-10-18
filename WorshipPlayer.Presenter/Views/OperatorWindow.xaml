@@ -217,7 +217,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- LEFT SIDEBAR -->
-            <Border Grid.Column="0" Background="#1A1D27"
+            <Border x:Name="ServiceOrderSidebar" Grid.Column="0" Background="#1A1D27"
                     BorderBrush="#2A2E3A" BorderThickness="0,0,1,0">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -358,7 +358,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Current item header -->
-                <Border Grid.Row="0" Background="#1A1D27" Padding="16,8"
+                <Border x:Name="CurrentItemHeader" Grid.Row="0" Background="#1A1D27" Padding="16,8"
                         BorderBrush="#2A2E3A" BorderThickness="0,0,0,1">
                     <Grid>
                         <StackPanel VerticalAlignment="Center">
