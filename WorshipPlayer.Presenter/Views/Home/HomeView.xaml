@@ -14,34 +14,11 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <Grid Margin="24">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320" />
-                <ColumnDefinition Width="20" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
 
-            <!-- LEFT: dashed-border placeholder shown when no service is selected -->
-            <Border Grid.Column="0" Style="{StaticResource OwcPanelBorder}" MinHeight="360">
-                <Grid Margin="4">
-                    <!-- WPF Border cannot draw a dashed outline, so a Rectangle with a
-                         StrokeDashArray provides the dashed placeholder look. -->
-                    <Rectangle Stroke="{StaticResource OwcBorderBrush}" StrokeThickness="1"
-                               StrokeDashArray="4 3" RadiusX="10" RadiusY="10" />
-                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                                Margin="28">
-                        <TextBlock Text="To begin, select a service from the Services list."
-                                   Foreground="{StaticResource OwcTextMutedBrush}"
-                                   FontSize="13" TextWrapping="Wrap" TextAlignment="Center"
-                                   Margin="0,0,0,8" />
-                        <TextBlock Text="Your service items will appear here."
-                                   Foreground="{StaticResource OwcTextMutedBrush}"
-                                   FontSize="13" TextWrapping="Wrap" TextAlignment="Center" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <!-- RIGHT: Quick start card then Upcoming services card -->
-            <StackPanel Grid.Column="2">
+            <!-- Home center content: Quick start card then Upcoming services card (full width).
+                 The dashed "select a service" placeholder lives only in the OperatorWindow LEFT
+                 panel now, so it is not duplicated here. -->
+            <StackPanel>
 
                 <!-- Quick start card -->
                 <Border Style="{StaticResource OwcPanelBorder}" Padding="20" Margin="0,0,0,20">
