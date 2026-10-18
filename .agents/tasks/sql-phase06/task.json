@@ -1,0 +1,7 @@
+{
+  "task_id": "task-sql-phase06-songs-setlists",
+  "task_description": "Phase 6 of migrating all persistence in a .NET 8 WPF worship app from JSON to SQLite: mirror the SONGS and SETLISTS stores into the shared app.db via AppDatabase, following the Phase-5 MIRROR pattern. JSON song.json files, audio stems, song.json.N backups, and _song_registry.json stay authoritative on disk; app.db gets a reconciled Songs table and a Setlists table. All public APIs preserved byte-for-byte, FolderPath identity intact, all tests green.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
