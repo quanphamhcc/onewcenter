@@ -13,6 +13,7 @@ namespace WorshipPlayer.Tests;
 public class SongLibraryServiceTests : IDisposable
 {
     private readonly string _tempFolder;
+    private readonly string _appDbPath;
     private readonly SongManager _songManager;
     private readonly SongUsageService _usageService;
     private readonly SongLibraryService _service;
@@ -25,11 +26,12 @@ public class SongLibraryServiceTests : IDisposable
         var songsFolder = Path.Combine(_tempFolder, "Songs");
         var setlistsFolder = Path.Combine(_tempFolder, "Setlists");
         var dbPath = Path.Combine(_tempFolder, "app.db");
+        _appDbPath = dbPath;
 
         Directory.CreateDirectory(songsFolder);
         Directory.CreateDirectory(setlistsFolder);
 
-        _songManager = new SongManager(songsFolder, setlistsFolder);
+        _songManager = new SongManager(songsFolder, setlistsFolder, _appDbPath);
         _usageService = new SongUsageService(dbPath);
         _service = new SongLibraryService(_songManager, _usageService);
     }
@@ -254,7 +256,8 @@ public class SongLibraryServiceTests : IDisposable
         // (c) Reload from disk via a fresh SongManager on the same folders.
         var reloadManager = new SongManager(
             Path.Combine(_tempFolder, "Songs"),
-            Path.Combine(_tempFolder, "Setlists"));
+            Path.Combine(_tempFolder, "Setlists"),
+            _appDbPath);
         await reloadManager.LoadAllSongsAsync();
 
         var reloaded = reloadManager.Songs.Single(s => Path.GetFileName(s.FolderPath) == "Then_Sings");
@@ -337,7 +340,8 @@ public class SongLibraryServiceTests : IDisposable
         // (c) Reload from disk via a fresh SongManager.
         var reloadManager = new SongManager(
             Path.Combine(_tempFolder, "Songs"),
-            Path.Combine(_tempFolder, "Setlists"));
+            Path.Combine(_tempFolder, "Setlists"),
+            _appDbPath);
         await reloadManager.LoadAllSongsAsync();
         var reloaded = reloadManager.Songs.Single(s => Path.GetFileName(s.FolderPath) == "Grace_Flows");
 

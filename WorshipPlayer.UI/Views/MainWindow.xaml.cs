@@ -128,7 +128,8 @@ public partial class MainWindow : Window
             try { Directory.CreateDirectory(setlistsPath); } catch { }
         }
 
-        _songManager = new SongManager(songsPath, setlistsPath);
+        // JSON song/setlist files stay authoritative; app.db is a reconciled mirror (Phase 6).
+        _songManager = new SongManager(songsPath, setlistsPath, appDbPath);
         await _songManager.LoadAllSongsAsync();
         await _songManager.LoadAllSetlistsAsync();
 

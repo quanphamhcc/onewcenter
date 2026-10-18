@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Xunit;
 using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Services;
@@ -110,15 +111,20 @@ public class SongPathResolverTests
 public class SongManagerDedupTests : IDisposable
 {
     private readonly string _root;
+    private readonly string _appDbPath;
 
     public SongManagerDedupTests()
     {
         _root = Path.Combine(Path.GetTempPath(), $"SongDedup_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_root);
+        _appDbPath = Path.Combine(_root, "app.db");
     }
 
     public void Dispose()
     {
+        // Release SQLite file handles so the temp .db under _root can be deleted on Windows.
+        SqliteConnection.ClearAllPools();
+
         if (Directory.Exists(_root))
             Directory.Delete(_root, true);
     }
@@ -143,7 +149,7 @@ public class SongManagerDedupTests : IDisposable
             Path.Combine(songsFolder, "_song_registry.json"),
             System.Text.Json.JsonSerializer.Serialize(new[] { songFolder.ToUpperInvariant() }));
 
-        var manager = new SongManager(songsFolder, setlistsFolder);
+        var manager = new SongManager(songsFolder, setlistsFolder, _appDbPath);
         await manager.LoadAllSongsAsync();
 
         Assert.Single(manager.Songs);

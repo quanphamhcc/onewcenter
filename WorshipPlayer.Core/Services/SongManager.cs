@@ -32,13 +32,23 @@ public class SongManager
 
     private const string CreateSongsSchemaSql = @"
 CREATE TABLE IF NOT EXISTS Songs (
-    FolderPath    TEXT PRIMARY KEY,
+    FolderPath    TEXT PRIMARY KEY COLLATE NOCASE,
     Title         TEXT NOT NULL DEFAULT '',
     Artist        TEXT NOT NULL DEFAULT '',
     OriginalKey   TEXT NOT NULL DEFAULT '',
     Ccli          TEXT NOT NULL DEFAULT '',
     Themes        TEXT NOT NULL DEFAULT '',
     Bpm           REAL NOT NULL DEFAULT 0,
+    LastWriteUtc  TEXT NOT NULL DEFAULT '',
+    DataJson      TEXT NOT NULL
+);
+";
+
+    private const string CreateSetlistsSchemaSql = @"
+CREATE TABLE IF NOT EXISTS Setlists (
+    FilePath      TEXT PRIMARY KEY COLLATE NOCASE,
+    Name          TEXT NOT NULL DEFAULT '',
+    Date          TEXT NOT NULL DEFAULT '',
     LastWriteUtc  TEXT NOT NULL DEFAULT '',
     DataJson      TEXT NOT NULL
 );
@@ -323,6 +333,7 @@ CREATE TABLE IF NOT EXISTS Songs (
             return;
         }
 
+        var scanned = new List<(string path, Setlist setlist)>();
         foreach (var file in Directory.GetFiles(_setlistsBasePath, "*.json"))
         {
             try
@@ -330,13 +341,21 @@ CREATE TABLE IF NOT EXISTS Songs (
                 var json = await File.ReadAllTextAsync(file);
                 var setlist = JsonSerializer.Deserialize<Setlist>(json, _jsonOptions);
                 if (setlist != null)
+                {
                     Setlists.Add(setlist);
+                    scanned.Add((file, setlist));
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error loading setlist from {file}: {ex.Message}");
             }
         }
+
+        // Reconcile the SQLite mirror with the setlist files actually on disk (upsert present,
+        // prune vanished). Best-effort; the returned in-memory list/ordering comes only from the
+        // scan above.
+        await ReconcileSetlistsSafeAsync(scanned);
     }
 
     /// <summary>
@@ -351,6 +370,10 @@ CREATE TABLE IF NOT EXISTS Songs (
         var filePath = Path.Combine(_setlistsBasePath, fileName);
         var json = JsonSerializer.Serialize(setlist, _jsonOptions);
         await File.WriteAllTextAsync(filePath, json);
+
+        // Mirror the saved setlist into app.db keyed by the normalized file path (= identity).
+        // Best-effort: the setlist .json file is authoritative and already written above.
+        await UpsertSetlistRowSafeAsync(setlist, filePath);
     }
 
     /// <summary>
@@ -431,7 +454,14 @@ CREATE TABLE IF NOT EXISTS Songs (
             await schemaCmd.ExecuteNonQueryAsync();
         }
 
+        using (var setlistSchemaCmd = connection.CreateCommand())
+        {
+            setlistSchemaCmd.CommandText = CreateSetlistsSchemaSql;
+            await setlistSchemaCmd.ExecuteNonQueryAsync();
+        }
+
         await ImportSongsIfNeededAsync(connection);
+        await ImportSetlistsIfNeededAsync(connection);
 
         _initialized = true;
     }
@@ -674,6 +704,189 @@ CREATE TABLE IF NOT EXISTS Songs (
         catch
         {
             // One bad folder must not abort the rest of the import.
+        }
+    }
+
+    // ─── SQLite mirror: Setlists (Phase 6) ────────────────────────
+    // The on-disk setlist *.json files are authoritative (ServiceOrderManager.CreateFromSetlist
+    // consumes an in-memory Setlist and is unaffected). These helpers keep an app.db mirror in
+    // sync keyed by the normalized setlist file path, following the Songs mirror pattern above.
+
+    /// <summary>
+    /// Best-effort wrapper: ensure the schema exists then upsert the mirror row for a single
+    /// setlist, swallowing any DB failure so the authoritative setlist .json path is unaffected.
+    /// </summary>
+    private async Task UpsertSetlistRowSafeAsync(Setlist setlist, string filePath)
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            using var connection = _database.CreateConnection();
+            await connection.OpenAsync();
+            await UpsertSetlistRowAsync(connection, null, setlist, filePath);
+        }
+        catch
+        {
+            // The setlist .json file is the source of truth and is already written; a mirror
+            // failure must never break the public behavior.
+        }
+    }
+
+    /// <summary>
+    /// Best-effort reconcile: upsert every scanned (path, setlist) pair and prune any mirror row
+    /// whose FilePath is no longer among the scanned files. Swallows any DB failure.
+    /// </summary>
+    private async Task ReconcileSetlistsSafeAsync(IReadOnlyList<(string path, Setlist setlist)> scanned)
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            using var connection = _database.CreateConnection();
+            await connection.OpenAsync();
+
+            using var transaction = connection.BeginTransaction();
+
+            var keepKeys = new List<string>(scanned.Count);
+            foreach (var (path, setlist) in scanned)
+            {
+                var normalized = SongPathResolver.Normalize(path);
+                keepKeys.Add(normalized);
+                await UpsertSetlistRowAsync(connection, transaction, setlist, path);
+            }
+
+            // Prune rows whose setlist file is gone. Build a parameterized NOT IN list.
+            using (var deleteCmd = connection.CreateCommand())
+            {
+                deleteCmd.Transaction = transaction;
+                if (keepKeys.Count == 0)
+                {
+                    deleteCmd.CommandText = "DELETE FROM Setlists";
+                }
+                else
+                {
+                    var paramNames = new List<string>(keepKeys.Count);
+                    for (int i = 0; i < keepKeys.Count; i++)
+                    {
+                        var p = "@keep" + i;
+                        paramNames.Add(p);
+                        deleteCmd.Parameters.AddWithValue(p, keepKeys[i]);
+                    }
+                    deleteCmd.CommandText =
+                        $"DELETE FROM Setlists WHERE FilePath NOT IN ({string.Join(",", paramNames)})";
+                }
+                await deleteCmd.ExecuteNonQueryAsync();
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            // Setlist files are authoritative; a mirror reconcile failure is non-fatal.
+        }
+    }
+
+    /// <summary>
+    /// Insert or update the mirror row for a setlist keyed by its normalized file path. Promotes
+    /// Name/Date for listing and keeps the whole setlist serialized in DataJson (with the
+    /// manager's _jsonOptions) so it round-trips losslessly.
+    /// </summary>
+    private async Task UpsertSetlistRowAsync(SqliteConnection connection, SqliteTransaction? transaction, Setlist setlist, string filePath)
+    {
+        var normalized = SongPathResolver.Normalize(filePath);
+
+        using var cmd = connection.CreateCommand();
+        if (transaction != null)
+            cmd.Transaction = transaction;
+
+        cmd.CommandText = @"
+            INSERT INTO Setlists (FilePath, Name, Date, LastWriteUtc, DataJson)
+            VALUES (@FilePath, @Name, @Date, @LastWriteUtc, @DataJson)
+            ON CONFLICT(FilePath) DO UPDATE SET
+                Name = excluded.Name,
+                Date = excluded.Date,
+                LastWriteUtc = excluded.LastWriteUtc,
+                DataJson = excluded.DataJson";
+        BindSetlist(cmd, setlist, normalized, filePath);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Bind a setlist's promoted columns + DataJson. LastWriteUtc comes from the file when it
+    /// exists else UtcNow, serialized ISO-8601 round-trip ('o').
+    /// </summary>
+    private void BindSetlist(SqliteCommand cmd, Setlist setlist, string normalizedKey, string filePath)
+    {
+        cmd.Parameters.AddWithValue("@FilePath", normalizedKey);
+        cmd.Parameters.AddWithValue("@Name", setlist.Name ?? "");
+        cmd.Parameters.AddWithValue("@Date", setlist.Date ?? "");
+
+        var lastWrite = File.Exists(filePath)
+            ? File.GetLastWriteTimeUtc(filePath)
+            : DateTime.UtcNow;
+        cmd.Parameters.AddWithValue("@LastWriteUtc", lastWrite.ToString("o"));
+
+        cmd.Parameters.AddWithValue("@DataJson", JsonSerializer.Serialize(setlist, _jsonOptions));
+    }
+
+    /// <summary>
+    /// Defensive one-time import: if the Setlists table is empty AND setlist *.json files exist
+    /// under the base path, import each as a mirror row once (INSERT OR IGNORE). Tolerates a
+    /// missing folder and missing/malformed files (skips the single bad file and continues) —
+    /// never throws. The empty-table guard makes this non-duplicating. JSON files are LEFT ON
+    /// DISK and remain authoritative.
+    /// </summary>
+    private async Task ImportSetlistsIfNeededAsync(SqliteConnection connection)
+    {
+        try
+        {
+            if (!Directory.Exists(_setlistsBasePath))
+                return;
+
+            using (var countCmd = connection.CreateCommand())
+            {
+                countCmd.CommandText = "SELECT COUNT(*) FROM Setlists";
+                var count = Convert.ToInt64(await countCmd.ExecuteScalarAsync());
+                if (count > 0)
+                    return;
+            }
+
+            var jsonFiles = Directory.GetFiles(_setlistsBasePath, "*.json");
+            if (jsonFiles.Length == 0)
+                return;
+
+            using var transaction = connection.BeginTransaction();
+            foreach (var file in jsonFiles)
+            {
+                Setlist? setlist;
+                try
+                {
+                    var json = await File.ReadAllTextAsync(file);
+                    setlist = JsonSerializer.Deserialize<Setlist>(json, _jsonOptions);
+                }
+                catch
+                {
+                    // Skip a single malformed file and continue with the rest.
+                    continue;
+                }
+
+                if (setlist == null)
+                    continue;
+
+                var normalized = SongPathResolver.Normalize(file);
+                using var insertCmd = connection.CreateCommand();
+                insertCmd.Transaction = transaction;
+                insertCmd.CommandText = @"
+                    INSERT OR IGNORE INTO Setlists (FilePath, Name, Date, LastWriteUtc, DataJson)
+                    VALUES (@FilePath, @Name, @Date, @LastWriteUtc, @DataJson)";
+                BindSetlist(insertCmd, setlist, normalized, file);
+                await insertCmd.ExecuteNonQueryAsync();
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            // A malformed/locked folder or file must never throw — leave the table as-is.
         }
     }
 }

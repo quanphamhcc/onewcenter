@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Xunit;
 using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Services;
@@ -17,6 +18,7 @@ public class ChordProImportTests : IDisposable
     private readonly string _songsDir;
     private readonly string _setlistsDir;
     private readonly string _usagePath;
+    private readonly string _appDbPath;
 
     public ChordProImportTests()
     {
@@ -24,6 +26,7 @@ public class ChordProImportTests : IDisposable
         _songsDir = Path.Combine(_root, "Songs");
         _setlistsDir = Path.Combine(_root, "Setlists");
         _usagePath = Path.Combine(_root, "usage.json");
+        _appDbPath = Path.Combine(_root, "app.db");
         Directory.CreateDirectory(_songsDir);
         Directory.CreateDirectory(_setlistsDir);
     }
@@ -33,7 +36,7 @@ public class ChordProImportTests : IDisposable
     {
         // Arrange: a SongManager seeded with one existing song so ImportChordProAsync can
         // derive the new song's folder from an existing song's folder (SongLibraryService.cs).
-        var songManager = new SongManager(_songsDir, _setlistsDir);
+        var songManager = new SongManager(_songsDir, _setlistsDir, _appDbPath);
         var seedFolder = Path.Combine(_songsDir, "Seed Song");
         Directory.CreateDirectory(seedFolder);
         songManager.Songs.Add(new Song { Title = "Seed Song", FolderPath = seedFolder });
@@ -80,6 +83,9 @@ public class ChordProImportTests : IDisposable
 
     public void Dispose()
     {
+        // Release SQLite file handles so the temp .db under _root can be deleted on Windows.
+        SqliteConnection.ClearAllPools();
+
         try
         {
             if (Directory.Exists(_root))
