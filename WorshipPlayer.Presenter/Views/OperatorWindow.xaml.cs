@@ -1835,13 +1835,17 @@ public partial class OperatorWindow : Window
             bool isActive = (i == _engine.CurrentSlideIndex);
             bool isSelected = (_isEditMode && i == _selectedSlideIndex);
 
+            // Outer border = the thumbnail frame. The CURRENTLY LIVE slide gets a RED
+            // (OwcLive) border; the edit-mode selected slide a cyan one; otherwise the
+            // neutral panel border. CornerRadius + ClipToBounds so the background image
+            // honors the rounded corners.
             var border = new Border
             {
                 Width = thumbWidth,
                 Height = thumbHeight,
                 Background = new SolidColorBrush(PanelBg),
                 BorderBrush = isActive
-                    ? new SolidColorBrush(AccentCyan)
+                    ? new SolidColorBrush(LivePink)
                     : isSelected
                         ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0088AA"))
                         : new SolidColorBrush(BorderColor),
@@ -1851,7 +1855,11 @@ public partial class OperatorWindow : Window
                 Cursor = Cursors.Hand
             };
 
-            var grid = new Grid();
+            // Inner grid clipped to the rounded frame so the slide BACKGROUND fills the tile.
+            var grid = new Grid
+            {
+                ClipToBounds = true
+            };
 
             // Calculate font sizes proportional to thumbnail size (WYSIWYG scaling)
             double scaleFactor = thumbWidth / 140.0; // 140 is the default/base size
@@ -1860,45 +1868,94 @@ public partial class OperatorWindow : Window
             double numFontSize = Math.Max(8, 8 * scaleFactor);
             int maxTextLength = thumbWidth > 300 ? 200 : thumbWidth > 200 ? 80 : 40;
 
-            // Section label (top-left)
-            var sectionLabel = new TextBlock
+            // ── Layer 0: slide BACKGROUND (image / solid / gradient default) ──
+            // Mirrors the live OutputWindow background so the grid previews real content.
+            var background = ResolveSlideBackground(slide, out bool backgroundIsImage);
+            grid.Children.Add(new Border
             {
-                Text = slide.SectionName ?? "",
-                FontSize = sectionFontSize,
-                Foreground = new SolidColorBrush(TextSecondary),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = System.Windows.VerticalAlignment.Top,
-                Margin = new Thickness(6, 4, 0, 0)
-            };
+                Background = background,
+                CornerRadius = new CornerRadius(5)
+            });
 
-            // Slide text (center) — scales with zoom for WYSIWYG preview
+            // ── Layer 1: dark scrim over image backgrounds so white lyric text stays readable ──
+            if (backgroundIsImage)
+            {
+                grid.Children.Add(new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(0x59, 0x00, 0x00, 0x00)), // #000 @ ~35%
+                    CornerRadius = new CornerRadius(5)
+                });
+            }
+
+            // ── Layer 2: slide LYRIC TEXT (center) — scales with zoom for WYSIWYG preview ──
             // Strip chords for clean readability (thumbnails show what audience sees)
             string slideText = _previewChordParser.StripChords(slide.Content.Text ?? "");
             var text = new TextBlock
             {
                 Text = TruncateText(slideText, maxTextLength),
                 FontSize = mainFontSize,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Colors.White),
                 TextWrapping = TextWrapping.Wrap,
                 TextAlignment = System.Windows.TextAlignment.Center,
                 VerticalAlignment = System.Windows.VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(8, sectionFontSize + 8, 8, numFontSize + 8)
+                Margin = new Thickness(8, sectionFontSize + 10, 8, numFontSize + 10),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.Black,
+                    BlurRadius = 3,
+                    ShadowDepth = 1,
+                    Opacity = 0.8
+                }
             };
 
-            // Slide number (bottom-right)
-            var slideNum = new TextBlock
+            // ── Layer 3: label chip (bottom-left) — e.g. "Verse 1" / "Chorus"; RED when live ──
+            var labelChip = new Border
             {
-                Text = (i + 1).ToString(),
-                FontSize = numFontSize,
-                Foreground = new SolidColorBrush(TextMuted),
+                Background = new SolidColorBrush(isActive
+                    ? LivePink
+                    : Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(5, 1, 5, 1),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
+                Margin = new Thickness(5, 0, 0, 5),
+                // Tagged so UpdateSlideThumbnailHighlights can recolor it on live changes.
+                Tag = "labelChip",
+                Child = new TextBlock
+                {
+                    Text = (slide.SectionName ?? "").Trim(),
+                    FontSize = sectionFontSize,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(isActive ? Colors.White : AccentCyan)
+                }
+            };
+            // Hide the chip entirely when a slide has no section label.
+            labelChip.Visibility = string.IsNullOrWhiteSpace(slide.SectionName)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+
+            // ── Layer 4: number badge (bottom-right) ──
+            var slideNum = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(5, 1, 5, 1),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
-                Margin = new Thickness(0, 0, 6, 4)
+                Margin = new Thickness(0, 0, 5, 5),
+                Child = new TextBlock
+                {
+                    Text = (i + 1).ToString(),
+                    FontSize = numFontSize,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Colors.White)
+                }
             };
 
-            grid.Children.Add(sectionLabel);
             grid.Children.Add(text);
+            grid.Children.Add(labelChip);
             grid.Children.Add(slideNum);
 
             border.Child = grid;
@@ -1940,16 +1997,150 @@ public partial class OperatorWindow : Window
                 bool isActive = (i == currentIndex);
                 bool isSelected = (_isEditMode && i == _selectedSlideIndex);
 
+                // Live slide => RED (OwcLive) frame; edit-selected => cyan; otherwise neutral.
                 border.BorderBrush = isActive
-                    ? new SolidColorBrush(AccentCyan)
+                    ? new SolidColorBrush(LivePink)
                     : isSelected
                         ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0088AA"))
                         : new SolidColorBrush(BorderColor);
                 border.BorderThickness = new Thickness(isActive ? 2 : isSelected ? 2 : 1);
+
+                // Keep the label chip's live treatment in sync with the border.
+                UpdateLabelChipLiveState(border, isActive);
             }
         }
 
         _lastActiveSlideIndex = currentIndex;
+    }
+
+    /// <summary>
+    /// Recolor a thumbnail's label chip (tagged "labelChip") to match its live state:
+    /// RED fill + white text when live, otherwise a dark chip with the cyan section label.
+    /// Walks the thumbnail's inner Grid; no-op if the chip isn't present.
+    /// </summary>
+    private void UpdateLabelChipLiveState(Border thumbnail, bool isActive)
+    {
+        if (thumbnail.Child is not Grid grid) return;
+
+        foreach (var child in grid.Children)
+        {
+            if (child is Border chip && (chip.Tag as string) == "labelChip")
+            {
+                chip.Background = new SolidColorBrush(isActive
+                    ? LivePink
+                    : Color.FromArgb(0xC0, 0x00, 0x00, 0x00));
+                if (chip.Child is TextBlock chipText)
+                {
+                    chipText.Foreground = new SolidColorBrush(isActive ? Colors.White : AccentCyan);
+                }
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolve the BACKGROUND brush for a slide thumbnail, mirroring the live OutputWindow
+    /// so the center grid previews real slide content. Resolution order:
+    ///   1. slide-level background image (<see cref="SlideContent.BackgroundImage"/>)
+    ///   2. slide theme-override: image, else its solid/gradient color
+    ///   3. the current presenter theme: image, else its solid background color
+    ///   4. a tasteful dark gradient default
+    /// <paramref name="isImage"/> is true when the returned brush is a bitmap (so the caller
+    /// draws a dark scrim for text readability).
+    /// </summary>
+    private Brush ResolveSlideBackground(Slide slide, out bool isImage)
+    {
+        isImage = false;
+
+        // 1) Slide-level background image.
+        var slideImage = TryLoadImageBrush(slide.Content?.BackgroundImage);
+        if (slideImage != null) { isImage = true; return slideImage; }
+
+        // 2) Slide theme override.
+        if (slide.ThemeOverride is { } ov)
+        {
+            if (ov.BackgroundType == BackgroundType.Image)
+            {
+                var ovImage = TryLoadImageBrush(ov.BackgroundImage);
+                if (ovImage != null) { isImage = true; return ovImage; }
+            }
+            var ovColor = TryParseColorBrush(ov.BackgroundColor);
+            if (ovColor != null) return ovColor;
+        }
+
+        // 3) Current presenter theme.
+        var theme = _themeManager?.CurrentTheme;
+        if (theme != null)
+        {
+            if (theme.BackgroundType == BackgroundType.Image)
+            {
+                var themeImage = TryLoadImageBrush(theme.BackgroundImage);
+                if (themeImage != null) { isImage = true; return themeImage; }
+            }
+            var themeColor = TryParseColorBrush(theme.BackgroundColor);
+            if (themeColor != null) return themeColor;
+        }
+
+        // 4) Dark gradient default (top slightly lighter than bottom).
+        return new LinearGradientBrush(
+            (Color)ColorConverter.ConvertFromString("#2A2E3A"),
+            (Color)ColorConverter.ConvertFromString("#12141C"),
+            new System.Windows.Point(0, 0),
+            new System.Windows.Point(0, 1));
+    }
+
+    /// <summary>
+    /// Load an <see cref="ImageBrush"/> for a (possibly relative) image path, reusing the
+    /// same base-dir resolution as the output window. Returns null on empty/missing/corrupt
+    /// paths so background rendering never throws.
+    /// </summary>
+    private static ImageBrush? TryLoadImageBrush(string? path)
+    {
+        var resolved = ResolveImagePath(path);
+        if (string.IsNullOrEmpty(resolved) || !File.Exists(resolved)) return null;
+        try
+        {
+            var bmp = new System.Windows.Media.Imaging.BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bmp.UriSource = new Uri(resolved);
+            bmp.EndInit();
+            bmp.Freeze();
+            return new ImageBrush(bmp) { Stretch = Stretch.UniformToFill };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[OperatorWindow] Thumbnail background load failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Parse a hex color into a SolidColorBrush. Returns null for empty/invalid input so the
+    /// caller can fall through to the next background source.
+    /// </summary>
+    private static SolidColorBrush? TryParseColorBrush(string? hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex)) return null;
+        try
+        {
+            return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Resolve a possibly-relative image path against the app base dir (same rule as the
+    /// output window) so relative slide/theme image paths load regardless of working dir.
+    /// </summary>
+    private static string? ResolveImagePath(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        if (System.IO.Path.IsPathRooted(path)) return path;
+        return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
     }
 
     /// <summary>
