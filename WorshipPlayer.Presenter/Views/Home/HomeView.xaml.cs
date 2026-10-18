@@ -23,6 +23,7 @@ public partial class HomeView : UserControl
     public event EventHandler? ScriptureRequested;
     public event EventHandler? AddServiceRequested;
     public event EventHandler<string>? OpenServiceRequested;
+    public event EventHandler<string>? EditServiceRequested;
     public event EventHandler<string>? RenameServiceRequested;
     public event EventHandler<string>? DeleteServiceRequested;
 
@@ -59,6 +60,12 @@ public partial class HomeView : UserControl
     {
         if (ResolvePath(sender) is { } path)
             OpenServiceRequested?.Invoke(this, path);
+    }
+
+    private void Edit_Click(object sender, RoutedEventArgs e)
+    {
+        if (ResolvePath(sender) is { } path)
+            EditServiceRequested?.Invoke(this, path);
     }
 
     private void Rename_Click(object sender, RoutedEventArgs e)

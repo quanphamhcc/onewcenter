@@ -38,6 +38,12 @@
     <!-- Hover/Interaction Colors -->
     <Color x:Key="OwcSurfaceHoverColor">#2F3544</Color>
 
+    <!-- Blue primary-action accent (distinct from the cyan OwcAccent used for the
+         nav/active-tab). Added for the Home "+ Add a new service" primary button to match
+         the reference design's blue CTA. -->
+    <Color x:Key="OwcBlueColor">#2F6FED</Color>
+    <Color x:Key="OwcBlueHoverColor">#2B63D4</Color>
+
     <!-- Brush Resources -->
     <SolidColorBrush x:Key="OwcBackgroundBrush" Color="{StaticResource OwcBackgroundColor}" />
     <SolidColorBrush x:Key="OwcPanelBrush" Color="{StaticResource OwcPanelColor}" />
@@ -51,6 +57,8 @@
     <SolidColorBrush x:Key="OwcTextSecondaryBrush" Color="{StaticResource OwcTextSecondaryColor}" />
     <SolidColorBrush x:Key="OwcTextMutedBrush" Color="{StaticResource OwcTextMutedColor}" />
     <SolidColorBrush x:Key="OwcBorderBrush" Color="{StaticResource OwcBorderColor}" />
+    <SolidColorBrush x:Key="OwcBlueBrush" Color="{StaticResource OwcBlueColor}" />
+    <SolidColorBrush x:Key="OwcBlueHoverBrush" Color="{StaticResource OwcBlueHoverColor}" />
 
     <!-- Keyed styles - must be explicitly applied via Style="{StaticResource ...}" -->
     <Style x:Key="OwcTextBox" TargetType="TextBox">
@@ -250,6 +258,19 @@
         <Setter Property="Background" Value="{StaticResource OwcAccentBrush}" />
         <Setter Property="Foreground" Value="#FFFFFF" />
         <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- Blue Button Style (Primary CTA used on the Home screen "+ Add a new service").
+         Overrides OwcButtonBase's surface-hover trigger so it stays blue on hover. -->
+    <Style x:Key="OwcBlueButton" TargetType="Button" BasedOn="{StaticResource OwcButtonBase}">
+        <Setter Property="Background" Value="{StaticResource OwcBlueBrush}" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource OwcBlueHoverBrush}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!-- Live Button Style -->

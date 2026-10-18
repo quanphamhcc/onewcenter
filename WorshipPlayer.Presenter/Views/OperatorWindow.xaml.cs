@@ -264,6 +264,7 @@ public partial class OperatorWindow : Window
         _homeView.SlidesRequested += (_, _) => ShowServiceEditor();
         _homeView.AddServiceRequested += OnNewServiceRequested;
         _homeView.OpenServiceRequested += OnOpenServiceRequested;
+        _homeView.EditServiceRequested += OnEditServiceRequested;
         _homeView.RenameServiceRequested += OnRenameServiceRequested;
         _homeView.DeleteServiceRequested += OnDeleteServiceRequested;
     }
