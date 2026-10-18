@@ -31,6 +31,26 @@
         <!-- Main content -->
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel>
+                <!-- New-service fields: only shown when creating a brand-new service
+                     order (no current service loaded and not editing an item). -->
+                <StackPanel x:Name="NewServicePanel" Visibility="Collapsed">
+                    <TextBlock Text="Service name" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox x:Name="ServiceNameTextBox" Style="{StaticResource OwcTextBox}"
+                             Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Service date" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                               FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox x:Name="ServiceDateTextBox" Style="{StaticResource OwcTextBox}"
+                             ToolTip="MM/DD/YYYY with optional time, e.g. 10/18/2026 08:00 AM"/>
+                    <TextBlock Text="MM/DD/YYYY and time like 08:00 AM (time optional)"
+                               Foreground="{StaticResource OwcTextMutedBrush}"
+                               FontSize="10" Margin="0,4,0,12"/>
+
+                    <Border Height="1" Background="{StaticResource OwcBorderBrush}"
+                            Margin="0,0,0,12"/>
+                </StackPanel>
+
                 <!-- Item Type -->
                 <TextBlock Text="Item Type" Foreground="{StaticResource OwcTextSecondaryBrush}"
                            FontSize="11" Margin="0,0,0,4"/>
@@ -45,6 +65,13 @@
                     <ComboBoxItem Content="Blank"/>
                     <ComboBoxItem Content="Custom"/>
                 </ComboBox>
+
+                <!-- Item name / title (shown in the service order list) -->
+                <TextBlock Text="Item name" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                           FontSize="11" Margin="0,0,0,4"/>
+                <TextBox x:Name="ItemTitleTextBox" Style="{StaticResource OwcTextBox}"
+                         Margin="0,0,0,12"
+                         ToolTip="Name shown in the service order (e.g. the song or item title)"/>
 
                 <!-- Background Type -->
                 <TextBlock Text="Background Type" Foreground="{StaticResource OwcTextSecondaryBrush}"

@@ -403,9 +403,9 @@ public partial class OperatorWindow : Window
         {
             if (_serviceOrderManager == null) return;
 
-            // Open the Add Service Item dialog directly (no separate name/date entry step).
-            // AddServiceItemDialog creates a default service order on first item add.
-            var dialog = new AddServiceItemDialog { Owner = this };
+            // Open the Add Service Item dialog in "new service" mode so it shows the
+            // Service name + date fields and creates a brand-new service order.
+            var dialog = new AddServiceItemDialog { Owner = this, CreateNewService = true };
             dialog.ServiceOrderManager = _serviceOrderManager;
             dialog.ItemAdded += (s, item) => { };
             dialog.ShowDialog();
@@ -779,10 +779,10 @@ public partial class OperatorWindow : Window
     {
         try
         {
-            // Open the Add Service Item dialog directly. If no service order exists yet,
-            // AddServiceItemDialog creates a default one on first item add. This matches the
-            // original behavior (no separate name/date entry step before adding items).
-            var dialog = new AddServiceItemDialog();
+            // "+ Add a new service": open the dialog in new-service mode so it shows
+            // the Service name + date fields and creates a brand-new service order
+            // (even when a service is already auto-loaded).
+            var dialog = new AddServiceItemDialog { CreateNewService = true };
             dialog.Owner = this;
             if (_serviceOrderManager != null)
                 dialog.ServiceOrderManager = _serviceOrderManager;

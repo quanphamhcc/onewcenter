@@ -32,6 +32,14 @@ public partial class AddServiceItemDialog : Window
     public ServiceItem? ItemToEdit { get; set; }
 
     /// <summary>
+    /// When true (set before ShowDialog), the dialog shows the Service name + date
+    /// fields and creates a BRAND-NEW service order on confirm, regardless of whether
+    /// a service is already loaded. When false, the dialog just adds an item to the
+    /// current service (and only falls back to creating one if none exists).
+    /// </summary>
+    public bool CreateNewService { get; set; }
+
+    /// <summary>
     /// Fired when an item has been successfully added to the service order.
     /// </summary>
     public event EventHandler<ServiceItem>? ItemAdded;
@@ -49,12 +57,43 @@ public partial class AddServiceItemDialog : Window
 
     private void AddServiceItemDialog_Loaded(object sender, RoutedEventArgs e)
     {
-        if (ItemToEdit == null) return;
+        if (ItemToEdit != null)
+        {
+            // Edit mode: reflect the item's current type and relabel the UI.
+            Title = "Edit Service Item";
+            AddItemButton.Content = "Save";
+            SelectComboBoxItem(ItemTypeComboBox, ItemTypeToText(ItemToEdit.Type));
+            ItemTitleTextBox.Text = ItemToEdit.Title;
 
-        // Edit mode: reflect the item's current type and relabel the UI.
-        Title = "Edit Service Item";
-        AddItemButton.Content = "Save";
-        SelectComboBoxItem(ItemTypeComboBox, ItemTypeToText(ItemToEdit.Type));
+            // Also surface the current service's name + date so they can be edited
+            // from the same dialog (phuong an A).
+            var order = ServiceOrderManager?.CurrentServiceOrder;
+            if (order != null)
+            {
+                NewServicePanel.Visibility = Visibility.Visible;
+                ServiceNameTextBox.Text = order.Name;
+                ServiceDateTextBox.Text = ServiceDateFormatter.FormatUs(order.Date, order.StartTime);
+            }
+            return;
+        }
+
+        // Show the Service name + date fields when the caller explicitly wants to
+        // create a new service, OR when there is no service loaded yet (first run).
+        // The app usually auto-loads a service on startup, so relying on
+        // CurrentServiceOrder == null alone would hide the fields for the common
+        // "+ Add a new service" path — hence the explicit CreateNewService flag.
+        var creatingNewService = CreateNewService
+            || (ServiceOrderManager != null && ServiceOrderManager.CurrentServiceOrder == null);
+
+        if (creatingNewService)
+        {
+            NewServicePanel.Visibility = Visibility.Visible;
+            ServiceNameTextBox.Text = "New Service";
+            // Prefill today's date in US format (time optional, left blank).
+            ServiceDateTextBox.Text = DateTime.Today.ToString(
+                ServiceDateFormatter.UsDateFormat,
+                System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+        }
     }
 
     private async void AddItem_Click(object sender, RoutedEventArgs e)
@@ -75,23 +114,86 @@ public partial class AddServiceItemDialog : Window
         {
             if (ItemToEdit != null)
             {
-                // EDIT: mutate the existing item in place. The operator window owns
+                // EDIT: also apply any changes to the current service's name + date
+                // from the New-service fields (phuong an A). The operator window owns
                 // the save after ItemEdited (one save path), so no SaveAsync here.
+                var order = ServiceOrderManager?.CurrentServiceOrder;
+                if (order != null)
+                {
+                    order.Name = string.IsNullOrWhiteSpace(ServiceNameTextBox.Text)
+                        ? order.Name
+                        : ServiceNameTextBox.Text.Trim();
+
+                    var dateInput = ServiceDateTextBox.Text;
+                    if (!string.IsNullOrWhiteSpace(dateInput))
+                    {
+                        if (ServiceDateFormatter.TryParseUs(dateInput, out var storedDate, out var startTime))
+                        {
+                            order.Date = storedDate;
+                            order.StartTime = startTime;
+                        }
+                        else
+                        {
+                            Confirmed = false;
+                            MessageBox.Show(
+                                "Please enter the service date as MM/DD/YYYY, with an optional time like 08:00 AM.",
+                                "Invalid service date",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            return;
+                        }
+                    }
+                }
+
                 ItemToEdit.Type = itemType;
+                if (!string.IsNullOrWhiteSpace(ItemTitleTextBox.Text))
+                    ItemToEdit.Title = ItemTitleTextBox.Text.Trim();
                 ItemEdited?.Invoke(this, ItemToEdit);
             }
             else if (ServiceOrderManager != null)
             {
-                // Ensure a service order exists
-                if (ServiceOrderManager.CurrentServiceOrder == null)
+                // Create a brand-new service when the caller asked for one (or when
+                // none exists yet), using the name + date the user entered. Otherwise
+                // just add the item to the current service.
+                if (CreateNewService || ServiceOrderManager.CurrentServiceOrder == null)
                 {
-                    ServiceOrderManager.CreateNew("New Service", DateTime.Today.ToString("yyyy-MM-dd"));
+                    var name = string.IsNullOrWhiteSpace(ServiceNameTextBox.Text)
+                        ? "New Service"
+                        : ServiceNameTextBox.Text.Trim();
+
+                    string storedDate;
+                    DateTime? startTime;
+                    var dateInput = ServiceDateTextBox.Text;
+                    if (string.IsNullOrWhiteSpace(dateInput))
+                    {
+                        storedDate = DateTime.Today.ToString(ServiceDateFormatter.StorageDateFormat);
+                        startTime = null;
+                    }
+                    else if (!ServiceDateFormatter.TryParseUs(dateInput, out storedDate, out startTime))
+                    {
+                        // Invalid date: don't create a service; let the user fix it.
+                        Confirmed = false;
+                        MessageBox.Show(
+                            "Please enter the service date as MM/DD/YYYY, with an optional time like 08:00 AM.",
+                            "Invalid service date",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    ServiceOrderManager.CreateNew(name, storedDate);
+                    if (ServiceOrderManager.CurrentServiceOrder != null)
+                        ServiceOrderManager.CurrentServiceOrder.StartTime = startTime;
                 }
+
+                var title = string.IsNullOrWhiteSpace(ItemTitleTextBox.Text)
+                    ? $"{SelectedItemType} Item"
+                    : ItemTitleTextBox.Text.Trim();
 
                 var serviceItem = new ServiceItem
                 {
                     Type = itemType,
-                    Title = $"{SelectedItemType} Item"
+                    Title = title
                 };
 
                 ServiceOrderManager.AddItem(serviceItem);
