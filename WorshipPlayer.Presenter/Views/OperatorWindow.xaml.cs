@@ -276,6 +276,7 @@ public partial class OperatorWindow : Window
         _servicesListView = new ServicesListView();
         _servicesListView.NewServiceRequested += OnNewServiceRequested;
         _servicesListView.OpenServiceRequested += OnOpenServiceRequested;
+        _servicesListView.EditServiceRequested += OnEditServiceRequested;
         _servicesListView.RenameServiceRequested += OnRenameServiceRequested;
         _servicesListView.DeleteServiceRequested += OnDeleteServiceRequested;
     }
@@ -450,6 +451,41 @@ public partial class OperatorWindow : Window
         }
     }
 
+    private async void OnEditServiceRequested(object? sender, string path)
+    {
+        try
+        {
+            if (_serviceOrderManager == null) return;
+
+            // Ensure the clicked service is the loaded one so we edit the right order.
+            if (!SamePath(path, _currentServicePath))
+            {
+                if (!await LoadServiceOrderAsync(path)) return;
+                _currentServicePath = path;
+                ShowServiceEditor();
+                RefreshServiceOrderList();
+            }
+
+            var order = _serviceOrderManager.CurrentServiceOrder;
+            if (order == null) return;
+
+            var dlg = new ServiceInfoDialog { Owner = this };
+            dlg.Initialize(order.Name, order.Date, order.StartTime);
+            if (dlg.ShowDialog() != true || !dlg.Confirmed) return;
+
+            order.Name = dlg.ServiceName;
+            order.Date = dlg.ServiceDate;
+            order.StartTime = dlg.StartTime;
+            await SaveServiceOrderAsync(_currentServicePath);
+            RefreshServiceOrderList();
+            await RefreshServiceListingAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Edit Service", ex.Message);
+        }
+    }
+
     private async void OnDeleteServiceRequested(object? sender, string path)
     {
         try
@@ -523,6 +559,14 @@ public partial class OperatorWindow : Window
             _countdownService.Tick += OnCountdownTick;
             _countdownService.Completed += OnCountdownCompleted;
         }
+
+        // Now that the service-order manager is injected, populate the Home + Services
+        // listings. Initialize() runs before SetServices(), so the earlier
+        // RefreshServiceListingInitialAsync() call saw a null manager and returned
+        // without loading anything — hence the empty "Upcoming services" table. Refresh
+        // here so existing services show up immediately on the Home screen.
+        if (_serviceOrderManager != null)
+            _ = RefreshServiceListingInitialAsync();
     }
 
     private void OnAlertShown(object? sender, AlertTemplate template)

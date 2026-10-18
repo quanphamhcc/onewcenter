@@ -90,7 +90,9 @@
                                     <Button.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Open" Click="Open_Click" Tag="{Binding FilePath}" />
+                                            <MenuItem Header="Edit" Click="Edit_Click" Tag="{Binding FilePath}" />
                                             <MenuItem Header="Rename" Click="Rename_Click" Tag="{Binding FilePath}" />
+                                            <Separator />
                                             <MenuItem Header="Delete" Click="Delete_Click" Tag="{Binding FilePath}" />
                                         </ContextMenu>
                                     </Button.ContextMenu>
