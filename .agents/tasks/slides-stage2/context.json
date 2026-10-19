@@ -1,0 +1,31 @@
+{
+  "project_type": ".NET 8 WPF worship presentation app (OWC / WorshipBacktrackPlayer). Core class library + WPF Presenter (net8.0-windows) + xUnit test project. SQLite persistence via a shared app.db.",
+  "language": "C# (.NET 8)",
+  "build_system": "dotnet / MSBuild. Solution: WorshipBacktrackPlayer.sln. Projects: WorshipPlayer.Core (net8.0), WorshipPlayer.Presenter (net8.0-windows, WPF), WorshipPlayer.Tests (net8.0, xUnit), plus WorshipPlayer.Audio/UI. Quirk: the Presenter project is net8.0-windows and CANNOT be referenced by the Tests project, so Tests references Core only and <Compile Include> links specific Presenter service .cs files when it must test them. WPF UI is NOT unit-tested headless.",
+  "test_framework": "xUnit 2.6.6 (Microsoft.NET.Test.Sdk 17.8.0, xunit.runner.visualstudio). Microsoft.Data.Sqlite 8.0.0 available in Tests for direct-DB assertions.",
+  "build_command": "dotnet build WorshipBacktrackPlayer.sln  (per-project: dotnet build WorshipPlayer.Core\\WorshipPlayer.Core.csproj ; dotnet build WorshipPlayer.Presenter\\WorshipPlayer.Presenter.csproj)",
+  "test_command": "dotnet test WorshipPlayer.Tests\\WorshipPlayer.Tests.csproj  (filter example: --filter \"SlideOperations|SlidePresentation\")",
+  "verification_instructions": "1) dotnet build WorshipPlayer.Core for the helper. 2) dotnet test WorshipPlayer.Tests for the Core unit tests. 3) dotnet build WorshipPlayer.Presenter for the WPF editor + wiring (XAML must compile). 4) dotnet build WorshipBacktrackPlayer.sln + dotnet test for full integration. Baseline is GREEN today (Tests build + Presenter build both succeed; one pre-existing unrelated CS0414 warning in MediaLibraryPanel.xaml.cs line 16).",
+  "snapshot_or_generated_files": null,
+  "environment_constraints": "ALL files live under the worktree c:\\Users\\Quang\\Documents\\OneWorshipcenter\\owc-multitrack-feature-lyric-presenter\\owc-multitrack-feature-lyric-presenter\\.worktrees\\slides-stage2 (branch feature/slides-editor). Step cwd is the parent repo, so EVERY path must be absolute inside the worktree; relative paths land in the wrong tree. Use 'git -C <worktree>' for git. IGNORE the sibling folder 'owc-multitrack-feature-lyric-presenter 2'. Do NOT reset/delete app.db (schema is additive CREATE TABLE IF NOT EXISTS). Commit locally on the branch; never push.",
+  "contribution_requirements": "No AGENTS.md / CONTRIBUTING / .kiro steering exist in the repo. Follow conventions from sibling code. Keep OperatorWindow.xaml StaticResource-free (it uses inline brushes); new editor Window MAY merge Themes/OwcDesignSystem.xaml and use StaticResource (SlideNameDialog + SongMetadataEditorWindow do). Leave the model's nullable background fields intact. Preserve Stage-1 library behavior; Add-to-service stays a Stage-3 stub.",
+  "key_patterns": "Modal editor window: a Window that merges OwcDesignSystem.xaml, Background=#0F1117, WindowStartupLocation=CenterOwner, hosts content, bridges Save/Cancel to DialogResult + Close() (see SongMetadataEditorWindow.xaml.cs). Opened with Owner=Window.GetWindow(this) / Owner=this, ShowDialog(), act on DialogResult==true (see SlidesLibraryPanel.AddSlides_Click opening SlideNameDialog). Async _Click handlers call the service then Refresh(). Service UpdateAsync persists the WHOLE object (slides+order), re-stamps UpdatedAt and re-derives SlideCount; the UI never writes those columns. GetByIdAsync returns a fresh deserialized object (safe to treat as an editable copy). Tests use a temp app.db via the service ctor and SqliteConnection.ClearAllPools() in Dispose to allow temp-file deletion on Windows.",
+  "relevant_files": [
+    "FILES TO MODIFY:",
+    "WorshipPlayer.Presenter\\Views\\OperatorWindow.xaml.cs (OnEditPresentationRequested ~line 3282; ShowComingSoon ~3279; SwitchToTab Slides case ~2753; SetServices ~538/563; _slidePresentationService field line 106)",
+    "WorshipPlayer.Tests\\SlidePresentationServiceTests.cs (extend with an UpdateAsync-round-trip-via-helper test)",
+    "FILES TO CREATE:",
+    "WorshipPlayer.Core\\Services\\SlideOperations.cs (pure static helper)",
+    "WorshipPlayer.Tests\\SlideOperationsTests.cs",
+    "WorshipPlayer.Presenter\\Views\\Slides\\SlideEditorWindow.xaml",
+    "WorshipPlayer.Presenter\\Views\\Slides\\SlideEditorWindow.xaml.cs",
+    "FILES TO STUDY AS PATTERNS (do not change):",
+    "WorshipPlayer.Core\\Models\\SlidePresentation.cs (model field names: Id/Name/CreatedAt/UpdatedAt/Slides/ThumbnailPath; PresentationSlide Id/Order/Text/BackgroundImage?/BackgroundColor?)",
+    "WorshipPlayer.Core\\Services\\SlidePresentationService.cs + Services\\Interfaces\\ISlidePresentationService.cs",
+    "WorshipPlayer.Presenter\\Views\\Slides\\SlidesLibraryPanel.xaml(.cs) (EditPresentationRequested, SlidePresentationListItem, public Refresh())",
+    "WorshipPlayer.Presenter\\Views\\Slides\\SlideNameDialog.xaml(.cs) (nearest modal dialog)",
+    "WorshipPlayer.Presenter\\Views\\SongLibrary\\SongMetadataEditorWindow.xaml(.cs) (modal editor window + DialogResult bridge)",
+    "WorshipPlayer.Presenter\\Themes\\OwcDesignSystem.xaml (keyed styles: OwcTextBox, OwcButtonBase, OwcBlueButton, OwcPanelBorder, OwcSurfaceBorder, OwcBackgroundBrush, OwcSurfaceBrush, OwcBorderBrush, OwcTextPrimaryBrush, OwcTextSecondaryBrush, OwcTextMutedBrush, OwcBlueBrush)"
+  ],
+  "directory_structure": "WorshipPlayer.Core\\Models (domain models), WorshipPlayer.Core\\Services (+ Services\\Interfaces) (SQLite-backed stores + AppDatabase connection factory), WorshipPlayer.Presenter\\Views (WPF windows/panels; subfolders Slides, SongLibrary, MediaLibrary, Scripture, ServiceBuilder, Settings, Templates), WorshipPlayer.Presenter\\Themes (OwcDesignSystem.xaml), WorshipPlayer.Tests (xUnit, Core-only reference)."
+}

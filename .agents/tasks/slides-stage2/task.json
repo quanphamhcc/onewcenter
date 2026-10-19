@@ -1,0 +1,7 @@
+{
+  "task_id": "task-slides-stage2-editor",
+  "task_description": "Slides Stage 2: make the library ⋮ -> Edit open a real modal SlideEditorWindow for a SlidePresentation (add/delete/reorder/edit-text slides + rename), persist via SlidePresentationService.UpdateAsync on Save-and-close and refresh the library grid; Close discards. Pure slide-op logic in a testable Core helper with unit tests. Code only; do not reset app.db; keep OperatorWindow StaticResource-free.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
