@@ -1,0 +1,125 @@
+<Window x:Class="WorshipPlayer.Presenter.Views.Slides.SlideEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WorshipPlayer.Presenter.Views.Slides"
+        Title="Edit Slides"
+        Width="900" Height="600"
+        MinWidth="640" MinHeight="420"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F1117"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <DockPanel Margin="16">
+
+        <!-- Header: editable name on the left, actions on the right -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Content="Close" Style="{StaticResource OwcButtonBase}"
+                        Click="Close_Click" MinWidth="80" Margin="0,0,8,0"/>
+                <Button x:Name="SaveButton" Content="Save and close"
+                        Style="{StaticResource OwcBlueButton}"
+                        Click="SaveAndClose_Click" MinWidth="120"/>
+            </StackPanel>
+
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="PRESENTATION NAME" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                           FontSize="10" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <TextBox x:Name="NameTextBox" Style="{StaticResource OwcTextBox}"
+                         FontSize="16" MaxWidth="420" HorizontalAlignment="Left"
+                         MinWidth="240"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Body: slide list (left) + slide text editor (center) -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: SLIDES column -->
+            <Border Grid.Column="0" Style="{StaticResource OwcPanelBorder}" Padding="12">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button DockPanel.Dock="Right" Content="+"
+                                Style="{StaticResource OwcBlueButton}"
+                                FontSize="16" FontWeight="Bold"
+                                Width="32" Height="28" Padding="0"
+                                Click="AddSlide_Click"
+                                ToolTip="Add slide"/>
+                        <TextBlock Text="SLIDES" Foreground="{StaticResource OwcTextSecondaryBrush}"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                                Margin="0,8,0,0">
+                        <Button Content="Delete" Style="{StaticResource OwcCompactButton}"
+                                Click="DeleteSlide_Click" Margin="0,0,6,0"/>
+                        <Button Content="Move up" Style="{StaticResource OwcCompactButton}"
+                                Click="MoveUp_Click" Margin="0,0,6,0"/>
+                        <Button Content="Move down" Style="{StaticResource OwcCompactButton}"
+                                Click="MoveDown_Click"/>
+                    </StackPanel>
+
+                    <ListBox x:Name="SlidesListBox"
+                             Background="Transparent" BorderThickness="0"
+                             Foreground="{StaticResource OwcTextPrimaryBrush}"
+                             HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             SelectionChanged="SlidesListBox_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource OwcSurfaceBrush}"
+                                        CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}"
+                                                   Foreground="{StaticResource OwcTextSecondaryBrush}"
+                                                   FontSize="10" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Preview}"
+                                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                                   FontSize="12" TextTrimming="CharacterEllipsis"
+                                                   Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- Center: slide text editor with placeholder overlay -->
+            <Border Grid.Column="2" Style="{StaticResource OwcPanelBorder}" Padding="12">
+                <Grid>
+                    <TextBox x:Name="SlideTextBox"
+                             Style="{StaticResource OwcTextBox}"
+                             AcceptsReturn="True" AcceptsTab="True"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"
+                             VerticalContentAlignment="Top"
+                             FontSize="15"
+                             TextChanged="SlideTextBox_TextChanged"/>
+                    <TextBlock x:Name="PlaceholderText"
+                               Text="Click to add text"
+                               Foreground="{StaticResource OwcTextMutedBrush}"
+                               FontSize="15"
+                               Margin="12,8,0,0"
+                               IsHitTestVisible="False"
+                               VerticalAlignment="Top" HorizontalAlignment="Left"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

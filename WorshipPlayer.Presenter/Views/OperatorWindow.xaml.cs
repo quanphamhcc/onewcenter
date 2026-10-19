@@ -3278,9 +3278,23 @@ public partial class OperatorWindow : Window
     private void ShowComingSoon(string title, string message) =>
         MessageBox.Show(this, message, title, MessageBoxButton.OK, MessageBoxImage.Information);
 
-    // STAGE 2 STUB: opening the slide editor is not built in Stage 1.
-    private void OnEditPresentationRequested(object? sender, SlidePresentationListItem item)
-        => ShowComingSoon("Edit Slides", "The slide editor is coming in a later update.");
+    // Opens the modal slide editor for the chosen presentation (Stage 2). Saving persists via the
+    // service and refreshes the library grid; Close/X discards unsaved changes.
+    private async void OnEditPresentationRequested(object? sender, SlidePresentationListItem item)
+    {
+        if (_slidePresentationService == null) return;
+
+        var presentation = await _slidePresentationService.GetByIdAsync(item.Id);
+        if (presentation is null)
+        {
+            ShowComingSoon("Edit Slides", "This presentation could not be found. It may have been deleted.");
+            return;
+        }
+
+        var win = new SlideEditorWindow(presentation, _slidePresentationService) { Owner = this };
+        if (win.ShowDialog() == true)
+            _slidesLibraryPanel?.Refresh();
+    }
 
     // STAGE 3 STUB: adding a Slides presentation to a service order is not built in Stage 1.
     private void OnAddPresentationToServiceRequested(object? sender, SlidePresentationListItem item)
