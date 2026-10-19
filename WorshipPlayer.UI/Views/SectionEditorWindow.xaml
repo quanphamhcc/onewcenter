@@ -132,6 +132,78 @@
                             <TextBlock Text="Manual Tools" FontSize="12" FontWeight="Bold"
                                        Foreground="#50E3C2" Margin="0,0,0,8" />
 
+                            <!-- ═══ Manual Click Track (tempo + time-sig + metronome + generate) ═══ -->
+                            <TextBlock Text="Manual Click Track" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#B0B0C0" Margin="0,0,0,6" />
+
+                            <!-- BPM: type an exact value + nudge buttons -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="BPM:" FontSize="11" Foreground="#B0B0C0"
+                                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBox x:Name="ManualBpmBox" Width="60" Height="24"
+                                         FontSize="11" Background="#2B2B3D" Foreground="White"
+                                         BorderBrush="#4A4A60" VerticalContentAlignment="Center"
+                                         Padding="4,0" LostFocus="ManualBpmBox_LostFocus"
+                                         KeyDown="ManualBpmBox_KeyDown"
+                                         ToolTip="Type an exact BPM (40-220) and press Enter" />
+                                <Button Content="-1" Style="{StaticResource TransportButton}"
+                                        Click="BpmNudgeMinus1_Click" Margin="4,0,0,0"
+                                        ToolTip="Decrease BPM by 1" />
+                                <Button Content="+1" Style="{StaticResource TransportButton}"
+                                        Click="BpmNudgePlus1_Click" Margin="2,0,0,0"
+                                        ToolTip="Increase BPM by 1" />
+                                <Button Content="-0.1" Style="{StaticResource TransportButton}"
+                                        Click="BpmNudgeMinusTenth_Click" Margin="2,0,0,0"
+                                        ToolTip="Decrease BPM by 0.1" />
+                                <Button Content="+0.1" Style="{StaticResource TransportButton}"
+                                        Click="BpmNudgePlusTenth_Click" Margin="2,0,0,0"
+                                        ToolTip="Increase BPM by 0.1" />
+                            </StackPanel>
+
+                            <!-- BPM slider (40-220) — DEFAULT slider, no implicit style -->
+                            <Slider x:Name="ManualBpmSlider" Minimum="40" Maximum="220"
+                                    Height="22" Margin="0,0,0,2"
+                                    SmallChange="1" LargeChange="5" TickFrequency="10"
+                                    ValueChanged="ManualBpmSlider_ValueChanged"
+                                    ToolTip="Drag to set BPM (40-220)" />
+                            <TextBlock x:Name="ManualBpmEcho" Text="" FontSize="10"
+                                       Foreground="#7ED321" Margin="0,0,0,6" />
+
+                            <!-- Time signature + tap tempo -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="Time Sig:" FontSize="11" Foreground="#B0B0C0"
+                                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <ComboBox x:Name="TimeSigComboBox" Width="70" Height="24"
+                                          FontSize="11" Background="#2B2B3D" Foreground="White"
+                                          BorderBrush="#4A4A60"
+                                          SelectionChanged="TimeSig_SelectionChanged"
+                                          ToolTip="Beats per bar (6/8 is felt in 2)">
+                                    <ComboBoxItem Content="3/4" Tag="3/4" />
+                                    <ComboBoxItem Content="4/4" Tag="4/4" />
+                                    <ComboBoxItem Content="6/8" Tag="6/8" />
+                                </ComboBox>
+                                <Button x:Name="TapTempoBtn" Content="Tap Tempo"
+                                        Style="{StaticResource TransportButton}"
+                                        Click="TapMode_Click" Margin="6,0,0,0"
+                                        ToolTip="Tap spacebar along to the beat to compute BPM" />
+                            </StackPanel>
+
+                            <!-- Metronome preview + generate -->
+                            <WrapPanel Margin="0,0,0,4">
+                                <Button x:Name="MetronomeToggleBtn" Content="Start Metronome"
+                                        Style="{StaticResource TransportButton}"
+                                        Click="Metronome_Click" Margin="0,0,4,4"
+                                        ToolTip="Loop a live click at the current BPM + time signature" />
+                                <Button Content="Generate Manual Click"
+                                        Style="{StaticResource TransportButton}"
+                                        Click="GenerateManualClick_Click" Margin="0,0,4,4"
+                                        ToolTip="Write a single click WAV from the chosen tempo, starting at the Downbeat (Beat 1) anchor" />
+                            </WrapPanel>
+                            <TextBlock x:Name="ManualClickStatus" Text="" FontSize="10"
+                                       Foreground="#7ED321" TextWrapping="Wrap" Margin="0,0,0,6" />
+
+                            <Separator Background="#4A4A60" Margin="0,0,0,8" />
+
                             <WrapPanel Margin="0,0,0,8">
                                 <Button x:Name="TapModeBtn" Content="TAP BEATS"
                                         Style="{StaticResource TransportButton}"

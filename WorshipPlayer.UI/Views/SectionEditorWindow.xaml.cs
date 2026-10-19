@@ -23,6 +23,10 @@ public partial class SectionEditorWindow : Window
     private List<double> _tapTimes = new();
     private DateTime _tapStartTime;
 
+    // Manual click-track / metronome state
+    private MetronomePlayer? _metronome;
+    private bool _suppressTempoSync = false;
+
     public SectionEditorWindow(Song song, AudioEngine? audioEngine = null)
     {
         InitializeComponent();
@@ -73,6 +77,94 @@ public partial class SectionEditorWindow : Window
             QualityPanel.Visibility = Visibility.Visible;
             BpmOverridePanel.Visibility = Visibility.Visible;
         }
+
+        InitializeManualTempoControls();
+    }
+
+    /// <summary>
+    /// Seed the manual click-track controls (BPM box/slider/echo + time-sig picker) from the
+    /// current song. Runs under the _suppressTempoSync guard so no handler fires during init.
+    /// </summary>
+    private void InitializeManualTempoControls()
+    {
+        _suppressTempoSync = true;
+        try
+        {
+            double bpm = _song.Bpm > 0 ? _song.Bpm : 120.0;
+            bpm = ClampBpm(bpm);
+
+            ManualBpmBox.Text = bpm.ToString("0.#");
+            ManualBpmSlider.Value = bpm;
+            ManualBpmEcho.Text = $"Current: {bpm:0.#} BPM";
+
+            // Select the time-signature item matching the song (default 4/4).
+            int num = _song.TimeSignatureNumerator > 0 ? _song.TimeSignatureNumerator : 4;
+            int den = _song.TimeSignatureDenominator > 0 ? _song.TimeSignatureDenominator : 4;
+            string sig = $"{num}/{den}";
+            TimeSigComboBox.SelectedIndex = sig switch
+            {
+                "3/4" => 0,
+                "6/8" => 2,
+                _ => 1 // 4/4 default
+            };
+        }
+        finally
+        {
+            _suppressTempoSync = false;
+        }
+    }
+
+    private static double ClampBpm(double bpm)
+    {
+        if (double.IsNaN(bpm) || double.IsInfinity(bpm)) return 120.0;
+        if (bpm < 40) return 40;
+        if (bpm > 220) return 220;
+        return bpm;
+    }
+
+    /// <summary>
+    /// Read the currently-selected time signature from the picker as (numerator, denominator).
+    /// Defaults to 4/4 if nothing is selected.
+    /// </summary>
+    private (int Numerator, int Denominator) GetSelectedTimeSignature()
+    {
+        if (TimeSigComboBox?.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+        {
+            var parts = tag.Split('/');
+            if (parts.Length == 2 &&
+                int.TryParse(parts[0], out int n) && int.TryParse(parts[1], out int d) &&
+                n > 0 && d > 0)
+            {
+                return (n, d);
+            }
+        }
+        return (4, 4);
+    }
+
+    /// <summary>
+    /// Stop + dispose the metronome so it never keeps playing after the editor closes.
+    /// </summary>
+    protected override void OnClosed(EventArgs e)
+    {
+        try
+        {
+            _metronome?.Stop();
+            _metronome?.Dispose();
+        }
+        catch { /* never throw during teardown */ }
+        finally
+        {
+            _metronome = null;
+        }
+
+        // Also detach the tap keydown handler if tapping was left active.
+        if (_tapping)
+        {
+            try { this.KeyDown -= TapMode_KeyDown; } catch { }
+            _tapping = false;
+        }
+
+        base.OnClosed(e);
     }
 
     private bool _isSingleTrack = false;
@@ -1270,14 +1362,242 @@ public partial class SectionEditorWindow : Window
 
             if (result == MessageBoxResult.Yes)
             {
-                _currentGrid = grid;
-                _song.Bpm = grid.Bpm;
-                _song.BeatIntervalMs = grid.BeatIntervalMs;
-                _song.BarDurationMs = grid.BarDurationMs;
-                _song.GridAnchorMs = grid.GridAnchorMs;
-                SongInfoText.Text = $"BPM: {_song.Bpm:F2} | Beat: {_song.BeatIntervalMs:F3} ms | Bar: {_song.BarDurationMs:F3} ms | Anchor: {MsToTimecode(_song.GridAnchorMs)}";
+                // Route the tapped BPM through the single tempo sync point so the BPM box,
+                // slider, echo, shared grid, metronome, and generated WAV all stay in sync.
+                ApplyManualTempo(grid.Bpm);
             }
         }
+    }
+
+    // ─── MANUAL CLICK TRACK: TEMPO SYNC + METRONOME + GENERATE ────────────
+
+    /// <summary>
+    /// SINGLE sync point for every tempo input (type, nudge, slider, tap, time-sig picker).
+    /// Clamps/validates the BPM, rebuilds the shared _currentGrid via the extended
+    /// BuildGridFromManualAnchor so sections/bars/anchor recalc, then refreshes ALL UI inputs
+    /// without re-triggering each other (guarded by _suppressTempoSync). If the metronome is
+    /// playing, its live loop is retuned without stacking players.
+    /// </summary>
+    private void ApplyManualTempo(double bpm, bool rebuildGrid = true)
+    {
+        bpm = ClampBpm(bpm);
+
+        var (num, den) = GetSelectedTimeSignature();
+
+        // Update the song's tempo + time signature.
+        _song.Bpm = bpm;
+        _song.BeatIntervalMs = 60000.0 / bpm;
+        _song.TimeSignatureNumerator = num;
+        _song.TimeSignatureDenominator = den;
+
+        if (rebuildGrid)
+        {
+            double totalDuration = EstimateTotalDuration();
+            var grid = _beatService.BuildGridFromManualAnchor(
+                _song.GridAnchorMs, bpm, num, den, totalDuration);
+
+            _currentGrid = grid;
+            _song.BeatIntervalMs = grid.BeatIntervalMs;
+            _song.BarDurationMs = grid.BarDurationMs;
+            _song.GridAnchorMs = grid.GridAnchorMs;
+        }
+
+        // Refresh all tempo UI inputs so they always reflect the SAME selected tempo.
+        _suppressTempoSync = true;
+        try
+        {
+            ManualBpmBox.Text = bpm.ToString("0.#");
+            ManualBpmSlider.Value = bpm;
+            ManualBpmEcho.Text = $"Current: {bpm:0.#} BPM  ({num}/{den})";
+            SongInfoText.Text = $"BPM: {_song.Bpm:F2} | Key: {_song.OriginalKey} | Beat: {_song.BeatIntervalMs:F3} ms | Bar: {_song.BarDurationMs:F3} ms | Anchor: {MsToTimecode(_song.GridAnchorMs)}";
+        }
+        finally
+        {
+            _suppressTempoSync = false;
+        }
+
+        // Keep sections/bars view in sync with the rebuilt grid.
+        SectionsGrid.Items.Refresh();
+
+        // If the metronome is live, retune it without stacking players.
+        if (_metronome != null && _metronome.IsPlaying)
+        {
+            _metronome.Update(bpm, num, den);
+        }
+    }
+
+    /// <summary>Current BPM from the song, falling back to 120 and clamped to range.</summary>
+    private double CurrentManualBpm() => ClampBpm(_song.Bpm > 0 ? _song.Bpm : 120.0);
+
+    private void ManualBpmBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_suppressTempoSync) return;
+        CommitManualBpmBox();
+    }
+
+    private void ManualBpmBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            e.Handled = true;
+            CommitManualBpmBox();
+        }
+    }
+
+    private void CommitManualBpmBox()
+    {
+        if (ManualBpmBox == null) return;
+
+        string text = ManualBpmBox.Text?.Trim() ?? "";
+        if (double.TryParse(text, out double bpm) && !double.IsNaN(bpm) && bpm > 0)
+        {
+            ApplyManualTempo(bpm);
+        }
+        else
+        {
+            // Invalid/empty — revert to the current value, no crash.
+            _suppressTempoSync = true;
+            try { ManualBpmBox.Text = CurrentManualBpm().ToString("0.#"); }
+            finally { _suppressTempoSync = false; }
+        }
+    }
+
+    private void BpmNudgePlus1_Click(object sender, RoutedEventArgs e) => ApplyManualTempo(CurrentManualBpm() + 1);
+    private void BpmNudgeMinus1_Click(object sender, RoutedEventArgs e) => ApplyManualTempo(CurrentManualBpm() - 1);
+    private void BpmNudgePlusTenth_Click(object sender, RoutedEventArgs e) => ApplyManualTempo(Math.Round(CurrentManualBpm() + 0.1, 1));
+    private void BpmNudgeMinusTenth_Click(object sender, RoutedEventArgs e) => ApplyManualTempo(Math.Round(CurrentManualBpm() - 0.1, 1));
+
+    private void ManualBpmSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressTempoSync) return;
+        ApplyManualTempo(e.NewValue);
+    }
+
+    private void TimeSig_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // Guard against firing during XAML init (controls not yet wired).
+        if (_suppressTempoSync || ManualBpmBox == null) return;
+        ApplyManualTempo(CurrentManualBpm());
+    }
+
+    // ─── METRONOME LIVE PREVIEW ───────────────────────────────────────────
+
+    private void Metronome_Click(object sender, RoutedEventArgs e)
+    {
+        _metronome ??= new MetronomePlayer();
+
+        if (_metronome.IsPlaying)
+        {
+            _metronome.Stop();
+            MetronomeToggleBtn.Content = "Start Metronome";
+            ManualClickStatus.Text = "Metronome stopped.";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGray;
+            return;
+        }
+
+        double bpm = CurrentManualBpm();
+        var (num, den) = GetSelectedTimeSignature();
+
+        try
+        {
+            _metronome.Start(bpm, num, den);
+        }
+        catch (Exception ex)
+        {
+            // Defensive — MetronomePlayer.Start should not throw, but never crash the editor.
+            ManualClickStatus.Text = $"Metronome error: {ex.Message}";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            MetronomeToggleBtn.Content = "Start Metronome";
+            return;
+        }
+
+        if (_metronome.IsPlaying)
+        {
+            MetronomeToggleBtn.Content = "Stop Metronome";
+            ManualClickStatus.Text = $"Metronome playing at {bpm:0.#} BPM ({num}/{den}).";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
+        }
+        else
+        {
+            // No audio device or degenerate tempo — friendly status, button stays in "Start".
+            MetronomeToggleBtn.Content = "Start Metronome";
+            ManualClickStatus.Text = _metronome.LastError != null
+                ? $"Cannot start metronome: {_metronome.LastError}"
+                : "Cannot start metronome (no audio output device).";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+        }
+    }
+
+    // ─── GENERATE MANUAL CLICK ────────────────────────────────────────────
+
+    private void GenerateManualClick_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentGrid == null || _song.Bpm <= 0 || _currentGrid.Bpm <= 0)
+        {
+            MessageBox.Show("Set a BPM first (type, nudge, slider, or Tap Tempo).",
+                "No BPM", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_song.FolderPath))
+        {
+            MessageBox.Show("No song folder set — cannot write the click WAV.",
+                "No Folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Ensure duration is known so the WAV covers the whole song.
+        if (_currentGrid.TotalDurationMs <= 0)
+            _currentGrid.TotalDurationMs = EstimateTotalDuration();
+
+        if (_currentGrid.TotalDurationMs <= 0)
+        {
+            MessageBox.Show("Cannot determine song duration. Add audio files first.",
+                "No Duration", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        string outputPath = Path.Combine(_song.FolderPath, "Generated_Click_Manual.wav");
+
+        try
+        {
+            _beatService.GenerateManualClickTrack(_currentGrid, outputPath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to write the click track:\n\n{ex.Message}",
+                "Generate Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        // Idempotently surface the track: remove any prior Generated_Click_Manual.wav entry
+        // (case-insensitive) then insert a single fresh one. Do NOT disturb A/B/C entries.
+        const string manualFileName = "Generated_Click_Manual.wav";
+        var existing = _song.Tracks
+            .Where(t => string.Equals(t.FileName, manualFileName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        foreach (var t in existing)
+            _song.Tracks.Remove(t);
+
+        _song.Tracks.Insert(0, new TrackInfo
+        {
+            FileName = manualFileName,
+            Label = "Click (Manual)",
+            Output = TrackOutput.IEM,
+            DefaultVolume = 0.8f,
+            Color = "#50E3C2"
+        });
+
+        var (num, den) = GetSelectedTimeSignature();
+        ManualClickStatus.Text = $"Generated {manualFileName} at {_currentGrid.Bpm:0.#} BPM ({num}/{den}).";
+        ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
+
+        MessageBox.Show(
+            $"Generated {manualFileName}\n\n" +
+            $"BPM: {_currentGrid.Bpm:0.#}  |  Time Sig: {num}/{den}\n" +
+            $"Start (Beat 1): {MsToTimecode(_currentGrid.GridAnchorMs)}\n\n" +
+            "Added as the 'Click (Manual)' track (IEM).",
+            "Manual Click Generated", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     // ─── GENERATE CLICK TRACK ─────────────────────────────────────────────
