@@ -1309,29 +1309,72 @@ public partial class SectionEditorWindow : Window
         if (existingClickPath != null && existingClickPath.Contains("Generated_Click", StringComparison.OrdinalIgnoreCase))
             existingClickPath = null;
 
-        string outputPath = Path.Combine(_song.FolderPath, "Generated_Click.wav");
-        _beatService.GenerateClickTrack(_currentGrid, outputPath, existingClickTrackPath: existingClickPath);
+        // Generate all three modes (A/B/C) in one action so the operator can A/B/C them.
+        string pathA = Path.Combine(_song.FolderPath, "Generated_Click_A.wav");
+        string pathB = Path.Combine(_song.FolderPath, "Generated_Click_B.wav");
+        string pathC = Path.Combine(_song.FolderPath, "Generated_Click_C.wav");
 
-        // Add to song tracks if not already there
-        bool hasClick = _song.Tracks.Any(t => t.Label.Contains("Click", StringComparison.OrdinalIgnoreCase));
-        if (!hasClick)
+        try
         {
-            _song.Tracks.Insert(0, new TrackInfo
-            {
-                FileName = "Generated_Click.wav",
-                Label = "Click (Generated)",
-                Output = TrackOutput.IEM,
-                DefaultVolume = 0.8f,
-                Color = "#FF6B6B"
-            });
+            _beatService.GenerateClickTrack(_currentGrid, pathA,
+                BeatDetectionService.ClickGenerationMode.AdaptiveSync, existingClickTrackPath: existingClickPath);
+            _beatService.GenerateClickTrack(_currentGrid, pathB,
+                BeatDetectionService.ClickGenerationMode.HybridAnchor, existingClickTrackPath: existingClickPath);
+            _beatService.GenerateClickTrack(_currentGrid, pathC,
+                BeatDetectionService.ClickGenerationMode.PureGrid);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to generate click tracks:\n\n{ex.Message}",
+                "Generate Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
         }
 
-        string syncMsg = existingClickPath != null
-            ? $"\n\nSynced to existing click track:\n{Path.GetFileName(existingClickPath)}"
-            : "";
+        // Idempotent surfacing: remove any previously-inserted generated-click entries, then
+        // re-insert A/B/C exactly once each at the top (stable order), so pressing Generate
+        // twice overwrites the WAVs without duplicating or stacking track entries.
+        var existing = _song.Tracks
+            .Where(t => t.FileName.StartsWith("Generated_Click", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        foreach (var t in existing)
+            _song.Tracks.Remove(t);
 
-        MessageBox.Show($"Click track generated at {_currentGrid.Bpm:F1} BPM!\n\nSaved: {outputPath}{syncMsg}",
-            "Click Generated", MessageBoxButton.OK, MessageBoxImage.Information);
+        _song.Tracks.Insert(0, new TrackInfo
+        {
+            FileName = "Generated_Click_C.wav",
+            Label = "Click C (Grid)",
+            Output = TrackOutput.IEM,
+            DefaultVolume = 0.8f,
+            Color = "#4A90D9"
+        });
+        _song.Tracks.Insert(0, new TrackInfo
+        {
+            FileName = "Generated_Click_B.wav",
+            Label = "Click B (Hybrid)",
+            Output = TrackOutput.IEM,
+            DefaultVolume = 0.8f,
+            Color = "#F5A623"
+        });
+        _song.Tracks.Insert(0, new TrackInfo
+        {
+            FileName = "Generated_Click_A.wav",
+            Label = "Click A (Adaptive Sync)",
+            Output = TrackOutput.IEM,
+            DefaultVolume = 0.8f,
+            Color = "#FF6B6B"
+        });
+
+        string syncMsg = existingClickPath != null
+            ? $"Existing click found for sync (A) / anchor (B):\n{Path.GetFileName(existingClickPath)}"
+            : "No existing click found — A and B fall back to the math grid.";
+
+        MessageBox.Show(
+            $"Generated 3 click tracks at {_currentGrid.Bpm:F1} BPM:\n\n" +
+            $"• Generated_Click_A.wav — Mode A (Adaptive Sync)\n" +
+            $"• Generated_Click_B.wav — Mode B (Hybrid anchor)\n" +
+            $"• Generated_Click_C.wav — Mode C (Pure grid)\n\n" +
+            $"{syncMsg}",
+            "Click Tracks Generated", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     // ─── SAVE / APPLY / CANCEL ────────────────────────────────────────────

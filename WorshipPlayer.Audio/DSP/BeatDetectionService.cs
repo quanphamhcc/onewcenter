@@ -14,6 +14,34 @@ namespace WorshipPlayer.Audio.DSP;
 public class BeatDetectionService
 {
     /// <summary>
+    /// Selects how <see cref="GenerateClickTrack(BeatGrid,string,ClickGenerationMode,int,string?)"/>
+    /// computes the beat positions for the generated click. The three modes let the
+    /// operator A/B/C three different strategies for the same song.
+    /// </summary>
+    public enum ClickGenerationMode
+    {
+        /// <summary>
+        /// Mode A — robust adaptive sync. Detects the real click peaks with a local
+        /// (moving-median) threshold, snaps them to the grid, and interpolates any missing
+        /// beats so every beat across the full duration has a click (never silent).
+        /// </summary>
+        AdaptiveSync,
+
+        /// <summary>
+        /// Mode B — hybrid. Every beat is generated mathematically from the grid; a usable
+        /// existing click is used ONLY to lock the anchor/phase (shift the grid anchor to the
+        /// detected downbeat). No silent beats.
+        /// </summary>
+        HybridAnchor,
+
+        /// <summary>
+        /// Mode C — pure math grid. The existing click is ignored entirely; beats are
+        /// GridAnchorMs + n * BeatIntervalMs across the full duration.
+        /// </summary>
+        PureGrid
+    }
+
+    /// <summary>
     /// Result of beat detection containing the grid parameters.
     /// </summary>
     public class BeatGrid
@@ -320,44 +348,57 @@ public class BeatDetectionService
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Generate a synthetic click track audio file from a beat grid.
-    /// If an existing click track is provided, the generated click will be synchronized
-    /// to the actual peak positions of the existing click (eliminating drift).
-    /// Saves as WAV file in the song folder.
+    /// Backward-compatible entry point. Generates a click synchronized to an existing click
+    /// when one is supplied (Mode A behavior), otherwise a pure math grid (Mode C).
+    /// Prefer the mode-aware overload for A/B/C generation.
     /// </summary>
     public void GenerateClickTrack(BeatGrid grid, string outputPath, int sampleRate = 44100, string? existingClickTrackPath = null)
     {
+        var mode = (existingClickTrackPath != null && File.Exists(existingClickTrackPath))
+            ? ClickGenerationMode.AdaptiveSync
+            : ClickGenerationMode.PureGrid;
+        GenerateClickTrack(grid, outputPath, mode, sampleRate, existingClickTrackPath);
+    }
+
+    /// <summary>
+    /// Generate a synthetic click track audio file from a beat grid using the selected mode.
+    /// Mode A (AdaptiveSync) robustly syncs to the existing click and interpolates missing beats;
+    /// Mode B (HybridAnchor) emits every grid beat but locks phase to the existing click;
+    /// Mode C (PureGrid) ignores the existing click entirely.
+    /// Modes A and B never leave a beat silent across the full duration.
+    /// Saves as a 16-bit mono WAV file.
+    /// </summary>
+    public void GenerateClickTrack(BeatGrid grid, string outputPath, ClickGenerationMode mode,
+        int sampleRate = 44100, string? existingClickTrackPath = null)
+    {
         double totalDurationMs = grid.TotalDurationMs;
+        if (totalDurationMs <= 0 || sampleRate <= 0)
+        {
+            // Nothing meaningful to write; emit an empty (silent) file so callers never crash.
+            using var emptyWriter = new WaveFileWriter(outputPath, new WaveFormat(Math.Max(1, sampleRate), 16, 1));
+            return;
+        }
+
         int totalSamples = (int)(totalDurationMs / 1000.0 * sampleRate);
-        float[] clickAudio = new float[totalSamples];
+        float[] clickAudio = new float[Math.Max(0, totalSamples)];
 
         // Generate click sound (short sine burst)
         int clickLengthSamples = (int)(0.01 * sampleRate); // 10ms click
         float[] clickHigh = GenerateClickSound(sampleRate, 1500, clickLengthSamples, 0.9f); // Beat 1: higher pitch
         float[] clickLow = GenerateClickSound(sampleRate, 1000, clickLengthSamples, 0.6f);  // Beats 2-4: lower pitch
 
-        // Determine beat positions to use
-        List<double> beatPositions;
+        // Decode the existing click to mono (only when a mode that uses it is selected).
+        float[]? existingMono = null;
+        int existingSampleRate = sampleRate;
+        if (mode != ClickGenerationMode.PureGrid)
+        {
+            existingMono = TryLoadMono(existingClickTrackPath, out existingSampleRate);
+        }
 
-        if (existingClickTrackPath != null && File.Exists(existingClickTrackPath))
-        {
-            // Sync to existing click track: use its actual peak positions
-            beatPositions = ExtractClickPositions(existingClickTrackPath, grid);
-        }
-        else
-        {
-            // No existing click: generate from grid mathematically
-            beatPositions = new List<double>();
-            double t = grid.GridAnchorMs;
-            while (t < totalDurationMs)
-            {
-                beatPositions.Add(t);
-                t += grid.BeatIntervalMs;
-            }
-        }
+        // Compute beat positions via the pure, unit-testable helper.
+        List<double> beatPositions = ComputeBeatPositions(grid, mode, existingMono, existingSampleRate);
 
         // Place clicks at the determined positions
-        int beatInBar = 0;
         for (int i = 0; i < beatPositions.Count; i++)
         {
             double posMs = beatPositions[i];
@@ -366,15 +407,12 @@ public class BeatDetectionService
 
             // Determine which beat in the bar this is
             // Use grid anchor to figure out the beat-in-bar index
+            int beatInBar = 0;
             double elapsedFromAnchor = posMs - grid.GridAnchorMs;
-            if (elapsedFromAnchor >= 0)
+            if (elapsedFromAnchor >= 0 && grid.BeatIntervalMs > 0 && grid.TimeSignatureNumerator > 0)
             {
                 int totalBeats = (int)Math.Round(elapsedFromAnchor / grid.BeatIntervalMs);
                 beatInBar = totalBeats % grid.TimeSignatureNumerator;
-            }
-            else
-            {
-                beatInBar = 0;
             }
 
             float[] clickSound = (beatInBar == 0) ? clickHigh : clickLow;
@@ -385,77 +423,269 @@ public class BeatDetectionService
             }
         }
 
-        // Save as WAV
+        // Save as WAV (16-bit PCM mono). NAudio converts the float sample to the configured
+        // 16-bit format internally, so we write floats directly.
         using var writer = new WaveFileWriter(outputPath, new WaveFormat(sampleRate, 16, 1));
-        // Convert float to 16-bit PCM
         foreach (float sample in clickAudio)
         {
-            short pcmSample = (short)(Math.Clamp(sample, -1f, 1f) * short.MaxValue);
-            writer.WriteSample(sample);
+            writer.WriteSample(Math.Clamp(sample, -1f, 1f));
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // PURE BEAT-POSITION COMPUTATION (no file I/O — unit-testable)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Compute the beat positions (ms) for a given generation mode. This is a PURE function:
+    /// it takes already-decoded mono samples (or null when no existing click is available) and
+    /// returns the list of beat times. No file reads, no WAV writing. The WAV-writing wrapper
+    /// delegates here so the algorithm can be unit-tested with synthetic buffers.
+    /// </summary>
+    public List<double> ComputeBeatPositions(BeatGrid grid, ClickGenerationMode mode,
+        float[]? existingMono, int existingSampleRate)
+    {
+        switch (mode)
+        {
+            case ClickGenerationMode.PureGrid:
+                return BuildGridPositions(grid.GridAnchorMs, grid);
+
+            case ClickGenerationMode.HybridAnchor:
+            {
+                double anchor = grid.GridAnchorMs;
+                var peaks = DetectAdaptivePeaks(existingMono, existingSampleRate, grid);
+                if (peaks.Count >= 4)
+                {
+                    // Lock phase to the first confident peak, snapped to the grid phase.
+                    anchor = PhaseAlignedAnchor(peaks[0], grid);
+                }
+                return BuildGridPositions(anchor, grid);
+            }
+
+            case ClickGenerationMode.AdaptiveSync:
+            default:
+            {
+                var peaks = DetectAdaptivePeaks(existingMono, existingSampleRate, grid);
+                if (peaks.Count < 4)
+                {
+                    // Too few usable peaks → fall back to the full math grid (never silent).
+                    return BuildGridPositions(grid.GridAnchorMs, grid);
+                }
+
+                // Snap each detected peak to the nearest grid beat and de-duplicate.
+                var snapped = new List<double>();
+                foreach (var p in peaks)
+                {
+                    double s = SnapToBeat(p, grid);
+                    if (snapped.Count == 0 || Math.Abs(s - snapped[^1]) > 1e-6)
+                        snapped.Add(s);
+                }
+                snapped.Sort();
+
+                // Interpolate so no beat is ever silent: fill start→first, internal gaps,
+                // and last→end using the grid spacing.
+                return InterpolateToFullGrid(snapped, grid);
+            }
         }
     }
 
     /// <summary>
-    /// Extract actual click positions from an existing click track audio file.
-    /// Used to synchronize the generated click with the original click track,
-    /// so both are perfectly aligned to the actual recorded beats.
+    /// Build the full mathematical grid of beats from a given anchor across the song duration.
     /// </summary>
-    private List<double> ExtractClickPositions(string clickTrackPath, BeatGrid grid)
+    private static List<double> BuildGridPositions(double anchorMs, BeatGrid grid)
     {
-        float[] audioData;
-        int sampleRate;
-        int channels;
+        var positions = new List<double>();
+        if (grid.BeatIntervalMs <= 0 || grid.TotalDurationMs <= 0)
+            return positions;
 
-        using (var reader = new AudioFileReader(clickTrackPath))
+        // Walk backwards so beats cover from (near) song start, then forwards to the end.
+        double start = anchorMs;
+        while (start - grid.BeatIntervalMs >= 0)
+            start -= grid.BeatIntervalMs;
+
+        double t = start;
+        while (t < grid.TotalDurationMs)
         {
-            sampleRate = reader.WaveFormat.SampleRate;
-            channels = reader.WaveFormat.Channels;
-            long totalSamples = reader.Length / sizeof(float);
-            audioData = new float[totalSamples];
+            if (t >= 0) positions.Add(t);
+            t += grid.BeatIntervalMs;
+        }
+        return positions;
+    }
 
-            int offset = 0;
-            int remaining = (int)totalSamples;
-            while (remaining > 0)
+    /// <summary>
+    /// Return the grid anchor shifted so its phase matches the detected first-peak position
+    /// (keeps BeatIntervalMs; only the phase within a beat changes).
+    /// </summary>
+    private static double PhaseAlignedAnchor(double firstPeakMs, BeatGrid grid)
+    {
+        if (grid.BeatIntervalMs <= 0) return grid.GridAnchorMs;
+        // Phase offset of the detected peak relative to the beat interval.
+        double phase = firstPeakMs % grid.BeatIntervalMs;
+        if (phase < 0) phase += grid.BeatIntervalMs;
+        return phase;
+    }
+
+    /// <summary>
+    /// Given confident, grid-snapped beat times, fill any gap larger than ~1.5x the beat
+    /// interval with grid-spaced beats, and extend coverage from song start to the first beat
+    /// and from the last beat to the end. Guarantees no silent beat across the full duration.
+    /// </summary>
+    private static List<double> InterpolateToFullGrid(List<double> snapped, BeatGrid grid)
+    {
+        if (grid.BeatIntervalMs <= 0 || grid.TotalDurationMs <= 0)
+            return snapped;
+        if (snapped.Count == 0)
+            return BuildGridPositions(grid.GridAnchorMs, grid);
+
+        double interval = grid.BeatIntervalMs;
+        double gapThreshold = interval * 1.5;
+        var result = new List<double>();
+
+        // Fill from song start up to the first detected beat using grid spacing.
+        double firstBeat = snapped[0];
+        for (double t = firstBeat - interval; t >= 0; t -= interval)
+            result.Add(t);
+        result.Reverse();
+
+        // Walk the detected beats, filling internal gaps.
+        result.Add(firstBeat);
+        for (int i = 1; i < snapped.Count; i++)
+        {
+            double prev = snapped[i - 1];
+            double cur = snapped[i];
+            double gap = cur - prev;
+            if (gap > gapThreshold)
             {
-                int read = reader.Read(audioData, offset, Math.Min(remaining, 65536));
-                if (read == 0) break;
-                offset += read;
-                remaining -= read;
+                for (double t = prev + interval; t < cur - 1e-6; t += interval)
+                    result.Add(t);
             }
+            result.Add(cur);
         }
 
-        // Convert to mono if stereo
-        float[] mono;
-        if (channels == 2)
-        {
-            mono = new float[audioData.Length / 2];
-            for (int i = 0; i < mono.Length; i++)
-                mono[i] = (audioData[i * 2] + audioData[i * 2 + 1]) * 0.5f;
-        }
-        else
-        {
-            mono = audioData;
-        }
+        // Fill from the last detected beat to the end of the song.
+        double last = snapped[^1];
+        for (double t = last + interval; t < grid.TotalDurationMs; t += interval)
+            result.Add(t);
 
-        // Use a minimum interval slightly less than the expected beat interval
-        // to catch all clicks without false positives
-        double minInterval = grid.BeatIntervalMs * 0.6;
-        var peaks = DetectPeaks(mono, sampleRate, thresholdFactor: 0.25, minIntervalMs: minInterval);
-
-        if (peaks.Count < 4)
+        // Normalize: sort and remove near-duplicates.
+        result.Sort();
+        var deduped = new List<double>();
+        foreach (var t in result)
         {
-            // Fallback: if we can't get good peaks, use mathematical grid
-            var fallback = new List<double>();
-            double t = grid.GridAnchorMs;
-            while (t < grid.TotalDurationMs)
+            if (deduped.Count == 0 || Math.Abs(t - deduped[^1]) > 1e-6)
+                deduped.Add(t);
+        }
+        return deduped;
+    }
+
+    /// <summary>
+    /// Adaptive peak detector used by Modes A and B. Operates on an in-memory mono buffer and
+    /// uses a LOCAL (moving-median) threshold instead of a single global max*factor so quiet
+    /// sections still register peaks. Returns peak positions in milliseconds. Pure (no I/O).
+    /// </summary>
+    public List<double> DetectAdaptivePeaks(float[]? mono, int sampleRate, BeatGrid grid)
+    {
+        var peaks = new List<double>();
+        if (mono == null || mono.Length == 0 || sampleRate <= 0 || grid.BeatIntervalMs <= 0)
+            return peaks;
+
+        // RMS envelope: 20ms window / 5ms hop (matches the original detector).
+        int windowSize = Math.Max(1, sampleRate / 50);
+        int hopSize = Math.Max(1, sampleRate / 200);
+        var envelope = new List<double>();
+        for (int i = 0; i + windowSize <= mono.Length; i += hopSize)
+        {
+            double sum = 0;
+            for (int j = 0; j < windowSize; j++)
+                sum += mono[i + j] * mono[i + j];
+            envelope.Add(Math.Sqrt(sum / windowSize));
+        }
+        if (envelope.Count == 0) return peaks;
+
+        // Moving-median local threshold. Window spans roughly one beat so the threshold
+        // tracks the local loudness and does not blind quiet sections.
+        int beatFrames = Math.Max(1, (int)(grid.BeatIntervalMs / 1000.0 * sampleRate / hopSize));
+        int medianHalf = Math.Max(1, beatFrames); // ~2 beats wide
+        double globalMean = envelope.Average();
+        double floor = globalMean * 0.15; // guard against pure-silence false peaks
+
+        // Relaxed minimum-interval gate: 0.4x beat interval (was 0.6x) so true adjacent beats
+        // are not swallowed.
+        double minIntervalMs = grid.BeatIntervalMs * 0.4;
+        double minIntervalFrames = minIntervalMs / 1000.0 * sampleRate / hopSize;
+        int lastPeakIdx = -1_000_000;
+
+        var window = new List<double>();
+        for (int i = 1; i < envelope.Count - 1; i++)
+        {
+            int lo = Math.Max(0, i - medianHalf);
+            int hi = Math.Min(envelope.Count - 1, i + medianHalf);
+            window.Clear();
+            for (int k = lo; k <= hi; k++) window.Add(envelope[k]);
+            window.Sort();
+            double localMedian = window[window.Count / 2];
+            double threshold = Math.Max(localMedian * 1.5, floor);
+
+            if (envelope[i] > threshold &&
+                envelope[i] > envelope[i - 1] &&
+                envelope[i] >= envelope[i + 1] &&
+                (i - lastPeakIdx) >= minIntervalFrames)
             {
-                fallback.Add(t);
-                t += grid.BeatIntervalMs;
+                double timeMs = (double)i * hopSize / sampleRate * 1000.0;
+                peaks.Add(timeMs);
+                lastPeakIdx = i;
             }
-            return fallback;
         }
 
         return peaks;
+    }
+
+    /// <summary>
+    /// Load an audio file into a mono float buffer. Returns null on any problem (missing,
+    /// corrupt, unreadable) so callers can gracefully fall back to the math grid.
+    /// </summary>
+    private static float[]? TryLoadMono(string? path, out int sampleRate)
+    {
+        sampleRate = 44100;
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            return null;
+
+        try
+        {
+            float[] audioData;
+            int channels;
+            using (var reader = new AudioFileReader(path))
+            {
+                sampleRate = reader.WaveFormat.SampleRate;
+                channels = reader.WaveFormat.Channels;
+                long totalSamples = reader.Length / sizeof(float);
+                if (totalSamples <= 0) return null;
+                audioData = new float[totalSamples];
+
+                int offset = 0;
+                int remaining = (int)totalSamples;
+                while (remaining > 0)
+                {
+                    int read = reader.Read(audioData, offset, Math.Min(remaining, 65536));
+                    if (read == 0) break;
+                    offset += read;
+                    remaining -= read;
+                }
+            }
+
+            if (channels == 2)
+            {
+                var monoBuf = new float[audioData.Length / 2];
+                for (int i = 0; i < monoBuf.Length; i++)
+                    monoBuf[i] = (audioData[i * 2] + audioData[i * 2 + 1]) * 0.5f;
+                return monoBuf;
+            }
+            return audioData;
+        }
+        catch
+        {
+            return null; // corrupt / unreadable → graceful fallback
+        }
     }
 
     /// <summary>

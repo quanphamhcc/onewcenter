@@ -11,6 +11,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="xunit" Version="2.6.6" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -36,6 +37,8 @@
     <Compile Include="..\WorshipPlayer.Presenter\Services\TemplateService.cs" Link="TemplateService.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Services\AlertService.cs" Link="AlertService.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Services\CountdownService.cs" Link="CountdownService.cs" />
+    <!-- Audio DSP is net8.0-windows; link the source to unit-test the pure click-track logic -->
+    <Compile Include="..\WorshipPlayer.Audio\DSP\BeatDetectionService.cs" Link="BeatDetectionService.cs" />
   </ItemGroup>
 
 </Project>
