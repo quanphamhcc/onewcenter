@@ -1505,7 +1505,11 @@ public partial class SectionEditorWindow : Window
 
     private void ManualBpmSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (_suppressTempoSync) return;
+        // Guard against firing during XAML init: the slider's Minimum/Maximum are set in XAML,
+        // which coerces the initial Value and raises ValueChanged inside InitializeComponent(),
+        // before the constructor body assigns _song. Mirror TimeSig_SelectionChanged so
+        // ApplyManualTempo (which dereferences _song) never runs before the window is built.
+        if (_suppressTempoSync || _song == null || ManualBpmBox == null) return;
         ApplyManualTempo(e.NewValue);
     }
 
