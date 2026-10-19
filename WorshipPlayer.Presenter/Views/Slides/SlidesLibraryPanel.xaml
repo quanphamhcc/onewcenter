@@ -1,0 +1,124 @@
+<UserControl x:Class="WorshipPlayer.Presenter.Views.Slides.SlidesLibraryPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/WorshipPlayer.Presenter;component/Themes/OwcDesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource OwcPanelBorder}" Padding="12">
+        <DockPanel>
+            <!-- Header -->
+            <TextBlock DockPanel.Dock="Top" Text="Slides"
+                       FontSize="14" FontWeight="SemiBold"
+                       Foreground="{StaticResource OwcTextPrimaryBrush}"
+                       Margin="0,0,0,10"/>
+
+            <!-- Toolbar row 1: wide Search Slides box (left), blue + Add Slides CTA (right) -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+                <TextBox x:Name="SearchTextBox"
+                         Style="{StaticResource OwcTextBox}"
+                         HorizontalAlignment="Left" Width="320" Height="32" VerticalAlignment="Center"
+                         ToolTip="Search Slides"
+                         TextChanged="SearchTextBox_TextChanged"/>
+
+                <Button x:Name="AddSlidesButton"
+                        Content="+ Add Slides"
+                        Style="{StaticResource OwcBlueButton}"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="120" Height="32"
+                        Click="AddSlides_Click"/>
+            </Grid>
+
+            <!-- Toolbar row 2: simple A-Z / Date sort -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                <TextBlock Text="Sort" VerticalAlignment="Center" Margin="0,0,8,0"
+                           FontSize="11"
+                           Foreground="{StaticResource OwcTextSecondaryBrush}"/>
+                <Button Content="A-Z" Style="{StaticResource OwcButtonBase}"
+                        FontSize="10" Padding="8,4" Height="32" VerticalAlignment="Center" Margin="0,0,4,0"
+                        Click="SortAZ_Click"/>
+                <Button Content="Date" Style="{StaticResource OwcButtonBase}"
+                        FontSize="10" Padding="8,4" Height="32" VerticalAlignment="Center"
+                        Click="SortDate_Click"/>
+            </StackPanel>
+
+            <!-- Empty state -->
+            <TextBlock x:Name="EmptyStateText" DockPanel.Dock="Top"
+                       Text="No slide presentations yet. Click + Add Slides to create one."
+                       Foreground="{StaticResource OwcTextSecondaryBrush}"
+                       FontSize="12" TextWrapping="Wrap"
+                       Margin="4,20" HorizontalAlignment="Center"
+                       Visibility="Visible"/>
+
+            <!-- Card grid -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="PresentationsItemsControl">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource OwcSurfaceBorder}"
+                                    Width="200" Margin="0,0,12,12" Padding="10">
+                                <StackPanel>
+                                    <!-- Thumbnail placeholder (16:9-ish tile, muted monitor glyph) -->
+                                    <Border Height="100" Margin="0,0,0,8"
+                                            Background="{StaticResource OwcBackgroundBrush}"
+                                            BorderBrush="{StaticResource OwcBorderBrush}"
+                                            BorderThickness="1" CornerRadius="6">
+                                        <TextBlock Text="&#x1F5A5;"
+                                                   FontSize="30"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource OwcTextMutedBrush}"/>
+                                    </Border>
+
+                                    <!-- Name + ⋮ overflow -->
+                                    <Grid>
+                                        <TextBlock Text="{Binding Name}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                   Margin="0,0,28,0"
+                                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                                   FontSize="13" FontWeight="SemiBold"/>
+                                        <Button Content="&#x22EE;"
+                                                Style="{StaticResource OwcButtonBase}"
+                                                Background="Transparent"
+                                                Padding="6,2" FontSize="16"
+                                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                Click="Overflow_Click">
+                                            <Button.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Add to current service"
+                                                              Click="AddToServiceMenu_Click" Tag="{Binding}"/>
+                                                    <MenuItem Header="Edit"
+                                                              Click="EditMenu_Click" Tag="{Binding}"/>
+                                                    <MenuItem Header="Duplicate"
+                                                              Click="DuplicateMenu_Click" Tag="{Binding}"/>
+                                                    <MenuItem Header="Delete"
+                                                              Click="DeleteMenu_Click" Tag="{Binding}"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Sub-line: "N slides · Modified <relative time>" -->
+                                    <TextBlock Text="{Binding SubLine}"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource OwcTextSecondaryBrush}"
+                                               FontSize="11" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</UserControl>

@@ -183,6 +183,10 @@
                             Padding="12,6" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
                             BorderBrush="Transparent" BorderThickness="0,0,0,2"
                             Click="TabSongs_Click" Cursor="Hand" />
+                    <Button x:Name="TabSlides" Content="Slides" FontSize="12" FontWeight="SemiBold"
+                            Padding="12,6" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
+                            BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                            Click="TabSlides_Click" Cursor="Hand" />
                     <Button x:Name="TabScripture" Content="Scripture" FontSize="12" FontWeight="SemiBold"
                             Padding="12,6" Margin="0,0,2,0" Background="Transparent" Foreground="#8B92A5"
                             BorderBrush="Transparent" BorderThickness="0,0,0,2"
@@ -441,6 +445,9 @@
                     <!-- Other panels (hidden by default) -->
                     <Border x:Name="SongsPanel" Visibility="Collapsed" Background="#0F1117">
                         <ContentPresenter x:Name="SongsPanelContent" />
+                    </Border>
+                    <Border x:Name="SlidesPanel" Visibility="Collapsed" Background="#0F1117">
+                        <ContentPresenter x:Name="SlidesPanelContent" />
                     </Border>
                     <Border x:Name="ScripturePanel" Visibility="Collapsed" Background="#0F1117">
                         <ContentPresenter x:Name="ScripturePanelContent" />

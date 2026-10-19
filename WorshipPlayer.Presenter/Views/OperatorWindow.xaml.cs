@@ -14,6 +14,7 @@ using WorshipPlayer.Presenter.Views.Home;
 using WorshipPlayer.Presenter.Views.SongLibrary;
 using WorshipPlayer.Presenter.Views.Scripture;
 using WorshipPlayer.Presenter.Views.MediaLibrary;
+using WorshipPlayer.Presenter.Views.Slides;
 using WorshipPlayer.Presenter.Views.Tools;
 using WorshipPlayer.Presenter.Views.Settings;
 using WorshipPlayer.Presenter.Views.ServiceBuilder;
@@ -102,10 +103,12 @@ public partial class OperatorWindow : Window
     private ServiceOrderManager? _serviceOrderManager;
     private SongManager? _songManager;
     private ITemplateService? _templateService;
+    private ISlidePresentationService? _slidePresentationService;
 
     // Navigation tab state
     private string _activeTab = "Services";
     private SongLibraryPanel? _songLibraryPanel;
+    private SlidesLibraryPanel? _slidesLibraryPanel;
     private ScriptureBrowserPanel? _scriptureBrowserPanel;
     private MediaLibraryPanel? _mediaLibraryPanel;
 
@@ -543,7 +546,8 @@ public partial class OperatorWindow : Window
         IBibleProvider? bibleProvider,
         ServiceOrderManager? serviceOrderManager,
         SongManager? songManager,
-        ITemplateService? templateService)
+        ITemplateService? templateService,
+        ISlidePresentationService? slidePresentationService)
     {
         _songLibraryService = songLibraryService;
         _mediaLibraryService = mediaLibraryService;
@@ -556,6 +560,7 @@ public partial class OperatorWindow : Window
         _serviceOrderManager = serviceOrderManager;
         _songManager = songManager;
         _templateService = templateService;
+        _slidePresentationService = slidePresentationService;
 
         // Subscribe to alert/countdown events for output window
         if (_alertService != null)
@@ -2668,6 +2673,7 @@ public partial class OperatorWindow : Window
     private void TabLive_Click(object sender, RoutedEventArgs e) => SwitchToTab("Live");
     private void TabServices_Click(object sender, RoutedEventArgs e) => ShowServicesList();
     private void TabSongs_Click(object sender, RoutedEventArgs e) => SwitchToTab("Songs");
+    private void TabSlides_Click(object sender, RoutedEventArgs e) => SwitchToTab("Slides");
     private void TabScripture_Click(object sender, RoutedEventArgs e) => SwitchToTab("Scripture");
     private void TabMedia_Click(object sender, RoutedEventArgs e) => SwitchToTab("Media");
 
@@ -2692,6 +2698,7 @@ public partial class OperatorWindow : Window
         ServicesPanel.Visibility = Visibility.Collapsed;
         SongsPanel.Visibility = Visibility.Collapsed;
         ScripturePanel.Visibility = Visibility.Collapsed;
+        SlidesPanel.Visibility = Visibility.Collapsed;
         MediaPanel.Visibility = Visibility.Collapsed;
         ErrorPanel.Visibility = Visibility.Collapsed;
         // Sidebar + center header follow SERVICE state, not the tab: once a service is loaded
@@ -2704,6 +2711,7 @@ public partial class OperatorWindow : Window
         SetTabInactive(TabLive);
         SetTabInactive(TabServices);
         SetTabInactive(TabSongs);
+        SetTabInactive(TabSlides);
         SetTabInactive(TabScripture);
         SetTabInactive(TabMedia);
 
@@ -2740,6 +2748,22 @@ public partial class OperatorWindow : Window
                     SongsPanelContent.Content = _songLibraryPanel;
                     SongsPanel.Visibility = Visibility.Visible;
                     SetTabActive(TabSongs);
+                    break;
+
+                case "Slides":
+                    if (_slidesLibraryPanel == null)
+                    {
+                        _slidesLibraryPanel = new SlidesLibraryPanel();
+                        if (_slidePresentationService != null)
+                            _slidesLibraryPanel.SlidePresentationService = _slidePresentationService;
+                        // Edit (Stage 2) and Add-to-service (Stage 3) are stubbed — the panel
+                        // raises these and the host shows a "coming soon" notice.
+                        _slidesLibraryPanel.EditPresentationRequested += OnEditPresentationRequested;
+                        _slidesLibraryPanel.AddPresentationToServiceRequested += OnAddPresentationToServiceRequested;
+                    }
+                    SlidesPanelContent.Content = _slidesLibraryPanel;
+                    SlidesPanel.Visibility = Visibility.Visible;
+                    SetTabActive(TabSlides);
                     break;
 
                 case "Scripture":
@@ -3245,6 +3269,22 @@ public partial class OperatorWindow : Window
             MessageBoxButton.OK,
             MessageBoxImage.Error);
     }
+
+    /// <summary>
+    /// Informational "not yet available" notice for deferred (Stage 2/3) features. Uses the
+    /// Information icon (NOT ShowToolError's red Error dialog) so a deliberately-deferred feature
+    /// is not presented as a failure — matching the existing informational notices in this file.
+    /// </summary>
+    private void ShowComingSoon(string title, string message) =>
+        MessageBox.Show(this, message, title, MessageBoxButton.OK, MessageBoxImage.Information);
+
+    // STAGE 2 STUB: opening the slide editor is not built in Stage 1.
+    private void OnEditPresentationRequested(object? sender, SlidePresentationListItem item)
+        => ShowComingSoon("Edit Slides", "The slide editor is coming in a later update.");
+
+    // STAGE 3 STUB: adding a Slides presentation to a service order is not built in Stage 1.
+    private void OnAddPresentationToServiceRequested(object? sender, SlidePresentationListItem item)
+        => ShowComingSoon("Add to Service", "Adding slides to a service is coming in a later update.");
 
     /// <summary>
     /// Export the current service order to a text file.

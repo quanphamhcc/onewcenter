@@ -49,6 +49,7 @@ public class PresenterIntegration : IDisposable
     public SongUsageService SongUsageService { get; }
     public BibleDatabaseService BibleDatabaseService { get; }
     public ITemplateService TemplateService { get; }
+    public ISlidePresentationService SlidePresentationService { get; }
 
     // Windows
     private OperatorWindow? _operatorWindow;
@@ -135,6 +136,11 @@ public class PresenterIntegration : IDisposable
         // Custom slide templates are persisted in the shared SQLite app.db (migrated from
         // the Templates/*.json folder); built-ins stay code-seeded.
         TemplateService = new TemplateService(appDbPath);
+
+        // Slides-library presentations are persisted in the shared SQLite app.db (new
+        // SlidePresentations table), constructed the same way the sibling services above are
+        // (reuses the same appDbPath).
+        SlidePresentationService = new SlidePresentationService(appDbPath);
     }
 
     /// <summary>
@@ -268,7 +274,8 @@ public class PresenterIntegration : IDisposable
                 BibleDatabaseService,
                 ServiceOrderManager,
                 _songManager,
-                TemplateService);
+                TemplateService,
+                SlidePresentationService);
             // F6: give the operator window the single-monitor Go-Live hooks.
             _operatorWindow.SetGoLiveHandlers(HandleGoLiveSingleMonitor, () => IsSingleMonitorOutput);
             _operatorWindow.Closed += (s, e) => _operatorWindow = null;
