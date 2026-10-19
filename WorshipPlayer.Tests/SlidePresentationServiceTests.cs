@@ -115,6 +115,35 @@ public class SlidePresentationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdateAsync_RoundTripsSlidesBuiltViaSlideOperations()
+    {
+        var created = await _service.CreateAsync("Built With Helper");
+
+        // Build the slide list purely through the Core helper: add several, edit text, move one.
+        var slides = created.Slides;
+        SlideOperations.AddSlide(slides).Text = "Verse 1";
+        SlideOperations.AddSlide(slides).Text = "Chorus";
+        SlideOperations.AddSlide(slides).Text = "Verse 2";
+        SlideOperations.MoveUp(slides, 2); // Chorus and Verse 2 swap -> Verse 1, Verse 2, Chorus
+
+        await _service.UpdateAsync(created);
+
+        var fetched = await _service.GetByIdAsync(created.Id);
+        Assert.NotNull(fetched);
+        Assert.Equal(3, fetched!.Slides.Count);
+
+        // Text and Order both round-trip, in the helper-produced sequence.
+        Assert.Equal("Verse 1", fetched.Slides[0].Text);
+        Assert.Equal("Verse 2", fetched.Slides[1].Text);
+        Assert.Equal("Chorus", fetched.Slides[2].Text);
+        Assert.Equal(new[] { 0, 1, 2 }, fetched.Slides.Select(s => s.Order).ToArray());
+
+        // The promoted SlideCount (surfaced via GetAll) reflects the updated list.
+        var all = await _service.GetAllAsync();
+        Assert.Equal(3, all.Single(p => p.Id == created.Id).Slides.Count);
+    }
+
+    [Fact]
     public async Task DuplicateAsync_DeepClones_WithNewIds_AndDoesNotMutateOriginal()
     {
         var original = await _service.CreateAsync("Original");
