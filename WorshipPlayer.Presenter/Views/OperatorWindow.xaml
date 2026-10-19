@@ -277,6 +277,8 @@
                              Background="Transparent" BorderThickness="0"
                              Foreground="#F0F2F5"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.PanningMode="VerticalOnly"
+                             IsManipulationEnabled="True"
                              SelectionChanged="ServiceOrderList_SelectionChanged"
                              MouseDoubleClick="ServiceOrderList_MouseDoubleClick">
                         <ListBox.ItemTemplate>
@@ -409,7 +411,9 @@
 
                     <!-- Services panel (slide grid - shown when a service is opened) -->
                     <Grid x:Name="ServicesPanel" Visibility="Collapsed">
-                        <ScrollViewer x:Name="SlideSectionsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="6">
+                        <ScrollViewer x:Name="SlideSectionsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="6"
+                                      PanningMode="VerticalOnly" PanningRatio="1.0"
+                                      IsManipulationEnabled="True">
                             <Grid>
                                 <TextBlock x:Name="EmptyStateText"
                                            Text="Load a song in the backtrack to see slides here.&#x0a;Or click 'Load Service' in the sidebar."

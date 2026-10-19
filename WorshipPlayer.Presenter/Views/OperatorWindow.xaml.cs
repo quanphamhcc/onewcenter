@@ -2034,13 +2034,19 @@ public partial class OperatorWindow : Window
                 var slides = GetSlidesForItem(item);
                 if (slides.Count == 0)
                 {
-                    // Unresolved song / empty item — render a note, never crash.
+                    // No slides to render. For a Song this almost always means the song has
+                    // no lyrics yet (its sections carry no text) rather than a real load
+                    // failure, so say so clearly instead of the misleading "could not load".
+                    var note = item.Type == ServiceItemType.Song
+                        ? "This song has no lyrics yet. Add lyrics in the song editor to see slides here."
+                        : "No slides to show for this item.";
                     grid.Children.Add(new TextBlock
                     {
-                        Text = "No slides to show for this item (could not load).",
+                        Text = note,
                         FontSize = 11,
                         Foreground = new SolidColorBrush(TextSecondary),
-                        Margin = new Thickness(6, 2, 6, 6)
+                        Margin = new Thickness(6, 2, 6, 6),
+                        TextWrapping = TextWrapping.Wrap
                     });
                 }
                 else
