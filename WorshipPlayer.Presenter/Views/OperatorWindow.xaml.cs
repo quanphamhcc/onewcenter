@@ -3296,9 +3296,44 @@ public partial class OperatorWindow : Window
             _slidesLibraryPanel?.Refresh();
     }
 
-    // STAGE 3 STUB: adding a Slides presentation to a service order is not built in Stage 1.
-    private void OnAddPresentationToServiceRequested(object? sender, SlidePresentationListItem item)
-        => ShowComingSoon("Add to Service", "Adding slides to a service is coming in a later update.");
+    // STAGE 3: add an authored Slides presentation to the current service order. Mirrors the
+    // Songs "+ Add" path (OnAddSongToServiceRequested): guard for a loaded service, resolve the
+    // full presentation by id (the list item carries only Id/Name/SlideCount), convert via the
+    // pure Core SlidePresentationMapper, AddItem -> SaveServiceOrderAsync -> refresh sidebar.
+    // RefreshSlideSections is also called (beyond the song precedent) so the new slides section
+    // appears immediately in the center grid. The whole body is guarded so it never crashes.
+    private async void OnAddPresentationToServiceRequested(object? sender, SlidePresentationListItem item)
+    {
+        try
+        {
+            if (_slidePresentationService == null) return;
+
+            if (_serviceOrderManager?.CurrentServiceOrder == null)
+            {
+                ShowToolError("Add to Service", "Open or create a service first.");
+                return;
+            }
+
+            var presentation = await _slidePresentationService.GetByIdAsync(item.Id);
+            if (presentation is null)
+            {
+                ShowToolError("Add to Service",
+                    "This presentation could not be found. It may have been deleted.");
+                return;
+            }
+
+            var serviceItem = SlidePresentationMapper.ToServiceItem(presentation);
+
+            _serviceOrderManager.AddItem(serviceItem);
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+            RefreshSlideSections();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Add to Service", ex.Message);
+        }
+    }
 
     /// <summary>
     /// Export the current service order to a text file.

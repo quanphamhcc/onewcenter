@@ -188,7 +188,8 @@ public enum ServiceItemType
     Offering,       // Giving moment (QR code, instructions)
     AltarCall,      // Response/altar call
     Blank,          // Black screen or logo
-    Custom          // User-defined (flexible)
+    Custom,         // User-defined (flexible)
+    Slides          // Authored Slides-library presentation (snapshotted slides)
 }
 
 /// <summary>
