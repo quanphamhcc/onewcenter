@@ -243,6 +243,26 @@
                                     Padding="3,1" Margin="0,0,6,0"
                                     Checked="BulkEditToggle_Checked" Unchecked="BulkEditToggle_Unchecked"
                                     Cursor="Hand" ToolTip="Toggle multi-select to batch-edit items" />
+                            <!-- Service overflow (⋮) menu: service-level actions. Inline brushes
+                                 only (OperatorWindow uses NO resource dictionaries). -->
+                            <Button x:Name="ServiceMenuBtn" Content="&#x22EE;" FontSize="12"
+                                    Background="Transparent" Foreground="#8B92A5"
+                                    BorderBrush="Transparent" BorderThickness="0"
+                                    Padding="3,1" Margin="0,0,6,0" Click="ServiceMenu_Click"
+                                    Cursor="Hand" ToolTip="Service menu">
+                                <Button.ContextMenu>
+                                    <ContextMenu x:Name="ServiceOverflowMenu" Opened="ServiceOverflowMenu_Opened">
+                                        <MenuItem x:Name="MenuCreateItem" Header="Create new service item" Click="NewService_Click" />
+                                        <MenuItem x:Name="MenuCreateGroup" Header="Create new group header" Click="AddGroup_Click" />
+                                        <MenuItem x:Name="MenuEditSettings" Header="Edit service settings" Click="EditService_Click" />
+                                        <Separator />
+                                        <MenuItem x:Name="MenuPrintService" Header="Print service" Click="OnPrintService" />
+                                        <MenuItem x:Name="MenuOpenInPlanning" Header="Open service in Planning" Click="OnOpenInPlanning" />
+                                        <Separator />
+                                        <MenuItem x:Name="MenuCloseService" Header="Close service" Click="OnCloseService" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
                             <Button x:Name="SidebarCollapseBtn" Content="&#x25C0;" FontSize="9"
                                     Background="Transparent"
                                     Foreground="#8B92A5" BorderBrush="Transparent" BorderThickness="0"

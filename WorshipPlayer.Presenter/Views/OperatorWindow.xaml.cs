@@ -1652,6 +1652,125 @@ public partial class OperatorWindow : Window
         }
     }
 
+    // ─── Service overflow (⋮) menu ────────────────────────────────
+    // The header ⋮ button opens its own ContextMenu (same pattern as ServicesListView.Overflow_Click
+    // and the TabTools button). Menu items reuse the existing service handlers where possible and add
+    // Print / Open-in-Planning / Close actions.
+
+    /// <summary>
+    /// Open the service overflow menu anchored under the ⋮ button (mirrors
+    /// ServicesListView.Overflow_Click).
+    /// </summary>
+    private void ServiceMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button btn && btn.ContextMenu != null)
+        {
+            btn.ContextMenu.PlacementTarget = btn;
+            btn.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            btn.ContextMenu.IsOpen = true;
+        }
+    }
+
+    /// <summary>
+    /// Enable/disable the service-dependent menu items when the overflow menu opens. Creating a new
+    /// service item is always allowed (opens new-service mode); "Open in Planning" is a placeholder.
+    /// </summary>
+    private void ServiceOverflowMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        bool hasService = _serviceOrderManager?.CurrentServiceOrder != null;
+        MenuCreateItem.IsEnabled = true;
+        MenuCreateGroup.IsEnabled = hasService;
+        MenuEditSettings.IsEnabled = hasService;
+        MenuPrintService.IsEnabled = hasService;
+        MenuCloseService.IsEnabled = hasService;
+        MenuOpenInPlanning.IsEnabled = true;
+    }
+
+    /// <summary>
+    /// "Print service": open <see cref="PrintExportDialog"/> for the current service. Guarded so a
+    /// missing service is a no-op (the menu item is also disabled in that case).
+    /// </summary>
+    private void OnPrintService(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var order = _serviceOrderManager?.CurrentServiceOrder;
+            if (order == null) return;
+
+            var entries = order.Items
+                .Select(i => new WorshipPlayer.Presenter.Views.ServiceBuilder.ServiceOrderEntry
+                {
+                    Title = i.Title,
+                    Type = i.Type.ToString(),
+                    Lyrics = null
+                })
+                .ToList();
+
+            var dlg = new WorshipPlayer.Presenter.Views.ServiceBuilder.PrintExportDialog
+            {
+                Owner = this,
+                ExportService = _exportService
+            };
+            dlg.LoadServiceOrder(order.Name, entries);
+            dlg.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Print Service", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// "Open service in Planning": placeholder for a future cloud feature. Shows a gentle notice and
+    /// does nothing else.
+    /// </summary>
+    private void OnOpenInPlanning(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show(this,
+            "Service Planning is a future cloud feature and is not available yet.",
+            "Open service in Planning", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    /// <summary>
+    /// "Close service": unload the current service (in-memory only, no file touched) and return to
+    /// the Home screen, mirroring the Initialize() Home-restore sequence. Guarded and crash-safe.
+    /// </summary>
+    private void OnCloseService(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_serviceOrderManager?.CurrentServiceOrder == null) return;
+
+            var confirm = MessageBox.Show(this,
+                "Close the current service and return to Home?",
+                "Close Service", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            // Unload the in-memory order (raises ItemChanged so the engine clears its slides).
+            _serviceOrderManager.CloseCurrent();
+            _currentServicePath = null;
+
+            // Home-restore sequence (mirrors Initialize()).
+            EnsureHomeView();
+            HomePanelContent.Content = _homeView;
+            HomePanel.Visibility = Visibility.Visible;
+            ServicesListPanel.Visibility = Visibility.Collapsed;
+            ServicesPanel.Visibility = Visibility.Collapsed;
+            SetSidebarVisible(false);
+
+            // Drop the now-empty service state from the UI (all null-safe).
+            RefreshServiceOrderList();
+            RefreshSlideSections();
+            UpdatePreviews();
+            UpdateSlideCounter();
+            _ = RefreshServiceListingInitialAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Close Service", ex.Message);
+        }
+    }
+
     /// <summary>
     /// Collapse/expand chevron on a group-header row: flip the group's collapsed state,
     /// persist it, and rebuild the list (a collapsed group contributes only its header row).

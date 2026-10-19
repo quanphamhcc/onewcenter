@@ -160,6 +160,28 @@ CREATE TABLE IF NOT EXISTS ServiceOrders (
     }
 
     /// <summary>
+    /// Unload the current service order (in-memory only) and reset navigation. Raises
+    /// <see cref="ItemChanged"/> with a null item so the engine (its only subscriber) clears its
+    /// slides. No file is written or deleted — the authoritative JSON files are untouched.
+    /// Safe to call when nothing is loaded.
+    /// </summary>
+    public void CloseCurrent()
+    {
+        if (CurrentServiceOrder == null) return;
+
+        int previous = CurrentItemIndex;
+        CurrentServiceOrder = null;
+        CurrentItemIndex = -1;
+
+        ItemChanged?.Invoke(this, new ServiceItemChangedEventArgs
+        {
+            PreviousIndex = previous,
+            NewIndex = -1,
+            NewItem = null
+        });
+    }
+
+    /// <summary>
     /// Add a service item to the current order.
     /// </summary>
     public void AddItem(ServiceItem item)
