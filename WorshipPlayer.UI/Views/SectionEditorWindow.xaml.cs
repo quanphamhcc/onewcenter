@@ -1304,8 +1304,10 @@ public partial class SectionEditorWindow : Window
             _tapTimes.Clear();
             _tapStartTime = DateTime.Now;
 
-            TapModeBtn.Content = "STOP TAPPING (press SPACE for each beat)";
-            TapModeBtn.Background = System.Windows.Media.Brushes.OrangeRed;
+            // Both the "TAP BEATS" and the manual "Tap Tempo" buttons share this flow, so give
+            // whichever one the operator pressed (and its twin) the same "tapping…" feedback —
+            // otherwise the button that was clicked looks inert while tapping is active.
+            SetTapButtonsTapping(true);
             TapStatusText.Text = "Tapping... Press SPACE on each BEAT. Press STOP when done.";
             TapStatusText.Visibility = Visibility.Visible;
 
@@ -1316,6 +1318,41 @@ public partial class SectionEditorWindow : Window
         {
             // Stop tap mode
             StopTapping();
+        }
+    }
+
+    /// <summary>
+    /// Applies the "tapping…" / idle visual state to BOTH tap buttons (the "TAP BEATS" button
+    /// and the manual "Tap Tempo" button), since they share the same tap flow. This guarantees
+    /// the button the operator actually pressed shows feedback instead of staying inert.
+    /// </summary>
+    private void SetTapButtonsTapping(bool tapping)
+    {
+        if (tapping)
+        {
+            if (TapModeBtn != null)
+            {
+                TapModeBtn.Content = "STOP TAPPING (press SPACE for each beat)";
+                TapModeBtn.Background = System.Windows.Media.Brushes.OrangeRed;
+            }
+            if (TapTempoBtn != null)
+            {
+                TapTempoBtn.Content = "Stop (SPACE = beat)";
+                TapTempoBtn.Background = System.Windows.Media.Brushes.OrangeRed;
+            }
+        }
+        else
+        {
+            if (TapModeBtn != null)
+            {
+                TapModeBtn.Content = "TAP BEATS";
+                TapModeBtn.Background = System.Windows.Media.Brushes.DarkSlateBlue;
+            }
+            if (TapTempoBtn != null)
+            {
+                TapTempoBtn.Content = "Tap Tempo";
+                TapTempoBtn.ClearValue(System.Windows.Controls.Control.BackgroundProperty);
+            }
         }
     }
 
@@ -1336,8 +1373,7 @@ public partial class SectionEditorWindow : Window
     {
         _tapping = false;
         this.KeyDown -= TapMode_KeyDown;
-        TapModeBtn.Content = "TAP BEATS";
-        TapModeBtn.Background = System.Windows.Media.Brushes.DarkSlateBlue;
+        SetTapButtonsTapping(false);
         TapStatusText.Visibility = Visibility.Collapsed;
 
         if (_tapTimes.Count < 4)
@@ -1546,9 +1582,13 @@ public partial class SectionEditorWindow : Window
             return;
         }
 
-        // Ensure duration is known so the WAV covers the whole song.
-        if (_currentGrid.TotalDurationMs <= 0)
-            _currentGrid.TotalDurationMs = EstimateTotalDuration();
+        // Always refresh the grid duration from the current song on generate, so a stale
+        // positive TotalDurationMs carried over from a prior song/edit can never make the
+        // manual WAV run short of or past the current audio length. Fall back to any existing
+        // value only if the estimate is unavailable (0).
+        double estimatedDuration = EstimateTotalDuration();
+        if (estimatedDuration > 0)
+            _currentGrid.TotalDurationMs = estimatedDuration;
 
         if (_currentGrid.TotalDurationMs <= 0)
         {
@@ -1650,11 +1690,19 @@ public partial class SectionEditorWindow : Window
             return;
         }
 
-        // Idempotent surfacing: remove any previously-inserted generated-click entries, then
-        // re-insert A/B/C exactly once each at the top (stable order), so pressing Generate
-        // twice overwrites the WAVs without duplicating or stacking track entries.
+        // Idempotent surfacing: remove the previously-inserted A/B/C generated-click entries,
+        // then re-insert A/B/C exactly once each at the top (stable order), so pressing Generate
+        // twice overwrites the WAVs without duplicating or stacking track entries. Match the three
+        // A/B/C file names EXACTLY so the manual click entry (Generated_Click_Manual.wav), which
+        // also starts with "Generated_Click", is never silently dropped by this handler.
+        var abcFileNames = new[]
+        {
+            "Generated_Click_A.wav",
+            "Generated_Click_B.wav",
+            "Generated_Click_C.wav"
+        };
         var existing = _song.Tracks
-            .Where(t => t.FileName.StartsWith("Generated_Click", StringComparison.OrdinalIgnoreCase))
+            .Where(t => abcFileNames.Contains(t.FileName, StringComparer.OrdinalIgnoreCase))
             .ToList();
         foreach (var t in existing)
             _song.Tracks.Remove(t);

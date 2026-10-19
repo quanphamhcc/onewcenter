@@ -247,4 +247,75 @@ public class ManualClickTempoTests
             if (File.Exists(path)) File.Delete(path);
         }
     }
+
+    // ── Beat-1 ACCENT is actually LOUDER in the rendered WAV, not just flagged ───────
+    // Reads the generated WAV back with NAudio and asserts the peak amplitude in the beat-1
+    // accent region exceeds the peak amplitude in a normal (non-accent) click region. Guards
+    // against someone reverting the accent amplitude (0.9) to the normal level (0.6): the pure
+    // pulse tests would stay green, but this one would fail.
+    [Fact]
+    public void GenerateManualClickTrack_Beat1AccentIsLouderThanNormalClick_InWav()
+    {
+        var service = new BeatDetectionService();
+        const int sampleRate = 44100;
+        double bpm = 120;              // beat interval = 500ms
+        double beatMs = 60000.0 / bpm;
+
+        // 4/4 at anchor 0: pulse[0] @ 0ms is the beat-1 accent; pulse[1] @ 500ms is a normal click.
+        var grid = service.BuildGridFromManualAnchor(0, bpm, 4, 4, 4000);
+        string path = Path.Combine(Path.GetTempPath(), $"owc_manual_accent_{Guid.NewGuid():N}.wav");
+
+        try
+        {
+            service.GenerateManualClickTrack(grid, path, sampleRate);
+            Assert.True(File.Exists(path));
+
+            // Read the whole file back as float samples (NAudio converts 16-bit PCM -> float).
+            float[] samples;
+            using (var reader = new NAudio.Wave.AudioFileReader(path))
+            {
+                Assert.Equal(1, reader.WaveFormat.Channels); // mono
+                var buffer = new List<float>();
+                var chunk = new float[4096];
+                int read;
+                while ((read = reader.Read(chunk, 0, chunk.Length)) > 0)
+                    for (int i = 0; i < read; i++)
+                        buffer.Add(chunk[i]);
+                samples = buffer.ToArray();
+            }
+
+            // Each synthesized click is 10ms; scan a generous 15ms window around each pulse start
+            // so we capture the whole burst regardless of exact sample alignment.
+            int windowSamples = (int)(0.015 * sampleRate);
+
+            int accentStart = (int)(0.0 / 1000.0 * sampleRate);     // pulse[0] @ 0ms (accent)
+            int normalStart = (int)(beatMs / 1000.0 * sampleRate);  // pulse[1] @ 500ms (normal)
+
+            float accentPeak = PeakAbs(samples, accentStart, windowSamples);
+            float normalPeak = PeakAbs(samples, normalStart, windowSamples);
+
+            // Both regions must actually contain audio...
+            Assert.True(accentPeak > 0f, "accent region should contain a click");
+            Assert.True(normalPeak > 0f, "normal region should contain a click");
+            // ...and the accent must be meaningfully louder than the normal click.
+            Assert.True(accentPeak > normalPeak,
+                $"accent peak {accentPeak} must exceed normal peak {normalPeak}");
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    private static float PeakAbs(float[] samples, int start, int count)
+    {
+        float peak = 0f;
+        int end = Math.Min(samples.Length, start + count);
+        for (int i = Math.Max(0, start); i < end; i++)
+        {
+            float a = Math.Abs(samples[i]);
+            if (a > peak) peak = a;
+        }
+        return peak;
+    }
 }
