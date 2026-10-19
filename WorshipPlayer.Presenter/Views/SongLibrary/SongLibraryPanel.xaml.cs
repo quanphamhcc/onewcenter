@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using WorshipPlayer.Core.Models.Cloud;
@@ -91,13 +92,34 @@ public partial class SongLibraryPanel : UserControl
             Songs.Clear();
             foreach (var item in items)
             {
+                // "Last modified" is derived from the song folder's real filesystem timestamp
+                // (read-only; no song.json or model write). Fall back to the song.json file time,
+                // then to a clear "—" placeholder when the path is unavailable.
+                string lastModifiedDisplay;
+                try
+                {
+                    var p = item.Id;
+                    if (Directory.Exists(p))
+                        lastModifiedDisplay = Directory.GetLastWriteTime(p).ToString("yyyy-MM-dd");
+                    else if (File.Exists(Path.Combine(p, "song.json")))
+                        lastModifiedDisplay = File.GetLastWriteTime(Path.Combine(p, "song.json")).ToString("yyyy-MM-dd");
+                    else
+                        lastModifiedDisplay = "—";
+                }
+                catch
+                {
+                    lastModifiedDisplay = "—";
+                }
+
                 Songs.Add(new SongListItem
                 {
                     Id = item.Id,
                     Title = item.Title,
                     Artist = item.Artist,
                     Key = item.Key,
-                    DateAdded = item.UpdatedAt
+                    DateAdded = item.UpdatedAt,
+                    LastModifiedDisplay = lastModifiedDisplay,
+                    LastModifiedBy = "Local"
                 });
             }
         }
@@ -121,6 +143,40 @@ public partial class SongLibraryPanel : UserControl
 
     private void EditSlides_Click(object sender, RoutedEventArgs e)
     {
+        EditSlidesRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Opens the per-row ⋮ overflow menu (mirrors ServicesListView.Overflow_Click).
+    /// </summary>
+    private void Overflow_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.ContextMenu != null)
+        {
+            btn.ContextMenu.PlacementTarget = btn;
+            btn.ContextMenu.IsOpen = true;
+        }
+    }
+
+    /// <summary>
+    /// ⋮ → "Edit Metadata…". The host reads <see cref="SelectedSong"/>, so select this row
+    /// first (from the MenuItem's Tag), then raise <see cref="EditMetadataRequested"/>.
+    /// </summary>
+    private void EditMetadataMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is SongListItem item)
+            SongListBox.SelectedItem = item;
+        EditMetadataRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// ⋮ → "Edit Slides…". The host reads <see cref="SelectedSong"/>, so select this row
+    /// first (from the MenuItem's Tag), then raise <see cref="EditSlidesRequested"/>.
+    /// </summary>
+    private void EditSlidesMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is SongListItem item)
+            SongListBox.SelectedItem = item;
         EditSlidesRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -194,4 +250,12 @@ public class SongListItem
     public string Key { get; set; } = string.Empty;
     public DateTime DateAdded { get; set; }
     public string? OrganizationId { get; set; }
+
+    /// <summary>Display-only "Last modified" string derived from the song folder's filesystem
+    /// timestamp (or "—"). Not persisted; not a Core model field.</summary>
+    public string LastModifiedDisplay { get; set; } = "—";
+
+    /// <summary>Display-only "Last modified by" placeholder. The app has no per-user authorship
+    /// concept, so this is a clear "Local" placeholder; not persisted; not a Core model field.</summary>
+    public string LastModifiedBy { get; set; } = "Local";
 }

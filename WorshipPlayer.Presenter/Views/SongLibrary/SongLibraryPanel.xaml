@@ -19,128 +19,170 @@
                        Foreground="{StaticResource OwcTextPrimaryBrush}"
                        Margin="0,0,0,10"/>
 
-            <!-- Actions -->
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
-                        HorizontalAlignment="Left" Margin="0,0,0,10">
-                <Button x:Name="ImportChordProButton"
-                        Content="Import ChordPro…"
-                        Style="{StaticResource OwcButtonBase}"
-                        FontSize="11" Padding="8,5"
-                        Margin="0,0,8,0"
-                        Click="ImportChordPro_Click"/>
-                <Button x:Name="EditMetadataButton"
-                        Content="Edit Metadata…"
-                        Style="{StaticResource OwcButtonBase}"
-                        FontSize="11" Padding="8,5"
-                        Margin="0,0,8,0"
-                        Click="EditMetadata_Click"/>
-                <Button x:Name="EditSlidesButton"
-                        Content="Edit Slides…"
-                        Style="{StaticResource OwcButtonBase}"
-                        FontSize="11" Padding="8,5"
-                        Click="EditSlides_Click"/>
-            </StackPanel>
+            <!-- Toolbar: Filters (combos + sort) + Search (left), + Add Song (right) -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <!-- Non-interactive "Filters" label for the ProPresenter-style grouping -->
+                    <TextBlock Text="Filters" VerticalAlignment="Center" Margin="0,0,8,0"
+                               FontSize="11"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}"/>
 
-            <!-- Search bar -->
-            <TextBox x:Name="SearchTextBox" DockPanel.Dock="Top"
-                     Style="{StaticResource OwcTextBox}"
-                     Margin="0,0,0,8"
-                     TextChanged="SearchTextBox_TextChanged"/>
+                    <ComboBox x:Name="KeyFilterComboBox"
+                              Style="{StaticResource OwcDarkComboBox}"
+                              Width="110" Height="32" VerticalAlignment="Center" Margin="0,0,8,0"
+                              FontSize="11" Padding="6,4"
+                              SelectionChanged="Filter_Changed">
+                        <ComboBoxItem Content="All Keys" IsSelected="True"/>
+                        <ComboBoxItem Content="C"/><ComboBoxItem Content="C#"/>
+                        <ComboBoxItem Content="D"/><ComboBoxItem Content="D#"/>
+                        <ComboBoxItem Content="E"/><ComboBoxItem Content="F"/>
+                        <ComboBoxItem Content="F#"/><ComboBoxItem Content="G"/>
+                        <ComboBoxItem Content="G#"/><ComboBoxItem Content="A"/>
+                        <ComboBoxItem Content="A#"/><ComboBoxItem Content="B"/>
+                        <ComboBoxItem Content="Cm"/><ComboBoxItem Content="Dm"/>
+                        <ComboBoxItem Content="Em"/><ComboBoxItem Content="Fm"/>
+                        <ComboBoxItem Content="Gm"/><ComboBoxItem Content="Am"/>
+                        <ComboBoxItem Content="Bm"/>
+                    </ComboBox>
 
-            <!-- Filters -->
-            <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="8"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="8"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                    <ComboBox x:Name="ArtistFilterComboBox"
+                              Style="{StaticResource OwcDarkComboBox}"
+                              Width="130" Height="32" VerticalAlignment="Center" Margin="0,0,8,0"
+                              FontSize="11" Padding="6,4"
+                              SelectionChanged="Filter_Changed">
+                        <ComboBoxItem Content="All Artists" IsSelected="True"/>
+                    </ComboBox>
 
-                <ComboBox x:Name="KeyFilterComboBox" Grid.Column="0"
-                          Style="{StaticResource OwcDarkComboBox}"
-                          FontSize="11" Padding="6,4"
-                          SelectionChanged="Filter_Changed">
-                    <ComboBoxItem Content="All Keys" IsSelected="True"/>
-                    <ComboBoxItem Content="C"/><ComboBoxItem Content="C#"/>
-                    <ComboBoxItem Content="D"/><ComboBoxItem Content="D#"/>
-                    <ComboBoxItem Content="E"/><ComboBoxItem Content="F"/>
-                    <ComboBoxItem Content="F#"/><ComboBoxItem Content="G"/>
-                    <ComboBoxItem Content="G#"/><ComboBoxItem Content="A"/>
-                    <ComboBoxItem Content="A#"/><ComboBoxItem Content="B"/>
-                    <ComboBoxItem Content="Cm"/><ComboBoxItem Content="Dm"/>
-                    <ComboBoxItem Content="Em"/><ComboBoxItem Content="Fm"/>
-                    <ComboBoxItem Content="Gm"/><ComboBoxItem Content="Am"/>
-                    <ComboBoxItem Content="Bm"/>
-                </ComboBox>
-
-                <ComboBox x:Name="ArtistFilterComboBox" Grid.Column="2"
-                          Style="{StaticResource OwcDarkComboBox}"
-                          FontSize="11" Padding="6,4"
-                          SelectionChanged="Filter_Changed">
-                    <ComboBoxItem Content="All Artists" IsSelected="True"/>
-                </ComboBox>
-
-                <StackPanel Grid.Column="4" Orientation="Horizontal">
                     <Button x:Name="SortAZButton" Content="A-Z"
                             Style="{StaticResource OwcButtonBase}"
-                            FontSize="10" Padding="8,4" Margin="0,0,4,0"
+                            FontSize="10" Padding="8,4" Height="32" VerticalAlignment="Center" Margin="0,0,4,0"
                             Click="SortAZ_Click"/>
                     <Button x:Name="SortDateButton" Content="Date"
                             Style="{StaticResource OwcButtonBase}"
-                            FontSize="10" Padding="8,4"
+                            FontSize="10" Padding="8,4" Height="32" VerticalAlignment="Center" Margin="0,0,12,0"
                             Click="SortDate_Click"/>
+
+                    <!-- Search box (wide) -->
+                    <TextBox x:Name="SearchTextBox"
+                             Style="{StaticResource OwcTextBox}"
+                             Width="260" Height="32" VerticalAlignment="Center"
+                             TextChanged="SearchTextBox_TextChanged"/>
                 </StackPanel>
+
+                <!-- Prominent blue CTA. Reuses the existing ChordPro import handler
+                     (ImportChordPro_Click → ImportChordProRequested → host import + RefreshSongs). -->
+                <Button x:Name="ImportChordProButton"
+                        Content="+ Add Song"
+                        Style="{StaticResource OwcBlueButton}"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="110" Height="32"
+                        Click="ImportChordPro_Click"/>
             </Grid>
 
-            <!-- Song List -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
-                <StackPanel>
-                    <!-- Empty state -->
-                    <TextBlock x:Name="EmptyStateText"
-                               Text="No songs found. Import songs to get started."
-                               Foreground="{StaticResource OwcTextSecondaryBrush}"
-                               FontSize="12" TextWrapping="Wrap"
-                               Margin="4,20" HorizontalAlignment="Center"
-                               Visibility="Visible"/>
+            <!-- Empty state -->
+            <TextBlock x:Name="EmptyStateText" DockPanel.Dock="Top"
+                       Text="No songs found. Import songs to get started."
+                       Foreground="{StaticResource OwcTextSecondaryBrush}"
+                       FontSize="12" TextWrapping="Wrap"
+                       Margin="4,20" HorizontalAlignment="Center"
+                       Visibility="Visible"/>
 
-                    <!-- Song list -->
-                    <ListBox x:Name="SongListBox"
-                             Style="{StaticResource OwcServiceListBox}"
-                             SelectionChanged="SongList_SelectionChanged"
-                             Visibility="Collapsed">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="Transparent" Padding="8,6">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock Text="{Binding Title}"
-                                                       Foreground="{StaticResource OwcTextPrimaryBrush}"
-                                                       FontSize="13" FontWeight="SemiBold"/>
-                                            <TextBlock Foreground="{StaticResource OwcTextSecondaryBrush}"
-                                                       FontSize="11">
-                                                <Run Text="{Binding Artist}"/>
-                                                <Run Text=" | Key: "/><Run Text="{Binding Key}"/>
-                                            </TextBlock>
-                                        </StackPanel>
-                                        <Button Grid.Column="1"
-                                                Content="+ Add"
-                                                Style="{StaticResource OwcBlueButton}"
-                                                FontSize="10" Padding="8,4"
-                                                VerticalAlignment="Center"
-                                                Tag="{Binding}"
-                                                Click="AddToService_Click"/>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </StackPanel>
-            </ScrollViewer>
+            <!-- Song table -->
+            <ListView x:Name="SongListBox"
+                      Style="{StaticResource OwcDarkListView}"
+                      SelectionChanged="SongList_SelectionChanged"
+                      Visibility="Collapsed">
+                <ListView.View>
+                    <GridView ColumnHeaderContainerStyle="{StaticResource OwcDarkGridViewColumnHeader}">
+                        <!-- Leading select checkbox (placeholder affordance, unbound) -->
+                        <GridViewColumn Header="" Width="36">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+
+                        <!-- Song: bold title + muted artist second line (blank if none) -->
+                        <GridViewColumn Header="Song" Width="240">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="8,6">
+                                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                                   FontSize="13" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Artist}" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{StaticResource OwcTextSecondaryBrush}"
+                                                   FontSize="11"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+
+                        <!-- Key (real) -->
+                        <GridViewColumn Header="Key" Width="60">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Key}" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource OwcTextPrimaryBrush}" Padding="8,8"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+
+                        <!-- Last modified (derived from folder timestamp, or "—") -->
+                        <GridViewColumn Header="Last modified" Width="120">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding LastModifiedDisplay}" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource OwcTextSecondaryBrush}" Padding="8,8"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+
+                        <!-- Last modified by (placeholder "Local") -->
+                        <GridViewColumn Header="Last modified by" Width="120">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding LastModifiedBy}" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource OwcTextSecondaryBrush}" Padding="8,8"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+
+                        <!-- Per-row blue "+ Add" (adds to service; does not change selection) -->
+                        <GridViewColumn Header="" Width="70">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="+ Add"
+                                            Style="{StaticResource OwcBlueButton}"
+                                            FontSize="10" Padding="8,4"
+                                            VerticalAlignment="Center"
+                                            Tag="{Binding}"
+                                            Click="AddToService_Click"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+
+                        <!-- Per-row ⋮ overflow: Edit Metadata… / Edit Slides… -->
+                        <GridViewColumn Header="" Width="44">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="&#x22EE;" Style="{StaticResource OwcButtonBase}"
+                                            Background="Transparent" Padding="6,2" FontSize="16"
+                                            VerticalAlignment="Center"
+                                            Click="Overflow_Click">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Edit Metadata…" Click="EditMetadataMenu_Click" Tag="{Binding}"/>
+                                                <MenuItem Header="Edit Slides…" Click="EditSlidesMenu_Click" Tag="{Binding}"/>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                                    </Button>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                    </GridView>
+                </ListView.View>
+            </ListView>
         </DockPanel>
     </Border>
 </UserControl>
