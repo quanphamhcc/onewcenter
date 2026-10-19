@@ -38,6 +38,20 @@ public partial class HomeView : UserControl
         ServicesListView.ItemsSource = rows;
     }
 
+    // Single-click a row to open that service, mirroring the Services tab
+    // (ServicesListView.ServicesList_SelectionChanged). Clear the selection afterwards
+    // so the same row can be re-opened later. Clicking the kebab overflow Button does not
+    // change the ListView selection, so its ContextMenu actions are unaffected.
+    private void ServicesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ServicesListView.SelectedItem is ServiceListRow row && !string.IsNullOrEmpty(row.FilePath))
+        {
+            // Clear the selection so the same row can be re-opened later.
+            ServicesListView.SelectedItem = null;
+            OpenServiceRequested?.Invoke(this, row.FilePath);
+        }
+    }
+
     private void Tour_Click(object sender, RoutedEventArgs e) => TourRequested?.Invoke(this, EventArgs.Empty);
     private void Services_Click(object sender, RoutedEventArgs e) => ServicesRequested?.Invoke(this, EventArgs.Empty);
     private void Songs_Click(object sender, RoutedEventArgs e) => SongsRequested?.Invoke(this, EventArgs.Empty);

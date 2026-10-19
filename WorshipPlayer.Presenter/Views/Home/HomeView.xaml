@@ -79,7 +79,8 @@
                                    FontSize="16" FontWeight="SemiBold" Margin="0,0,0,16" />
 
                         <ListView x:Name="ServicesListView" Style="{StaticResource OwcDarkListView}"
-                                  MaxHeight="320">
+                                  MaxHeight="320"
+                                  SelectionChanged="ServicesListView_SelectionChanged">
                             <ListView.View>
                                 <GridView ColumnHeaderContainerStyle="{StaticResource OwcDarkGridViewColumnHeader}">
                                     <GridViewColumn Header="Date" Width="160">
