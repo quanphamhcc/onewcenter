@@ -1443,6 +1443,29 @@ public partial class OperatorWindow : Window
         if (index >= 0)
         {
             _serviceOrderManager?.GoToItem(index);
+
+            // Song items link a library song via SongFolder and carry NO pre-baked slides
+            // (ServiceItem.Slides defaults empty). Mirror the Songs-tab path (OnSongSelected):
+            // resolve the linked song and generate its lyric slides on-demand so the center
+            // grid shows them. Guarded so Scripture/Media/etc. and pre-baked slides are untouched.
+            if (display.Item.Type == ServiceItemType.Song
+                && _engine != null && _songManager != null
+                && _engine.TotalSlides == 0)
+            {
+                var song = SongPathResolver.Resolve(
+                    _songManager.Songs, display.Item.SongFolder, display.Item.Title);
+                if (song != null)
+                {
+                    _engine.LoadStandaloneSong(song);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"ServiceOrderList_SelectionChanged: could not resolve Song item " +
+                        $"(SongFolder='{display.Item.SongFolder}', Title='{display.Item.Title}').");
+                }
+            }
+
             RefreshSlideThumbnails();
         }
     }
