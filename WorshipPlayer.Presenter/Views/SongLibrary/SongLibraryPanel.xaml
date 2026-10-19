@@ -129,7 +129,7 @@
                                         </StackPanel>
                                         <Button Grid.Column="1"
                                                 Content="+ Add"
-                                                Style="{StaticResource OwcButtonBase}"
+                                                Style="{StaticResource OwcBlueButton}"
                                                 FontSize="10" Padding="8,4"
                                                 VerticalAlignment="Center"
                                                 Tag="{Binding}"
