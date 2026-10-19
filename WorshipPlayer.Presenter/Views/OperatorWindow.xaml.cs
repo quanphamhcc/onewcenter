@@ -236,7 +236,7 @@ public partial class OperatorWindow : Window
         // Load initial state
         RefreshServiceOrderList();
         UpdatePreviews();
-        RefreshSlideThumbnails();
+        RefreshSlideSections();
 
         // FEAT-002: land on the Home screen. Synchronous view setup inline (Initialize is a
         // sync void and cannot await); the services scan is fired-and-forgotten but observes
@@ -623,7 +623,7 @@ public partial class OperatorWindow : Window
         {
             UpdatePreviews();
             UpdateSlideCounter();
-            UpdateSlideThumbnailHighlights();
+            UpdateLiveSectionHighlights();
 
             // Forward to output window
             if (e.NewSlide != null && _outputWindow != null)
@@ -670,7 +670,7 @@ public partial class OperatorWindow : Window
                 RefreshServiceOrderList();
             }
 
-            RefreshSlideThumbnails();
+            RefreshSlideSections();
             UpdatePreviews();
             UpdateSlideCounter();
         });
@@ -1075,6 +1075,9 @@ public partial class OperatorWindow : Window
             EditModeToggleBtn.Foreground = new SolidColorBrush(TextSecondary);
             EditModeToggleBtn.Background = new SolidColorBrush(SurfaceBg);
         }
+
+        // Reapply selection/live highlights on the live section for the new edit state.
+        UpdateLiveSectionHighlights();
     }
 
     // --- Live Preview Hero Click Handlers ---
@@ -1093,10 +1096,10 @@ public partial class OperatorWindow : Window
 
     private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        // Re-render thumbnails at the new zoom size
+        // Re-render thumbnails across ALL sections at the new zoom size
         if (_engine != null)
         {
-            RefreshSlideThumbnails();
+            RefreshSlideSections();
         }
     }
 
@@ -1423,8 +1426,9 @@ public partial class OperatorWindow : Window
     /// BUG B: single-click a service item on the left to make it the current item. Navigating via
     /// ServiceOrderManager.GoToItem fires ItemChanged -> PresenterEngine.OnServiceItemChanged
     /// (loads that item's slides + fires SlideChanged), which this window handles to update the
-    /// previews, slide counter, and live-slide highlight. RefreshSlideThumbnails repaints the
-    /// center grid with the newly selected item's slides.
+    /// previews, slide counter, and live-slide highlight. In the all-sections center pane the
+    /// selection no longer replaces content — all sections stay rendered and we scroll the right
+    /// pane to the matching section via ScrollToSection.
     /// </summary>
     private void ServiceOrderList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -1442,31 +1446,16 @@ public partial class OperatorWindow : Window
         int index = items.IndexOf(display.Item);
         if (index >= 0)
         {
+            // Keep engine/live state + the go-live/transport flow intact: GoToItem fires
+            // ItemChanged -> RefreshSlideSections (full rebuild) + UpdatePreviews, so the
+            // section map is fresh before we scroll.
             _serviceOrderManager?.GoToItem(index);
 
-            // Song items link a library song via SongFolder and carry NO pre-baked slides
-            // (ServiceItem.Slides defaults empty). Mirror the Songs-tab path (OnSongSelected):
-            // resolve the linked song and generate its lyric slides on-demand so the center
-            // grid shows them. Guarded so Scripture/Media/etc. and pre-baked slides are untouched.
-            if (display.Item.Type == ServiceItemType.Song
-                && _engine != null && _songManager != null
-                && _engine.TotalSlides == 0)
-            {
-                var song = SongPathResolver.Resolve(
-                    _songManager.Songs, display.Item.SongFolder, display.Item.Title);
-                if (song != null)
-                {
-                    _engine.LoadStandaloneSong(song);
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"ServiceOrderList_SelectionChanged: could not resolve Song item " +
-                        $"(SongFolder='{display.Item.SongFolder}', Title='{display.Item.Title}').");
-                }
-            }
-
-            RefreshSlideThumbnails();
+            // All-sections pane: selection no longer REPLACES the center content. Every
+            // section stays rendered; we just scroll the right pane to the matching section.
+            // The rebuild above has already run synchronously via ItemChanged, so the map
+            // holds this item's section element.
+            ScrollToSection(display.Item);
         }
     }
 
@@ -1852,201 +1841,482 @@ public partial class OperatorWindow : Window
         return result;
     }
 
-    private void RefreshSlideThumbnails()
-    {
-        SlideThumbnailsPanel.Children.Clear();
+    // ─── All-sections center pane ─────────────────────────────────────────────
+    // ProPresenter-style: the center pane stacks EVERY service item as its own section
+    // (header + grid of that item's slide thumbnails), instead of showing only the one
+    // selected item's slides. Left-sidebar selection scrolls the right pane to the matching
+    // section (ScrollToSection) rather than replacing content.
+    //
+    // ServiceItem -> its section root container, so ScrollToSection can BringIntoView the
+    // whole section and UpdateLiveSectionHighlights can find the LIVE item's thumbnail grid.
+    // Reference equality: the ServiceItem instances come straight from CurrentServiceOrder.Items
+    // (the same instances the sidebar rows hold via ServiceItemDisplay.Item).
+    private readonly Dictionary<ServiceItem, FrameworkElement> _sectionByItem = new();
 
-        if (_engine == null || _engine.TotalSlides == 0)
+    /// <summary>
+    /// Rebuild the center pane as one SECTION per service item (ProPresenter-style stack).
+    /// Iterates <c>CurrentServiceOrder.Items</c> in order; for each item builds a header
+    /// (title + Edit affordance) and a WrapPanel of that item's slide thumbnails. The LIVE
+    /// item (index == <c>_engine.CurrentItemIndex</c>) paints its live slide RED; all other
+    /// sections render neutral thumbnails. Per-item try/catch so one bad item can't abort the
+    /// whole build. Eager/synchronous: a service is a handful of items and each thumbnail is the
+    /// same cost as the proven single-item path, so no async/long sync loop is introduced on the
+    /// UI thread. The <see cref="_sectionByItem"/> map is the hook if lazy per-section fill is
+    /// ever needed for very large services.
+    /// </summary>
+    private void RefreshSlideSections()
+    {
+        SlideSectionsPanel.Children.Clear();
+        _sectionByItem.Clear();
+
+        var order = _engine?.CurrentServiceOrder;
+        if (_engine == null || order == null || order.Items.Count == 0)
         {
-            // Show empty state message
+            // Nothing loaded — show the empty-state prompt.
             EmptyStateText.Visibility = Visibility.Visible;
             return;
         }
 
-        // Hide empty state message when slides exist
         EmptyStateText.Visibility = Visibility.Collapsed;
 
-        // Get zoom size from slider (default 140 if slider not yet loaded)
+        // Zoom size from slider (default 140 if slider not yet loaded). Shared across ALL
+        // sections so the zoom slider resizes every thumbnail.
         double thumbWidth = 140;
-        double thumbHeight = 85;
         if (ZoomSlider != null)
         {
             thumbWidth = ZoomSlider.Value;
-            thumbHeight = thumbWidth * 0.6;
         }
 
-        // Reset tracking indices for the new item
+        // Reset edit-mode tracking (mirrors the old single-item reset). Live tracking follows
+        // the engine's current slide.
         _lastActiveSlideIndex = _engine.CurrentSlideIndex;
         if (!_isEditMode)
         {
             _selectedSlideIndex = -1;
         }
 
-        for (int i = 0; i < _engine.TotalSlides; i++)
+        int liveItemIndex = _engine.CurrentItemIndex;
+
+        for (int itemIndex = 0; itemIndex < order.Items.Count; itemIndex++)
         {
-            var slide = _engine.CurrentSlides[i];
-            int capturedIndex = i;
-            bool isActive = (i == _engine.CurrentSlideIndex);
-            bool isSelected = (_isEditMode && i == _selectedSlideIndex);
+            var item = order.Items[itemIndex];
+            int capturedItemIndex = itemIndex;
 
-            // Outer border = the thumbnail frame. The CURRENTLY LIVE slide gets a RED
-            // (OwcLive) border; the edit-mode selected slide a cyan one; otherwise the
-            // neutral panel border. CornerRadius + ClipToBounds so the background image
-            // honors the rounded corners.
-            var border = new Border
+            // Section root: header + thumbnail grid. Registered in the section map so
+            // ScrollToSection/BringIntoView and the live-highlight lookup can find it.
+            var sectionRoot = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+            try
             {
-                Width = thumbWidth,
-                Height = thumbHeight,
-                Background = new SolidColorBrush(PanelBg),
-                BorderBrush = isActive
-                    ? new SolidColorBrush(LivePink)
-                    : isSelected
-                        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0088AA"))
-                        : new SolidColorBrush(BorderColor),
-                BorderThickness = new Thickness(isActive ? 2 : isSelected ? 2 : 1),
-                Margin = new Thickness(4),
-                CornerRadius = new CornerRadius(6),
-                Cursor = Cursors.Hand
-            };
+                sectionRoot.Children.Add(BuildSectionHeader(item));
 
-            // Inner grid clipped to the rounded frame so the slide BACKGROUND fills the tile.
-            var grid = new Grid
-            {
-                ClipToBounds = true
-            };
+                var grid = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
 
-            // Calculate font sizes proportional to thumbnail size (WYSIWYG scaling)
-            double scaleFactor = thumbWidth / 140.0; // 140 is the default/base size
-            double sectionFontSize = Math.Max(8, 8 * scaleFactor);
-            double mainFontSize = Math.Max(9, 11 * scaleFactor);
-            double numFontSize = Math.Max(8, 8 * scaleFactor);
-            int maxTextLength = thumbWidth > 300 ? 200 : thumbWidth > 200 ? 80 : 40;
-
-            // ── Layer 0: slide BACKGROUND (image / solid / gradient default) ──
-            // Mirrors the live OutputWindow background so the grid previews real content.
-            var background = ResolveSlideBackground(slide, out bool backgroundIsImage);
-            grid.Children.Add(new Border
-            {
-                Background = background,
-                CornerRadius = new CornerRadius(5)
-            });
-
-            // ── Layer 1: dark scrim over image backgrounds so white lyric text stays readable ──
-            if (backgroundIsImage)
-            {
-                grid.Children.Add(new Border
+                var slides = GetSlidesForItem(item);
+                if (slides.Count == 0)
                 {
-                    Background = new SolidColorBrush(Color.FromArgb(0x59, 0x00, 0x00, 0x00)), // #000 @ ~35%
-                    CornerRadius = new CornerRadius(5)
-                });
-            }
-
-            // ── Layer 2: slide LYRIC TEXT (center) — scales with zoom for WYSIWYG preview ──
-            // Strip chords for clean readability (thumbnails show what audience sees)
-            string slideText = _previewChordParser.StripChords(slide.Content.Text ?? "");
-            var text = new TextBlock
-            {
-                Text = TruncateText(slideText, maxTextLength),
-                FontSize = mainFontSize,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Colors.White),
-                TextWrapping = TextWrapping.Wrap,
-                TextAlignment = System.Windows.TextAlignment.Center,
-                VerticalAlignment = System.Windows.VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(8, sectionFontSize + 10, 8, numFontSize + 10),
-                Effect = new System.Windows.Media.Effects.DropShadowEffect
-                {
-                    Color = Colors.Black,
-                    BlurRadius = 3,
-                    ShadowDepth = 1,
-                    Opacity = 0.8
-                }
-            };
-
-            // ── Layer 3: label chip (bottom-left) — e.g. "Verse 1" / "Chorus"; RED when live ──
-            var labelChip = new Border
-            {
-                Background = new SolidColorBrush(isActive
-                    ? LivePink
-                    : Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
-                CornerRadius = new CornerRadius(3),
-                Padding = new Thickness(5, 1, 5, 1),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
-                Margin = new Thickness(5, 0, 0, 5),
-                // Tagged so UpdateSlideThumbnailHighlights can recolor it on live changes.
-                Tag = "labelChip",
-                Child = new TextBlock
-                {
-                    Text = (slide.SectionName ?? "").Trim(),
-                    FontSize = sectionFontSize,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(isActive ? Colors.White : AccentCyan)
-                }
-            };
-            // Hide the chip entirely when a slide has no section label.
-            labelChip.Visibility = string.IsNullOrWhiteSpace(slide.SectionName)
-                ? Visibility.Collapsed
-                : Visibility.Visible;
-
-            // ── Layer 4: number badge (bottom-right) ──
-            var slideNum = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
-                CornerRadius = new CornerRadius(3),
-                Padding = new Thickness(5, 1, 5, 1),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
-                Margin = new Thickness(0, 0, 5, 5),
-                Child = new TextBlock
-                {
-                    Text = (i + 1).ToString(),
-                    FontSize = numFontSize,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Colors.White)
-                }
-            };
-
-            grid.Children.Add(text);
-            grid.Children.Add(labelChip);
-            grid.Children.Add(slideNum);
-
-            border.Child = grid;
-
-            // Click behavior depends on edit mode
-            border.MouseLeftButtonDown += (s, ev) =>
-            {
-                if (_isEditMode)
-                {
-                    // In edit mode, select (highlight) without firing live
-                    _selectedSlideIndex = capturedIndex;
-                    UpdateSlideThumbnailHighlights();
+                    // Unresolved song / empty item — render a note, never crash.
+                    grid.Children.Add(new TextBlock
+                    {
+                        Text = "No slides to show for this item (could not load).",
+                        FontSize = 11,
+                        Foreground = new SolidColorBrush(TextSecondary),
+                        Margin = new Thickness(6, 2, 6, 6)
+                    });
                 }
                 else
                 {
-                    // Performance mode: fire live immediately
-                    _engine?.GoToSlide(capturedIndex);
-                }
-            };
+                    bool isLiveSection = (capturedItemIndex == liveItemIndex);
+                    for (int slideIndex = 0; slideIndex < slides.Count; slideIndex++)
+                    {
+                        int capturedSlideIndex = slideIndex;
+                        bool isActive = isLiveSection && slideIndex == _engine.CurrentSlideIndex;
+                        bool isSelected = isLiveSection && _isEditMode && slideIndex == _selectedSlideIndex;
 
-            SlideThumbnailsPanel.Children.Add(border);
+                        var thumb = BuildSlideThumbnail(
+                            slides[slideIndex], slideIndex + 1, isActive, isSelected, thumbWidth,
+                            idx =>
+                            {
+                                if (_isEditMode && isLiveSection)
+                                {
+                                    // Edit mode on the live section: select (highlight) only.
+                                    _selectedSlideIndex = idx;
+                                    UpdateLiveSectionHighlights();
+                                }
+                                else
+                                {
+                                    // Performance: make this item live, then fire the slide.
+                                    _serviceOrderManager?.GoToItem(capturedItemIndex);
+                                    _engine?.GoToSlide(idx);
+                                }
+                            });
+
+                        grid.Children.Add(thumb);
+                    }
+                }
+
+                sectionRoot.Children.Add(grid);
+            }
+            catch (Exception ex)
+            {
+                // One bad item must not abort the whole build.
+                System.Diagnostics.Debug.WriteLine(
+                    $"RefreshSlideSections: failed to build section for '{item.Title}': {ex.Message}");
+                sectionRoot.Children.Add(new TextBlock
+                {
+                    Text = "This item could not be loaded.",
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(TextSecondary),
+                    Margin = new Thickness(6, 2, 6, 6)
+                });
+            }
+
+            _sectionByItem[item] = sectionRoot;
+            SlideSectionsPanel.Children.Add(sectionRoot);
         }
     }
 
     /// <summary>
-    /// Efficiently update only the border highlights without rebuilding all children.
-    /// Called on slide navigation when the slide set itself hasn't changed.
+    /// Build a section header row: item title + icon on the left, an "Edit" affordance on the
+    /// right (opens the existing per-item edit dialog), and a non-functional "ORDER [Original]"
+    /// chip. Inline brushes only (OperatorWindow is StaticResource-free).
     /// </summary>
-    private void UpdateSlideThumbnailHighlights()
+    private UIElement BuildSectionHeader(ServiceItem item)
+    {
+        var header = new Border
+        {
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1A1D27")),
+            BorderBrush = new SolidColorBrush(BorderColor),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(8, 6, 8, 6),
+            CornerRadius = new CornerRadius(4)
+        };
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        // Left: icon + title (reuse the sidebar icon mapping for consistency).
+        var titleStack = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = System.Windows.VerticalAlignment.Center
+        };
+        titleStack.Children.Add(new TextBlock
+        {
+            Text = MakeItemRow(item).Icon,
+            FontSize = 13,
+            Foreground = new SolidColorBrush(AccentCyan),
+            Margin = new Thickness(0, 0, 8, 0),
+            VerticalAlignment = System.Windows.VerticalAlignment.Center
+        });
+        titleStack.Children.Add(new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(item.Title) ? "(untitled)" : item.Title,
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F2F5")),
+            VerticalAlignment = System.Windows.VerticalAlignment.Center
+        });
+        Grid.SetColumn(titleStack, 0);
+        grid.Children.Add(titleStack);
+
+        // Middle: non-functional "ORDER [Original]" chip (matches reference).
+        var orderChip = new TextBlock
+        {
+            Text = "ORDER [Original]",
+            FontSize = 9,
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8B92A5")),
+            VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        Grid.SetColumn(orderChip, 1);
+        grid.Children.Add(orderChip);
+
+        // Right: Edit affordance -> reuse the existing per-item edit dialog for THIS item.
+        var editBtn = new Button
+        {
+            Content = "Edit",
+            FontSize = 10,
+            Padding = new Thickness(8, 3, 8, 3),
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#252A36")),
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F2F5")),
+            BorderBrush = new SolidColorBrush(Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            Cursor = Cursors.Hand,
+            VerticalAlignment = System.Windows.VerticalAlignment.Center
+        };
+        editBtn.Click += (s, ev) => EditServiceItemDirect(item);
+        Grid.SetColumn(editBtn, 2);
+        grid.Children.Add(editBtn);
+
+        header.Child = grid;
+        return header;
+    }
+
+    /// <summary>
+    /// Open the existing per-item edit dialog for a specific item (the section header "Edit"
+    /// affordance). Mirrors <see cref="EditSelectedServiceItem"/> but targets the given item
+    /// directly instead of the sidebar selection.
+    /// </summary>
+    private void EditServiceItemDirect(ServiceItem item)
+    {
+        try
+        {
+            if (_serviceOrderManager == null) return;
+
+            var dialog = new AddServiceItemDialog
+            {
+                Owner = this,
+                ServiceOrderManager = _serviceOrderManager,
+                SongLibrary = _songManager?.Songs ?? (IReadOnlyList<Song>)Array.Empty<Song>(),
+                ItemToEdit = item
+            };
+            dialog.ItemEdited += async (s, edited) =>
+            {
+                await SaveServiceOrderAsync();
+                RefreshServiceOrderList();
+                RefreshSlideSections();
+            };
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Edit Service Item", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Resolve the slide list for a service item WITHOUT mutating engine/live state.
+    /// For Song items: resolve the linked library song (SongPathResolver) and generate its
+    /// lyric slides via the pure <see cref="PresenterEngine.GenerateSlidesForSong"/> — the SAME
+    /// generator the live path feeds through LoadStandaloneSong, so sections match live rendering.
+    /// For every other type: return the pre-baked <c>item.Slides</c>. Returns an empty list on an
+    /// unresolved song or missing engine/song manager (caller renders a "could not load" note).
+    /// Generation is on-demand and never persisted.
+    /// </summary>
+    private List<Slide> GetSlidesForItem(ServiceItem item)
+    {
+        if (item == null) return new List<Slide>();
+
+        if (item.Type == ServiceItemType.Song)
+        {
+            // Pre-baked slides win if present (F2/F3: item slides are the source of truth).
+            if (item.Slides != null && item.Slides.Count > 0) return item.Slides;
+
+            if (_engine == null || _songManager == null) return new List<Slide>();
+
+            var song = SongPathResolver.Resolve(_songManager.Songs, item.SongFolder, item.Title);
+            if (song == null)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"GetSlidesForItem: could not resolve Song item " +
+                    $"(SongFolder='{item.SongFolder}', Title='{item.Title}').");
+                return new List<Slide>();
+            }
+
+            return _engine.GenerateSlidesForSong(song);
+        }
+
+        return item.Slides ?? new List<Slide>();
+    }
+
+    /// <summary>
+    /// Build a single slide thumbnail reusing the exact per-slide visual: slide background +
+    /// scrim, center lyric text, a section label chip (tagged "labelChip"), and a number badge.
+    /// RED (OwcLive) frame/chip when <paramref name="isActive"/> (live), cyan when
+    /// <paramref name="isSelected"/> (edit-mode selection), neutral otherwise. The click handler
+    /// invokes <paramref name="onClick"/> with the zero-based slide index.
+    /// </summary>
+    private Border BuildSlideThumbnail(Slide slide, int slideNumber, bool isActive, bool isSelected,
+        double thumbWidth, Action<int> onClick)
+    {
+        double thumbHeight = thumbWidth * 0.6;
+
+        // Outer border = the thumbnail frame. The CURRENTLY LIVE slide gets a RED (OwcLive)
+        // border; the edit-mode selected slide a cyan one; otherwise the neutral panel border.
+        var border = new Border
+        {
+            Width = thumbWidth,
+            Height = thumbHeight,
+            Background = new SolidColorBrush(PanelBg),
+            BorderBrush = isActive
+                ? new SolidColorBrush(LivePink)
+                : isSelected
+                    ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0088AA"))
+                    : new SolidColorBrush(BorderColor),
+            BorderThickness = new Thickness(isActive ? 2 : isSelected ? 2 : 1),
+            Margin = new Thickness(4),
+            CornerRadius = new CornerRadius(6),
+            Cursor = Cursors.Hand
+        };
+
+        // Inner grid clipped to the rounded frame so the slide BACKGROUND fills the tile.
+        var grid = new Grid
+        {
+            ClipToBounds = true
+        };
+
+        // Calculate font sizes proportional to thumbnail size (WYSIWYG scaling)
+        double scaleFactor = thumbWidth / 140.0; // 140 is the default/base size
+        double sectionFontSize = Math.Max(8, 8 * scaleFactor);
+        double mainFontSize = Math.Max(9, 11 * scaleFactor);
+        double numFontSize = Math.Max(8, 8 * scaleFactor);
+        int maxTextLength = thumbWidth > 300 ? 200 : thumbWidth > 200 ? 80 : 40;
+
+        // ── Layer 0: slide BACKGROUND (image / solid / gradient default) ──
+        // Mirrors the live OutputWindow background so the grid previews real content.
+        var background = ResolveSlideBackground(slide, out bool backgroundIsImage);
+        grid.Children.Add(new Border
+        {
+            Background = background,
+            CornerRadius = new CornerRadius(5)
+        });
+
+        // ── Layer 1: dark scrim over image backgrounds so white lyric text stays readable ──
+        if (backgroundIsImage)
+        {
+            grid.Children.Add(new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x59, 0x00, 0x00, 0x00)), // #000 @ ~35%
+                CornerRadius = new CornerRadius(5)
+            });
+        }
+
+        // ── Layer 2: slide LYRIC TEXT (center) — scales with zoom for WYSIWYG preview ──
+        // Strip chords for clean readability (thumbnails show what audience sees)
+        string slideText = _previewChordParser.StripChords(slide.Content.Text ?? "");
+        var text = new TextBlock
+        {
+            Text = TruncateText(slideText, maxTextLength),
+            FontSize = mainFontSize,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Colors.White),
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = System.Windows.TextAlignment.Center,
+            VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(8, sectionFontSize + 10, 8, numFontSize + 10),
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = Colors.Black,
+                BlurRadius = 3,
+                ShadowDepth = 1,
+                Opacity = 0.8
+            }
+        };
+
+        // ── Layer 3: label chip (bottom-left) — e.g. "Verse 1" / "Chorus"; RED when live ──
+        var labelChip = new Border
+        {
+            Background = new SolidColorBrush(isActive
+                ? LivePink
+                : Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(5, 1, 5, 1),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
+            Margin = new Thickness(5, 0, 0, 5),
+            // Tagged so UpdateLiveSectionHighlights can recolor it on live changes.
+            Tag = "labelChip",
+            Child = new TextBlock
+            {
+                Text = (slide.SectionName ?? "").Trim(),
+                FontSize = sectionFontSize,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(isActive ? Colors.White : AccentCyan)
+            }
+        };
+        // Hide the chip entirely when a slide has no section label.
+        labelChip.Visibility = string.IsNullOrWhiteSpace(slide.SectionName)
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+        // ── Layer 4: number badge (bottom-right) ──
+        var slideNum = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(5, 1, 5, 1),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 5, 5),
+            Child = new TextBlock
+            {
+                Text = slideNumber.ToString(),
+                FontSize = numFontSize,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Colors.White)
+            }
+        };
+
+        grid.Children.Add(text);
+        grid.Children.Add(labelChip);
+        grid.Children.Add(slideNum);
+
+        border.Child = grid;
+
+        int capturedIndex = slideNumber - 1;
+        border.MouseLeftButtonDown += (s, ev) => onClick(capturedIndex);
+
+        return border;
+    }
+
+    /// <summary>
+    /// Scroll the center ScrollViewer so the given item's section is brought into view, WITHOUT
+    /// clearing/replacing any sections. BringIntoView on the UI thread, non-blocking.
+    /// </summary>
+    private void ScrollToSection(ServiceItem item)
+    {
+        if (item == null) return;
+        if (_sectionByItem.TryGetValue(item, out var el))
+        {
+            el.BringIntoView();
+        }
+    }
+
+    /// <summary>
+    /// Update border/label-chip highlights for the LIVE item's section ONLY (the engine's
+    /// current slides belong to the live item). Finds the live item via
+    /// <c>_engine.CurrentItemIndex</c>, locates its section in <see cref="_sectionByItem"/>,
+    /// and recolors only that section's thumbnail WrapPanel. Non-live sections are never
+    /// recolored. Falls back to a full <see cref="RefreshSlideSections"/> if the live section
+    /// can't be found (stale map).
+    /// </summary>
+    private void UpdateLiveSectionHighlights()
     {
         if (_engine == null) return;
 
+        var order = _engine.CurrentServiceOrder;
+        int liveIndex = _engine.CurrentItemIndex;
+        if (order == null || liveIndex < 0 || liveIndex >= order.Items.Count)
+        {
+            return;
+        }
+
+        var liveItem = order.Items[liveIndex];
+        if (!_sectionByItem.TryGetValue(liveItem, out var sectionEl)
+            || sectionEl is not StackPanel sectionRoot)
+        {
+            // Map stale — rebuild to recover.
+            RefreshSlideSections();
+            return;
+        }
+
+        // The thumbnail grid is the WrapPanel child of the section root.
+        WrapPanel? thumbs = null;
+        foreach (var child in sectionRoot.Children)
+        {
+            if (child is WrapPanel wp) { thumbs = wp; break; }
+        }
+        if (thumbs == null) return;
+
         int currentIndex = _engine.CurrentSlideIndex;
 
-        for (int i = 0; i < SlideThumbnailsPanel.Children.Count; i++)
+        for (int i = 0; i < thumbs.Children.Count; i++)
         {
-            if (SlideThumbnailsPanel.Children[i] is Border border)
+            if (thumbs.Children[i] is Border border)
             {
                 bool isActive = (i == currentIndex);
                 bool isSelected = (_isEditMode && i == _selectedSlideIndex);

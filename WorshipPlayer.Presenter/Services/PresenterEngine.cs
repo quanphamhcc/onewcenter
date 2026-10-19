@@ -444,16 +444,32 @@ public class PresenterEngine : IDisposable
     /// </summary>
     private void GenerateSlidesFromSong(Song song)
     {
+        var generated = GenerateSlidesForSong(song);
+
+        // Publish the generated slides under the state lock; set to first slide if any.
+        lock (_stateLock)
+        {
+            _currentSlides = generated;
+            _currentSlideIndex = generated.Count > 0 ? 0 : -1;
+        }
+    }
+
+    /// <summary>
+    /// Pure slide generator: builds a fresh slide list from a song's sections[].text
+    /// WITHOUT mutating any engine state (no <c>_stateLock</c>, no writes to
+    /// <c>_currentSlides</c>/<c>_currentSlideIndex</c>). Shares the exact block/timestamp
+    /// logic used by the live path (<see cref="GenerateSlidesFromSong"/>) so sections
+    /// rendered for non-live items match the live rendering byte-for-byte. Used by the
+    /// all-sections center pane to preview every service item without disturbing the live
+    /// slide/go-live/backtrack flow.
+    /// </summary>
+    public List<Slide> GenerateSlidesForSong(Song song)
+    {
         var generated = new List<Slide>();
 
         if (song.Sections == null || song.Sections.Count == 0)
         {
-            lock (_stateLock)
-            {
-                _currentSlides = generated;
-                _currentSlideIndex = -1;
-            }
-            return;
+            return generated;
         }
 
         int order = 0;
@@ -511,12 +527,7 @@ public class PresenterEngine : IDisposable
             }
         }
 
-        // Publish the generated slides under the state lock; set to first slide if any.
-        lock (_stateLock)
-        {
-            _currentSlides = generated;
-            _currentSlideIndex = generated.Count > 0 ? 0 : -1;
-        }
+        return generated;
     }
 
     /// <summary>

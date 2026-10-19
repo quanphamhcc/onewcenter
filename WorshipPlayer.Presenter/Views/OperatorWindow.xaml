@@ -389,14 +389,14 @@
 
                     <!-- Services panel (slide grid - shown when a service is opened) -->
                     <Grid x:Name="ServicesPanel" Visibility="Collapsed">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="6">
+                        <ScrollViewer x:Name="SlideSectionsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="6">
                             <Grid>
                                 <TextBlock x:Name="EmptyStateText"
                                            Text="Load a song in the backtrack to see slides here.&#x0a;Or click 'Load Service' in the sidebar."
                                            FontSize="13" Foreground="#4A5068" TextAlignment="Center"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
                                            TextWrapping="Wrap" Margin="30" />
-                                <WrapPanel x:Name="SlideThumbnailsPanel" Margin="6" />
+                                <StackPanel x:Name="SlideSectionsPanel" Margin="6" />
                             </Grid>
                         </ScrollViewer>
 
