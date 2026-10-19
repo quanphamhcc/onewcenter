@@ -132,6 +132,19 @@ public class ServiceItem
     [JsonPropertyName("slides")]
     public List<Slide> Slides { get; set; } = new();
 
+    /// <summary>
+    /// Id of the authored Slides-library presentation this item is a LIVE LINK to.
+    /// When set (Type = Slides), the item's slides are resolved on demand from the current
+    /// presentation at render time, so later edits to the presentation show live (mirrors how
+    /// Song items resolve their linked library song). When null, the item uses its snapshot
+    /// <see cref="Slides"/> (backward compatible: older service orders have no such link).
+    /// Plain nullable with only [JsonPropertyName] — the manager's global WhenWritingNull
+    /// serialization condition omits it from JSON when null (same convention as
+    /// <see cref="ThemeId"/>/<see cref="BackgroundType"/>).
+    /// </summary>
+    [JsonPropertyName("slidePresentationId")]
+    public string? SlidePresentationId { get; set; }
+
     // ─── Theme/Styling ─────────────────────────────────────────────
     /// <summary>
     /// Override theme for this item. If null, uses the service-level default theme.
@@ -189,7 +202,7 @@ public enum ServiceItemType
     AltarCall,      // Response/altar call
     Blank,          // Black screen or logo
     Custom,         // User-defined (flexible)
-    Slides          // Authored Slides-library presentation (snapshotted slides)
+    Slides          // Authored Slides-library presentation (live link via SlidePresentationId, or legacy snapshotted slides)
 }
 
 /// <summary>

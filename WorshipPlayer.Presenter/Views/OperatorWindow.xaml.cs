@@ -105,6 +105,13 @@ public partial class OperatorWindow : Window
     private ITemplateService? _templateService;
     private ISlidePresentationService? _slidePresentationService;
 
+    // In-memory cache of the presentations that live-linked Slides items point at, keyed by
+    // SlidePresentationId. Primed asynchronously by PrimeSlidePresentationCacheAsync right before
+    // the refreshes that must reflect a live edit; read synchronously by GetSlidesForItem (which
+    // stays synchronous, mirroring the Song path's "resolve from an already-loaded collection").
+    // A null value means the presentation was not found (deleted) — the renderer falls back safely.
+    private readonly Dictionary<string, SlidePresentation?> _slidePresentationCache = new();
+
     // Navigation tab state
     private string _activeTab = "Services";
     private SongLibraryPanel? _songLibraryPanel;
@@ -678,6 +685,17 @@ public partial class OperatorWindow : Window
             RefreshSlideSections();
             UpdatePreviews();
             UpdateSlideCounter();
+
+            // Opening a service ends in GoToItem(0) -> ItemChanged (here). Prime the linked-
+            // presentation cache off the UI thread's pump (non-blocking, keeps this handler
+            // synchronous) then rebuild the sections so any live-linked Slides items show their
+            // CURRENT slides on the next service open / tab return. Failures are swallowed inside
+            // the prime helper.
+            _ = Dispatcher.InvokeAsync(async () =>
+            {
+                await PrimeSlidePresentationCacheAsync();
+                RefreshSlideSections();
+            });
         });
     }
 
@@ -2249,6 +2267,26 @@ public partial class OperatorWindow : Window
             return _engine.GenerateSlidesForSong(song);
         }
 
+        // Live-linked Slides item: resolve the presentation's CURRENT slides on demand from the
+        // primed cache so editing the presentation shows live (mirrors the Song link path above).
+        if (item.Type == ServiceItemType.Slides && !string.IsNullOrEmpty(item.SlidePresentationId))
+        {
+            if (_slidePresentationCache.TryGetValue(item.SlidePresentationId, out var presentation)
+                && presentation != null)
+            {
+                return SlidePresentationMapper.ToSlides(presentation);
+            }
+
+            // Not primed yet or the presentation was deleted/not found: fall through to item.Slides
+            // (empty for a pure link), so the caller's slides.Count == 0 path renders the safe
+            // "No slides to show for this item." note. No crash.
+            System.Diagnostics.Debug.WriteLine(
+                $"GetSlidesForItem: linked presentation '{item.SlidePresentationId}' not available " +
+                $"(deleted or cache not primed) for item '{item.Title}'.");
+        }
+
+        // Backward compat: a Slides item with no SlidePresentationId (legacy snapshot) renders its
+        // stored item.Slides unchanged.
         return item.Slides ?? new List<Slide>();
     }
 
@@ -3293,15 +3331,29 @@ public partial class OperatorWindow : Window
 
         var win = new SlideEditorWindow(presentation, _slidePresentationService) { Owner = this };
         if (win.ShowDialog() == true)
+        {
             _slidesLibraryPanel?.Refresh();
+
+            // Re-resolve linked presentations and rebuild the center grid so an edit to a presentation
+            // that a live-linked service item points at shows immediately (closes the refresh gap).
+            await PrimeSlidePresentationCacheAsync();
+            RefreshSlideSections();
+        }
     }
 
-    // STAGE 3: add an authored Slides presentation to the current service order. Mirrors the
-    // Songs "+ Add" path (OnAddSongToServiceRequested): guard for a loaded service, resolve the
-    // full presentation by id (the list item carries only Id/Name/SlideCount), convert via the
-    // pure Core SlidePresentationMapper, AddItem -> SaveServiceOrderAsync -> refresh sidebar.
-    // RefreshSlideSections is also called (beyond the song precedent) so the new slides section
-    // appears immediately in the center grid. The whole body is guarded so it never crashes.
+    // STAGE 3: add an authored Slides presentation to the current service order as a LIVE LINK.
+    // Mirrors the Songs "+ Add" path (OnAddSongToServiceRequested): guard for a loaded service,
+    // resolve the full presentation by id (the list item carries only Id/Name/SlideCount), convert
+    // via the pure Core SlidePresentationMapper.ToServiceItemLink (which stores only
+    // SlidePresentationId and leaves Slides EMPTY — no snapshot), AddItem -> SaveServiceOrderAsync
+    // -> refresh sidebar. The presentation cache is primed before RefreshSlideSections so the new
+    // live-linked section shows its current slides immediately in the center grid. The whole body
+    // is guarded so it never crashes.
+    //
+    // When it refreshes: a live edit to a linked presentation is reflected (i) immediately after
+    // returning from the slide editor (OnEditPresentationRequested primes + refreshes), (ii)
+    // immediately after this add, and (iii) on the next service open / Slides-tab return / any
+    // RefreshSlideSections that follows a cache prime. No polling is added.
     private async void OnAddPresentationToServiceRequested(object? sender, SlidePresentationListItem item)
     {
         try
@@ -3322,16 +3374,68 @@ public partial class OperatorWindow : Window
                 return;
             }
 
-            var serviceItem = SlidePresentationMapper.ToServiceItem(presentation);
+            var serviceItem = SlidePresentationMapper.ToServiceItemLink(presentation);
 
             _serviceOrderManager.AddItem(serviceItem);
             await SaveServiceOrderAsync();
             RefreshServiceOrderList();
+            await PrimeSlidePresentationCacheAsync();
             RefreshSlideSections();
         }
         catch (Exception ex)
         {
             ShowToolError("Add to Service", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Resolve (into <see cref="_slidePresentationCache"/>) the current library presentation for
+    /// every live-linked Slides item in the open service, so the synchronous
+    /// <see cref="GetSlidesForItem"/> can convert their CURRENT slides on demand. This is the only
+    /// place that awaits the async slide-presentation service; the render loop stays synchronous.
+    ///
+    /// The cache is cleared first so a presentation that was edited, renamed, or deleted elsewhere
+    /// is re-resolved on the next prime. A presentation that is not found stores a null entry so the
+    /// renderer falls back to the safe "no slides" note instead of crashing. Never throws into the
+    /// UI — all failures are logged and swallowed.
+    /// </summary>
+    private async Task PrimeSlidePresentationCacheAsync()
+    {
+        try
+        {
+            _slidePresentationCache.Clear();
+
+            if (_slidePresentationService == null) return;
+
+            var order = _serviceOrderManager?.CurrentServiceOrder;
+            if (order == null) return;
+
+            var ids = order.Items
+                .Where(i => i.Type == ServiceItemType.Slides && !string.IsNullOrEmpty(i.SlidePresentationId))
+                .Select(i => i.SlidePresentationId!)
+                .Distinct();
+
+            foreach (var id in ids)
+            {
+                var presentation = await _slidePresentationService.GetByIdAsync(id);
+                _slidePresentationCache[id] = presentation;
+
+                // Keep the stored Title in sync with the (possibly renamed) presentation so the
+                // section header reflects the live name. Harmless no-op when unchanged.
+                if (presentation != null && !string.IsNullOrWhiteSpace(presentation.Name))
+                {
+                    foreach (var linkedItem in order.Items.Where(i =>
+                                 i.Type == ServiceItemType.Slides && i.SlidePresentationId == id))
+                    {
+                        linkedItem.Title = presentation.Name;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"PrimeSlidePresentationCacheAsync: failed to prime cache: {ex.Message}");
         }
     }
 
