@@ -51,11 +51,20 @@ public class BeatDetectionService
         public double BarDurationMs { get; set; }
         public double GridAnchorMs { get; set; }
         public int TimeSignatureNumerator { get; set; } = 4;
+        public int TimeSignatureDenominator { get; set; } = 4;
         public int TotalBars { get; set; }
         public double TotalDurationMs { get; set; }
         public List<double> BeatPositionsMs { get; set; } = new();
         public double Confidence { get; set; } // 0.0 to 1.0
     }
+
+    /// <summary>
+    /// A single schedulable metronome click. <see cref="TimeMs"/> is the pulse position (ms) and
+    /// <see cref="IsAccent"/> marks the LOUDER beat-1 accent. This pure value type is the SINGLE
+    /// source of truth shared by the live metronome preview (FEAT-002) and the generated WAV, so
+    /// the two always match exactly.
+    /// </summary>
+    public readonly record struct ClickPulse(double TimeMs, bool IsAccent);
 
     // ═══════════════════════════════════════════════════════════════════════
     // METHOD 1: Click Track Analysis
@@ -315,12 +324,58 @@ public class BeatDetectionService
     /// Keeps the current BPM and time signature, recalculates bar/beat layout from the new anchor.
     /// </summary>
     public BeatGrid BuildGridFromManualAnchor(double anchorMs, double bpm, int timeSignatureNumerator, double totalDurationMs)
-    {
-        double beatIntervalMs = 60000.0 / bpm;
-        double barDurationMs = beatIntervalMs * timeSignatureNumerator;
-        int totalBars = totalDurationMs > 0 ? (int)((totalDurationMs - anchorMs) / barDurationMs) : 0;
+        => BuildGridFromManualAnchor(anchorMs, bpm, timeSignatureNumerator, 4, totalDurationMs);
 
-        // Generate beat positions from the anchor
+    /// <summary>
+    /// Build a beat grid from a manually-specified downbeat (grid anchor) and an explicit time
+    /// signature (numerator AND denominator), so the manual-tempo selection can rebuild the shared
+    /// grid for 3/4, 4/4 and 6/8. The bar length honors the denominator:
+    ///   • 4/4 → 4 * beatIntervalMs   • 3/4 → 3 * beatIntervalMs
+    ///   • 6/8 (felt in 2) → one full 6/8 bar = 6 eighth notes = 3 * beatIntervalMs
+    /// The 4-arg overload delegates here with denominator 4 so existing callers remain 4/4.
+    /// </summary>
+    public BeatGrid BuildGridFromManualAnchor(double anchorMs, double bpm, int timeSignatureNumerator,
+        int timeSignatureDenominator, double totalDurationMs)
+    {
+        // Guard degenerate inputs so callers never see NaN/Infinity or a crash.
+        if (bpm <= 0 || timeSignatureNumerator <= 0)
+        {
+            return new BeatGrid
+            {
+                Bpm = bpm,
+                BeatIntervalMs = 0,
+                BarDurationMs = 0,
+                GridAnchorMs = Math.Round(anchorMs, 3),
+                TimeSignatureNumerator = timeSignatureNumerator,
+                TimeSignatureDenominator = timeSignatureDenominator,
+                TotalBars = 0,
+                TotalDurationMs = totalDurationMs,
+                BeatPositionsMs = new List<double>(),
+                Confidence = 1.0
+            };
+        }
+
+        double beatIntervalMs = 60000.0 / bpm;
+
+        // Bar length honors the denominator. For 6/8 felt-in-2 the bar is 6 eighth notes; an
+        // eighth note is half a quarter-note beat, so 6 * (beatIntervalMs / 2) = 3 * beatIntervalMs.
+        double barDurationMs;
+        if (timeSignatureDenominator == 8 && timeSignatureNumerator == 6)
+        {
+            double eighthMs = beatIntervalMs / 2.0;
+            barDurationMs = 6 * eighthMs; // == 3 * beatIntervalMs
+        }
+        else
+        {
+            barDurationMs = beatIntervalMs * timeSignatureNumerator;
+        }
+
+        int totalBars = (totalDurationMs > 0 && barDurationMs > 0)
+            ? (int)((totalDurationMs - anchorMs) / barDurationMs)
+            : 0;
+
+        // Generate beat positions from the anchor (quarter-note beats; the pulse pattern used for
+        // the audible click/preview lives in ComputeMetronomePulses).
         var beatPositions = new List<double>();
         double t = anchorMs;
         while (t < totalDurationMs)
@@ -336,11 +391,86 @@ public class BeatDetectionService
             BarDurationMs = Math.Round(barDurationMs, 3),
             GridAnchorMs = Math.Round(anchorMs, 3),
             TimeSignatureNumerator = timeSignatureNumerator,
+            TimeSignatureDenominator = timeSignatureDenominator,
             TotalBars = totalBars,
             TotalDurationMs = totalDurationMs,
             BeatPositionsMs = beatPositions,
             Confidence = 1.0 // Manual = highest confidence
         };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // METRONOME PULSE PATTERN (PURE — no I/O; single source of truth)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Compute the full schedule of metronome click pulses across [gridAnchorMs, totalDurationMs).
+    /// This is a PURE function (no file/audio I/O) and is the single source of truth for BOTH the
+    /// live metronome preview and the generated WAV, so the two always match exactly.
+    ///
+    /// The beat unit is the quarter note: beatIntervalMs = 60000 / bpm.
+    ///   • 4/4 → 4 quarter-note clicks per bar, accent on beat 1.
+    ///   • 3/4 → 3 quarter-note clicks per bar, accent on beat 1.
+    ///   • 6/8 FELT IN 2 → the bar is 6 eighth notes; emit clicks ONLY on eighth positions 1 and 4
+    ///     (the two dotted-quarter pulses). An eighth note = beatIntervalMs / 2, so the pulses fall
+    ///     at barStart + 0*eighthMs (accent) and barStart + 3*eighthMs (normal click).
+    ///
+    /// Degenerate inputs (bpm &lt;= 0, numerator &lt;= 0, totalDurationMs &lt;= 0) return an empty list and
+    /// never throw.
+    /// </summary>
+    public List<ClickPulse> ComputeMetronomePulses(double gridAnchorMs, double bpm,
+        int timeSigNumerator, int timeSigDenominator, double totalDurationMs)
+    {
+        var pulses = new List<ClickPulse>();
+        if (bpm <= 0 || timeSigNumerator <= 0 || totalDurationMs <= 0)
+            return pulses;
+
+        double beatIntervalMs = 60000.0 / bpm;
+        if (beatIntervalMs <= 0)
+            return pulses;
+
+        bool sixEightFeltInTwo = (timeSigDenominator == 8 && timeSigNumerator == 6);
+
+        if (sixEightFeltInTwo)
+        {
+            // Felt in 2: two dotted-quarter pulses per bar at eighth positions 1 and 4.
+            double eighthMs = beatIntervalMs / 2.0;
+            double barDurationMs = 6 * eighthMs; // 6 eighth notes
+            for (double barStart = gridAnchorMs; barStart < totalDurationMs; barStart += barDurationMs)
+            {
+                double p1 = barStart;                 // accent
+                double p2 = barStart + 3 * eighthMs;  // normal
+                if (p1 >= 0 && p1 < totalDurationMs)
+                    pulses.Add(new ClickPulse(p1, true));
+                if (p2 >= 0 && p2 < totalDurationMs)
+                    pulses.Add(new ClickPulse(p2, false));
+            }
+        }
+        else
+        {
+            // 3/4, 4/4 and other simple meters: one click per quarter-note beat, accent on beat 1.
+            int beatIndexInBar = 0;
+            for (double t = gridAnchorMs; t < totalDurationMs; t += beatIntervalMs)
+            {
+                if (t >= 0)
+                    pulses.Add(new ClickPulse(t, beatIndexInBar == 0));
+                beatIndexInBar = (beatIndexInBar + 1) % timeSigNumerator;
+            }
+        }
+
+        return pulses;
+    }
+
+    /// <summary>
+    /// Return the WAV click positions (ms) for the SAME pulse pattern used by the live preview, so
+    /// the generated WAV and the metronome match exactly. Pure (no I/O). Starts at
+    /// grid.GridAnchorMs and covers grid.TotalDurationMs.
+    /// </summary>
+    public List<double> BuildManualClickPositions(BeatGrid grid)
+    {
+        var pulses = ComputeMetronomePulses(grid.GridAnchorMs, grid.Bpm,
+            grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, grid.TotalDurationMs);
+        return pulses.Select(p => p.TimeMs).ToList();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -425,6 +555,55 @@ public class BeatDetectionService
 
         // Save as WAV (16-bit PCM mono). NAudio converts the float sample to the configured
         // 16-bit format internally, so we write floats directly.
+        using var writer = new WaveFileWriter(outputPath, new WaveFormat(sampleRate, 16, 1));
+        foreach (float sample in clickAudio)
+        {
+            writer.WriteSample(Math.Clamp(sample, -1f, 1f));
+        }
+    }
+
+    /// <summary>
+    /// Generate a single click WAV for the manual-tempo workflow using the metronome pulse pattern
+    /// (the SAME <see cref="ComputeMetronomePulses"/> schedule as the live preview, so the WAV and
+    /// preview match exactly). Beat-1 accents are synthesized LOUDER (1500Hz amp 0.9) than normal
+    /// clicks (1000Hz amp 0.6). Honors 3/4, 4/4 and 6/8-felt-in-2 and starts at grid.GridAnchorMs.
+    /// Degenerate grids (duration/sampleRate &lt;= 0) write a valid empty/silent WAV and never throw,
+    /// exactly like <see cref="GenerateClickTrack(BeatGrid,string,ClickGenerationMode,int,string?)"/>.
+    /// </summary>
+    public void GenerateManualClickTrack(BeatGrid grid, string outputPath, int sampleRate = 44100)
+    {
+        double totalDurationMs = grid.TotalDurationMs;
+        if (totalDurationMs <= 0 || sampleRate <= 0)
+        {
+            // Nothing meaningful to write; emit an empty (silent) file so callers never crash.
+            using var emptyWriter = new WaveFileWriter(outputPath, new WaveFormat(Math.Max(1, sampleRate), 16, 1));
+            return;
+        }
+
+        int totalSamples = (int)(totalDurationMs / 1000.0 * sampleRate);
+        float[] clickAudio = new float[Math.Max(0, totalSamples)];
+
+        // Click sounds: louder beat-1 accent vs. normal click (mirrors GenerateClickTrack).
+        int clickLengthSamples = (int)(0.01 * sampleRate); // 10ms click
+        float[] clickAccent = GenerateClickSound(sampleRate, 1500, clickLengthSamples, 0.9f); // beat 1 accent (louder)
+        float[] clickNormal = GenerateClickSound(sampleRate, 1000, clickLengthSamples, 0.6f); // other pulses
+
+        // Single source of truth: the metronome pulse pattern.
+        var pulses = ComputeMetronomePulses(grid.GridAnchorMs, grid.Bpm,
+            grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, totalDurationMs);
+
+        foreach (var pulse in pulses)
+        {
+            int samplePos = (int)(pulse.TimeMs / 1000.0 * sampleRate);
+            if (samplePos < 0 || samplePos >= totalSamples) continue;
+
+            float[] clickSound = pulse.IsAccent ? clickAccent : clickNormal;
+            for (int j = 0; j < clickSound.Length && samplePos + j < totalSamples; j++)
+            {
+                clickAudio[samplePos + j] = clickSound[j];
+            }
+        }
+
         using var writer = new WaveFileWriter(outputPath, new WaveFormat(sampleRate, 16, 1));
         foreach (float sample in clickAudio)
         {
