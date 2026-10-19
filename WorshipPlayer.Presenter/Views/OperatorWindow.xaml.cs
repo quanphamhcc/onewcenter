@@ -1394,9 +1394,14 @@ public partial class OperatorWindow : Window
     }
 
     /// <summary>
-    /// Build an item (non-header) display row for the sidebar.
+    /// Build an item (non-header) display row for the sidebar. Instance method (not static) so it
+    /// can read <see cref="_slidePresentationCache"/> to DISPLAY a live-linked Slides item's CURRENT
+    /// presentation name (resolved at render time via <see cref="ServiceItemDisplayName"/>) — a
+    /// rename of the presentation updates this row's label without rewriting the stored Title. The
+    /// icon mapping is name-independent, so the <see cref="BuildSectionHeader"/> caller that only
+    /// reads <see cref="ServiceItemDisplay.Icon"/> is unaffected.
     /// </summary>
-    private static ServiceItemDisplay MakeItemRow(ServiceItem item)
+    private ServiceItemDisplay MakeItemRow(ServiceItem item)
     {
         var icon = item.Type switch
         {
@@ -1413,9 +1418,25 @@ public partial class OperatorWindow : Window
         return new ServiceItemDisplay
         {
             Icon = icon,
-            Title = item.Title,
+            Title = ServiceItemDisplayName.ResolveDisplayName(item, ResolveLinkedPresentation(item)),
             Item = item
         };
+    }
+
+    /// <summary>
+    /// Look up the already-primed library presentation for a live-linked Slides item from
+    /// <see cref="_slidePresentationCache"/>. Returns null for non-Slides items, Slides items with
+    /// no link id, and ids that are missing/deleted or not yet primed — in every case the display
+    /// name falls back safely to the stored Title. Synchronous: it only reads the cache that
+    /// <see cref="PrimeSlidePresentationCacheAsync"/> populates before the refreshes, so no UI-thread
+    /// blocking/async is introduced (same pattern <see cref="GetSlidesForItem"/> relies on).
+    /// </summary>
+    private SlidePresentation? ResolveLinkedPresentation(ServiceItem item)
+    {
+        if (item.Type != ServiceItemType.Slides || string.IsNullOrEmpty(item.SlidePresentationId))
+            return null;
+
+        return _slidePresentationCache.GetValueOrDefault(item.SlidePresentationId);
     }
 
     /// <summary>
@@ -2159,9 +2180,13 @@ public partial class OperatorWindow : Window
             Margin = new Thickness(0, 0, 8, 0),
             VerticalAlignment = System.Windows.VerticalAlignment.Center
         });
+        // DISPLAY the live-linked Slides presentation's CURRENT name (resolved from the primed
+        // cache at render time), falling back to the stored Title for every other item and to
+        // "(untitled)" when the resolved name is blank. Keeps stored data unchanged.
+        var displayName = ServiceItemDisplayName.ResolveDisplayName(item, ResolveLinkedPresentation(item));
         titleStack.Children.Add(new TextBlock
         {
-            Text = string.IsNullOrWhiteSpace(item.Title) ? "(untitled)" : item.Title,
+            Text = string.IsNullOrWhiteSpace(displayName) ? "(untitled)" : displayName,
             FontSize = 13,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F2F5")),
@@ -3334,9 +3359,12 @@ public partial class OperatorWindow : Window
         {
             _slidesLibraryPanel?.Refresh();
 
-            // Re-resolve linked presentations and rebuild the center grid so an edit to a presentation
-            // that a live-linked service item points at shows immediately (closes the refresh gap).
+            // Re-resolve linked presentations, then rebuild BOTH the sidebar and the center grid so an
+            // edit (including a RENAME) to a presentation that a live-linked service item points at
+            // shows immediately — the sidebar row label and the center section header pick up the
+            // current presentation name from the freshly primed cache (closes the refresh gap).
             await PrimeSlidePresentationCacheAsync();
+            RefreshServiceOrderList();
             RefreshSlideSections();
         }
     }
@@ -3378,8 +3406,10 @@ public partial class OperatorWindow : Window
 
             _serviceOrderManager.AddItem(serviceItem);
             await SaveServiceOrderAsync();
-            RefreshServiceOrderList();
+            // Prime BEFORE rebuilding the sidebar so the newly added row shows the live presentation
+            // name on first paint (the sidebar label resolves from the primed cache).
             await PrimeSlidePresentationCacheAsync();
+            RefreshServiceOrderList();
             RefreshSlideSections();
         }
         catch (Exception ex)
@@ -3419,17 +3449,10 @@ public partial class OperatorWindow : Window
             {
                 var presentation = await _slidePresentationService.GetByIdAsync(id);
                 _slidePresentationCache[id] = presentation;
-
-                // Keep the stored Title in sync with the (possibly renamed) presentation so the
-                // section header reflects the live name. Harmless no-op when unchanged.
-                if (presentation != null && !string.IsNullOrWhiteSpace(presentation.Name))
-                {
-                    foreach (var linkedItem in order.Items.Where(i =>
-                                 i.Type == ServiceItemType.Slides && i.SlidePresentationId == id))
-                    {
-                        linkedItem.Title = presentation.Name;
-                    }
-                }
+                // NOTE: stored ServiceItem.Title is intentionally NOT rewritten here. The live
+                // DISPLAY name (sidebar row + center section header) is resolved at render time from
+                // this cache via ServiceItemDisplayName.ResolveDisplayName, so a rename shows live
+                // without mutating stored data.
             }
         }
         catch (Exception ex)
