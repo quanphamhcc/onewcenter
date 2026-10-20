@@ -13,8 +13,6 @@ namespace WorshipPlayer.Tests;
 /// </summary>
 public class ManualClickBeat1CountInTests
 {
-    private static int PulsesPerBar(int num, int den) => (den == 8 && num == 6) ? 2 : num;
-
     // ── (a) First non-count-in pulse lands EXACTLY at Beat 1 for 4/4, 3/4, 6/8 ───────
     [Theory]
     [InlineData(4, 4)]
@@ -53,26 +51,25 @@ public class ManualClickBeat1CountInTests
         Assert.True(pulses[4].IsAccent);
     }
 
-    // ── (b) Count-in produces exactly N*pulsesPerBar pulses immediately before Beat 1 ─
+    // ── (b) Count-in produces exactly N BEAT clicks immediately before Beat 1 ────────
     [Theory]
     [InlineData(4, 4, 1)]
     [InlineData(4, 4, 2)]
+    [InlineData(4, 4, 4)]
     [InlineData(3, 4, 1)]
-    [InlineData(3, 4, 2)]
+    [InlineData(3, 4, 3)]
     [InlineData(6, 8, 1)]
     [InlineData(6, 8, 2)]
-    public void CountIn_ProducesExactly_N_PulsesPerBar_BeforeBeat1(int num, int den, int bars)
+    public void CountIn_ProducesExactly_N_Beats_BeforeBeat1(int num, int den, int beats)
     {
         var service = new BeatDetectionService();
         double bpm = 120;
         double beat1 = 100000; // far from 0 so nothing clamps
-        var pulses = service.ComputeManualClickPulses(beat1, bpm, num, den, beat1 + 10000, bars);
+        var pulses = service.ComputeManualClickPulses(beat1, bpm, num, den, beat1 + 10000, beats);
 
-        int expectedCountIn = bars * PulsesPerBar(num, den);
-
-        // Count-in pulses are the ones strictly before Beat 1 and non-accent.
+        // Count-in now counts BEATS, so exactly `beats` lead-in clicks (when room allows).
         var countIn = pulses.Where(p => p.TimeMs < beat1).ToList();
-        Assert.Equal(expectedCountIn, countIn.Count);
+        Assert.Equal(beats, countIn.Count);
         Assert.All(countIn, p => Assert.False(p.IsAccent, "count-in pulses must be non-accent"));
 
         // The first pulse at/after Beat 1 must be exactly Beat 1 and the accent.
@@ -81,42 +78,39 @@ public class ManualClickBeat1CountInTests
         Assert.True(body.IsAccent);
     }
 
-    // ── (b2) Count-in spacing is correct, including the 6/8-in-2 case (2 pulses/bar) ──
+    // ── (b2) 6/8-felt-in-2 count-in steps by the dotted-quarter pulse (3 eighths) ─────
     [Fact]
-    public void CountIn_6_8_UsesTwoPulsesPerBar_AtCorrectSpacing()
+    public void CountIn_6_8_StepsByDottedQuarter()
     {
         var service = new BeatDetectionService();
         double bpm = 120;
         double beatMs = 60000.0 / bpm; // quarter = 500ms
         double eighthMs = beatMs / 2.0; // 250ms
-        double barMs = 6 * eighthMs;    // 1500ms
+        double stepMs = 3 * eighthMs;   // dotted-quarter pulse = 750ms
         double beat1 = 10000;
 
         var pulses = service.ComputeManualClickPulses(beat1, bpm, 6, 8, beat1 + 5000, 2);
         var countIn = pulses.Where(p => p.TimeMs < beat1).OrderBy(p => p.TimeMs).ToList();
 
-        Assert.Equal(4, countIn.Count); // 2 bars * 2 pulses
-        // Two bars before beat1: bar -2 start, +3*eighth, bar -1 start, +3*eighth.
-        Assert.Equal(beat1 - 2 * barMs, countIn[0].TimeMs, 6);
-        Assert.Equal(beat1 - 2 * barMs + 3 * eighthMs, countIn[1].TimeMs, 6);
-        Assert.Equal(beat1 - 1 * barMs, countIn[2].TimeMs, 6);
-        Assert.Equal(beat1 - 1 * barMs + 3 * eighthMs, countIn[3].TimeMs, 6);
+        Assert.Equal(2, countIn.Count); // 2 beats
+        Assert.Equal(beat1 - 2 * stepMs, countIn[0].TimeMs, 6);
+        Assert.Equal(beat1 - 1 * stepMs, countIn[1].TimeMs, 6);
     }
 
-    // ── (b3) 4/4 count-in spacing: evenly spaced quarter-note clicks ending one beat before Beat 1 ─
+    // ── (b3) 4/4 count-in spacing: N evenly spaced quarter-note clicks before Beat 1 ──
     [Fact]
-    public void CountIn_4_4_OneBar_FourEvenlySpacedClicks()
+    public void CountIn_4_4_FourBeats_FourEvenlySpacedClicks()
     {
         var service = new BeatDetectionService();
         double bpm = 120;
         double beatMs = 60000.0 / bpm; // 500ms
         double beat1 = 4000;
 
-        var pulses = service.ComputeManualClickPulses(beat1, bpm, 4, 4, beat1 + 4000, 1);
+        var pulses = service.ComputeManualClickPulses(beat1, bpm, 4, 4, beat1 + 4000, 4);
         var countIn = pulses.Where(p => p.TimeMs < beat1).OrderBy(p => p.TimeMs).ToList();
 
         Assert.Equal(4, countIn.Count);
-        // One bar before beat1 => clicks at beat1 - 4*beatMs .. beat1 - 1*beatMs.
+        // Four beats before beat1 => clicks at beat1 - 4*beatMs .. beat1 - 1*beatMs.
         for (int i = 0; i < 4; i++)
             Assert.Equal(beat1 - (4 - i) * beatMs, countIn[i].TimeMs, 6);
     }
@@ -144,11 +138,10 @@ public class ManualClickBeat1CountInTests
     {
         var service = new BeatDetectionService();
         double bpm = 120;
-        double beatMs = 60000.0 / bpm; // 500ms
-        // Beat 1 at 1200ms: one bar of 4/4 count-in would want clicks at -800, -300, 200, 700.
-        // Only 200 and 700 are >= 0 so exactly 2 count-in pulses survive.
+        // Beat 1 at 1200ms, beat = 500ms: a 4-beat count-in wants clicks at 700, 200, -300, -800.
+        // Only 700 and 200 are >= 0 so exactly 2 count-in pulses survive.
         double beat1 = 1200;
-        var pulses = service.ComputeManualClickPulses(beat1, bpm, 4, 4, 10000, 1);
+        var pulses = service.ComputeManualClickPulses(beat1, bpm, 4, 4, 10000, 4);
 
         var countIn = pulses.Where(p => p.TimeMs < beat1).OrderBy(p => p.TimeMs).ToList();
         Assert.Equal(2, countIn.Count);
@@ -196,24 +189,24 @@ public class ManualClickBeat1CountInTests
         Assert.All(pulses, p => Assert.True(p.TimeMs < duration, "pulses stay within the half-open range"));
     }
 
-    // ── (f) count-in 0/1/2 across 3/4, 4/4, 6/8: count equals N*pulsesPerBar ─────────
+    // ── (f) count-in 0-4 beats across 3/4, 4/4, 6/8: count equals the beat count ──────
     [Theory]
     [InlineData(4, 4, 0)]
     [InlineData(4, 4, 1)]
-    [InlineData(4, 4, 2)]
+    [InlineData(4, 4, 4)]
     [InlineData(3, 4, 0)]
-    [InlineData(3, 4, 1)]
     [InlineData(3, 4, 2)]
+    [InlineData(3, 4, 3)]
     [InlineData(6, 8, 0)]
     [InlineData(6, 8, 1)]
     [InlineData(6, 8, 2)]
-    public void CountIn_Count_MatchesBarsTimesPulsesPerBar_WhenRoomToFit(int num, int den, int bars)
+    public void CountIn_Count_MatchesBeatCount_WhenRoomToFit(int num, int den, int beats)
     {
         var service = new BeatDetectionService();
         double beat1 = 100000; // plenty of room before Beat 1
-        var pulses = service.ComputeManualClickPulses(beat1, 120, num, den, beat1 + 5000, bars);
+        var pulses = service.ComputeManualClickPulses(beat1, 120, num, den, beat1 + 5000, beats);
         int countInCount = pulses.Count(p => p.TimeMs < beat1);
-        Assert.Equal(bars * PulsesPerBar(num, den), countInCount);
+        Assert.Equal(beats, countInCount);
     }
 
     // ── (g) BuildManualClickPositions matches the pure pulse times exactly (WAV == preview) ──
@@ -274,17 +267,11 @@ public class ManualClickBeat1CountInTests
             service.GenerateManualClickTrack(grid, path, sampleRate, beat1, countInBars);
             Assert.True(File.Exists(path));
 
-            float[] samples;
+            float[] samples; // one value per FRAME (left channel) so frame-index math is simple
             using (var reader = new NAudio.Wave.AudioFileReader(path))
             {
-                Assert.Equal(1, reader.WaveFormat.Channels);
-                var buffer = new List<float>();
-                var chunk = new float[4096];
-                int read;
-                while ((read = reader.Read(chunk, 0, chunk.Length)) > 0)
-                    for (int i = 0; i < read; i++)
-                        buffer.Add(chunk[i]);
-                samples = buffer.ToArray();
+                Assert.Equal(2, reader.WaveFormat.Channels); // stereo, matching the song stems
+                samples = ReadLeftChannelFrames(reader);
             }
 
             int windowSamples = (int)(0.015 * sampleRate);
@@ -333,16 +320,11 @@ public class ManualClickBeat1CountInTests
             service.GenerateManualClickTrack(grid, path, sampleRate, beat1, 0);
             Assert.True(File.Exists(path));
 
-            float[] samples;
+            float[] samples; // one value per FRAME (left channel)
             using (var reader = new NAudio.Wave.AudioFileReader(path))
             {
-                var buffer = new List<float>();
-                var chunk = new float[4096];
-                int read;
-                while ((read = reader.Read(chunk, 0, chunk.Length)) > 0)
-                    for (int i = 0; i < read; i++)
-                        buffer.Add(chunk[i]);
-                samples = buffer.ToArray();
+                Assert.Equal(2, reader.WaveFormat.Channels); // stereo, matching the song stems
+                samples = ReadLeftChannelFrames(reader);
             }
 
             int windowSamples = (int)(0.045 * sampleRate); // whole ~40ms click
@@ -430,5 +412,27 @@ public class ManualClickBeat1CountInTests
             if (a > peak) peak = a;
         }
         return peak;
+    }
+
+    /// <summary>
+    /// Read a stereo (or mono) float WAV and return ONE value per frame (the left channel). This
+    /// lets frame-index math (sampleRate * seconds) work regardless of the file's channel count.
+    /// </summary>
+    private static float[] ReadLeftChannelFrames(NAudio.Wave.AudioFileReader reader)
+    {
+        int ch = reader.WaveFormat.Channels;
+        var interleaved = new List<float>();
+        var chunk = new float[4096];
+        int read;
+        while ((read = reader.Read(chunk, 0, chunk.Length)) > 0)
+            for (int i = 0; i < read; i++)
+                interleaved.Add(chunk[i]);
+
+        if (ch <= 1) return interleaved.ToArray();
+
+        var frames = new float[interleaved.Count / ch];
+        for (int f = 0; f < frames.Length; f++)
+            frames[f] = interleaved[f * ch]; // left channel
+        return frames;
     }
 }

@@ -252,14 +252,16 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <TextBlock Text="Count-in:" FontSize="11" Foreground="#B0B0C0"
                                            VerticalAlignment="Center" Margin="0,0,6,0" />
-                                <ComboBox x:Name="CountInComboBox" Width="80" Height="24"
+                                <ComboBox x:Name="CountInComboBox" Width="120" Height="26"
                                           FontSize="11" Background="#2B2B3D" Foreground="White"
                                           BorderBrush="#4A4A60"
                                           SelectionChanged="CountIn_SelectionChanged"
-                                          ToolTip="Bars of count-in clicks before Beat 1">
-                                    <ComboBoxItem Content="0 bars" Tag="0" />
-                                    <ComboBoxItem Content="1 bar" Tag="1" />
-                                    <ComboBoxItem Content="2 bars" Tag="2" />
+                                          ToolTip="Number of count-in (lead-in) beats before Beat 1 — the classic 1-2-3-4 count">
+                                    <ComboBoxItem Content="0 beats (off)" Tag="0" Foreground="Black" />
+                                    <ComboBoxItem Content="1 beat" Tag="1" Foreground="Black" />
+                                    <ComboBoxItem Content="2 beats" Tag="2" Foreground="Black" />
+                                    <ComboBoxItem Content="3 beats" Tag="3" Foreground="Black" />
+                                    <ComboBoxItem Content="4 beats" Tag="4" Foreground="Black" />
                                 </ComboBox>
                             </StackPanel>
                             <TextBlock x:Name="ManualBeat1Display" Text="" FontSize="10"

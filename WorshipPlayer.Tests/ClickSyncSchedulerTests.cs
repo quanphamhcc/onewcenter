@@ -54,18 +54,20 @@ public class ClickSyncSchedulerTests
     // ── Count-in precedes Beat 1 by exactly countInBars whole bars when room exists ──
     [Theory]
     [InlineData(4, 4, 1)]
-    [InlineData(4, 4, 2)]
+    [InlineData(4, 4, 4)]
     [InlineData(3, 4, 2)]
     [InlineData(6, 8, 2)]
-    public void CountIn_PrecedesBeat1_ByWholeBars_WhenRoom(int num, int den, int bars)
+    public void CountIn_PrecedesBeat1_ByWholeBeats_WhenRoom(int num, int den, int beats)
     {
         double bpm = 120;
-        double bar = ClickSyncScheduler.BarDurationMs(bpm, num, den);
+        // Count-in step is one beat (dotted-quarter pulse for 6/8 felt-in-2).
+        double beatMs = 60000.0 / bpm;
+        double step = (den == 8 && num == 6) ? 3.0 * (beatMs / 2.0) : beatMs;
         double beat1 = 100000; // far from 0 so nothing clamps
-        var a = ClickSyncScheduler.ComputeAlignment(beat1, bpm, num, den, bars);
+        var a = ClickSyncScheduler.ComputeAlignment(beat1, bpm, num, den, beats);
 
-        Assert.Equal(bars * bar, a.CountInDurationMs, 6);
-        Assert.Equal(beat1 - bars * bar, a.ArmAtSongMs, 6);
+        Assert.Equal(beats * step, a.CountInDurationMs, 6);
+        Assert.Equal(beat1 - beats * step, a.ArmAtSongMs, 6);
         Assert.Equal(a.ArmAtSongMs, a.FirstClickSongMs, Tol);
         Assert.Equal(beat1, a.Beat1SongMs, Tol);
         // The first click precedes Beat 1 exactly when there is a count-in.
@@ -76,9 +78,10 @@ public class ClickSyncSchedulerTests
     [Fact]
     public void CountIn_Clamps_NeverStartsBeforeZero()
     {
-        double bpm = 120; // bar = 2000ms for 4/4
-        double beat1 = 1200; // one 4/4 bar (2000ms) would start at -800ms
-        var a = ClickSyncScheduler.ComputeAlignment(beat1, bpm, 4, 4, 1);
+        double bpm = 120; // beat = 500ms for 4/4
+        // Beat 1 at 1200ms with a 4-beat count-in (2000ms) would start at -800ms.
+        double beat1 = 1200;
+        var a = ClickSyncScheduler.ComputeAlignment(beat1, bpm, 4, 4, 4);
 
         // Clamp => count-in duration is only beat1 (1200), arm exactly at 0.
         Assert.Equal(1200, a.CountInDurationMs, 6);
@@ -138,7 +141,8 @@ public class ClickSyncSchedulerTests
     [Fact]
     public void ShouldArmNow_TrueWhenSongReachesFirstClick()
     {
-        var a = ClickSyncScheduler.ComputeAlignment(2000, 120, 4, 4, 1); // count-in start at 0
+        // beat1=2000, 120 BPM (beat=500ms), 4-beat count-in => first click at 2000-4*500 = 0.
+        var a = ClickSyncScheduler.ComputeAlignment(2000, 120, 4, 4, 4); // count-in start at 0
         Assert.True(ClickSyncScheduler.ShouldArmNow(0, a), "count-in starts at 0, arm immediately");
 
         var b = ClickSyncScheduler.ComputeAlignment(2000, 120, 4, 4, 0); // first click at Beat 1 = 2000
@@ -151,17 +155,17 @@ public class ClickSyncSchedulerTests
     // the first count-in pulse and the Beat-1 accent, so Play-with-Click == Generated_Click_Manual.wav.
     [Theory]
     [InlineData(4, 4, 1)]
-    [InlineData(4, 4, 2)]
+    [InlineData(4, 4, 4)]
     [InlineData(3, 4, 2)]
     [InlineData(6, 8, 2)]
-    public void Alignment_AgreesWith_ComputeManualClickPulses(int num, int den, int bars)
+    public void Alignment_AgreesWith_ComputeManualClickPulses(int num, int den, int beats)
     {
         var service = new BeatDetectionService();
         double bpm = 120;
         double beat1 = 20000; // plenty of room
-        var a = ClickSyncScheduler.ComputeAlignment(beat1, bpm, num, den, bars);
+        var a = ClickSyncScheduler.ComputeAlignment(beat1, bpm, num, den, beats);
 
-        var pulses = service.ComputeManualClickPulses(beat1, bpm, num, den, beat1 + 5000, bars);
+        var pulses = service.ComputeManualClickPulses(beat1, bpm, num, den, beat1 + 5000, beats);
 
         // The Beat-1 accent is the first pulse at/after beat1 and must equal Beat1SongMs.
         var body = pulses.First(p => p.TimeMs >= beat1);
@@ -181,10 +185,10 @@ public class ClickSyncSchedulerTests
     {
         var service = new BeatDetectionService();
         double bpm = 120;
-        double beat1 = 1200; // forces the 4/4 count-in to clamp
-        var a = ClickSyncScheduler.ComputeAlignment(beat1, bpm, 4, 4, 1);
+        double beat1 = 1200; // forces a 4-beat 4/4 count-in (2000ms) to clamp at song start
+        var a = ClickSyncScheduler.ComputeAlignment(beat1, bpm, 4, 4, 4);
 
-        var pulses = service.ComputeManualClickPulses(beat1, bpm, 4, 4, 10000, 1);
+        var pulses = service.ComputeManualClickPulses(beat1, bpm, 4, 4, 10000, 4);
         var countIn = pulses.Where(p => p.TimeMs < beat1).OrderBy(p => p.TimeMs).ToList();
 
         // When the count-in clamps against song start, the scheduler's arm time is the clamped

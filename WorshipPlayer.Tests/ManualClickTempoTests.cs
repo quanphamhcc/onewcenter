@@ -270,18 +270,23 @@ public class ManualClickTempoTests
             service.GenerateManualClickTrack(grid, path, sampleRate);
             Assert.True(File.Exists(path));
 
-            // Read the whole file back as float samples (NAudio converts 16-bit PCM -> float).
+            // Read the whole file back as float samples, one value per FRAME (left channel) so the
+            // frame-index math below works whether the WAV is mono or stereo.
             float[] samples;
             using (var reader = new NAudio.Wave.AudioFileReader(path))
             {
-                Assert.Equal(1, reader.WaveFormat.Channels); // mono
+                Assert.Equal(2, reader.WaveFormat.Channels); // stereo, matching the song stems
+                int ch = reader.WaveFormat.Channels;
                 var buffer = new List<float>();
                 var chunk = new float[4096];
                 int read;
                 while ((read = reader.Read(chunk, 0, chunk.Length)) > 0)
                     for (int i = 0; i < read; i++)
                         buffer.Add(chunk[i]);
-                samples = buffer.ToArray();
+                var interleaved = buffer.ToArray();
+                samples = new float[interleaved.Length / ch];
+                for (int f = 0; f < samples.Length; f++)
+                    samples[f] = interleaved[f * ch]; // left channel
             }
 
             // Each synthesized click is 10ms; scan a generous 15ms window around each pulse start

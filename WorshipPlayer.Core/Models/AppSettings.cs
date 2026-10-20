@@ -16,6 +16,16 @@ public class AppSettings
     [JsonPropertyName("bufferSize")]
     public int BufferSize { get; set; } = 256;
 
+    /// <summary>
+    /// Milliseconds subtracted from the mixer's read position when capturing a "Tap Beat 1"
+    /// timestamp, so the captured value matches the sound the user actually HEARD rather than the
+    /// read-ahead position. The true output latency is usually close to (but not exactly) the
+    /// requested <see cref="BufferSize"/>, so this is a dedicated, tunable value. Lower it slightly
+    /// if tapped beats land a touch early; raise it if they land late. Default matches BufferSize.
+    /// </summary>
+    [JsonPropertyName("tapLatencyCompensationMs")]
+    public int TapLatencyCompensationMs { get; set; } = 256;
+
     [JsonPropertyName("outputMode")]
     public OutputMode OutputMode { get; set; } = OutputMode.PanSplit;
 

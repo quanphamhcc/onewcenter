@@ -472,11 +472,11 @@ public class BeatDetectionService
     ///     LOUDER beat-1 accent. Subsequent beats continue at the grid interval to
     ///     <paramref name="totalDurationMs"/> following the existing per-meter accent rules
     ///     (reusing <see cref="ComputeMetronomePulses"/> with gridAnchor = beat1Ms).
-    ///   • <paramref name="countInBars"/> bars of clicks are prepended at the grid interval
-    ///     IMMEDIATELY BEFORE beat1Ms, using the same per-meter pulse rule as the body:
-    ///       4/4 → 4 clicks/bar, 3/4 → 3 clicks/bar, 6/8 felt-in-2 → 2 pulses/bar (at the bar
-    ///       start and +3*eighthMs). Count-in pulses are NON-accent (IsAccent == false) so the
-    ///       beat-1 accent is unambiguous.
+    ///   • <paramref name="countInBeats"/> individual BEAT clicks are prepended one beat interval
+    ///     apart IMMEDIATELY BEFORE beat1Ms (the classic "1-2-3-4" lead-in). The last count-in
+    ///     click sits exactly one beat before Beat 1. In 6/8 felt-in-2 the "beat" is the
+    ///     dotted-quarter pulse (3 eighths). Count-in pulses are NON-accent (IsAccent == false) so
+    ///     the beat-1 accent is unambiguous.
     ///   • CLAMP to &gt;= 0 ms: if beat1Ms is too close to 0 to fit all requested count-in beats,
     ///     ONLY the whole count-in beats whose time is &gt;= 0 are emitted (beats that would land at a
     ///     negative time are dropped). This is the chosen clamp behavior.
@@ -484,7 +484,7 @@ public class BeatDetectionService
     ///     list and never throw. A negative beat1Ms is treated as 0.
     /// </summary>
     public List<ClickPulse> ComputeManualClickPulses(double beat1Ms, double bpm,
-        int timeSigNumerator, int timeSigDenominator, double totalDurationMs, int countInBars)
+        int timeSigNumerator, int timeSigDenominator, double totalDurationMs, int countInBeats)
     {
         if (bpm <= 0 || timeSigNumerator <= 0 || totalDurationMs <= 0)
             return new List<ClickPulse>();
@@ -495,44 +495,28 @@ public class BeatDetectionService
         // continues at the grid interval with the standard per-meter accent pattern.
         var result = ComputeMetronomePulses(beat1Ms, bpm, timeSigNumerator, timeSigDenominator, totalDurationMs);
 
-        // Count-in: prepend countInBars worth of pulses immediately BEFORE beat1Ms using the same
-        // per-meter rule, clamped to >= 0. We synthesize them by walking the per-meter pulse offsets
-        // within a bar, placed on the bars immediately preceding beat1Ms.
-        if (countInBars > 0)
+        // Count-in: prepend countInBeats individual BEAT clicks immediately BEFORE beat1Ms, spaced
+        // one beat interval apart, clamped to >= 0. This is a beat-based count-in (the classic
+        // "1-2-3-4" lead-in) rather than whole bars, so the last count-in click sits exactly one
+        // beat before Beat 1, the one before that two beats before, and so on. For 6/8 felt-in-2 the
+        // "beat" is the dotted-quarter pulse (3 eighths). All count-in pulses are non-accent so the
+        // Beat 1 accent remains unambiguous.
+        if (countInBeats > 0)
         {
-            double beatIntervalMs = 60000.0 / bpm;
             bool sixEightFeltInTwo = (timeSigDenominator == 8 && timeSigNumerator == 6);
-
-            // Per-bar pulse offsets (relative to bar start) and the bar length.
-            double barDurationMs;
-            double[] offsetsInBar;
-            if (sixEightFeltInTwo)
-            {
-                double eighthMs = beatIntervalMs / 2.0;
-                barDurationMs = 6 * eighthMs;               // felt-in-2 bar
-                offsetsInBar = new[] { 0.0, 3 * eighthMs }; // two dotted-quarter pulses
-            }
-            else
-            {
-                barDurationMs = beatIntervalMs * timeSigNumerator;
-                offsetsInBar = new double[timeSigNumerator];
-                for (int b = 0; b < timeSigNumerator; b++)
-                    offsetsInBar[b] = b * beatIntervalMs;
-            }
+            double beatIntervalMs = 60000.0 / bpm;
+            double countStepMs = sixEightFeltInTwo
+                ? 3.0 * (beatIntervalMs / 2.0)   // dotted-quarter pulse in 6/8 felt-in-2
+                : beatIntervalMs;                // one quarter-note beat otherwise
 
             var countIn = new List<ClickPulse>();
-            // Bars are placed immediately before beat1Ms: bar index -1 starts at beat1Ms - barDuration,
-            // bar index -2 at beat1Ms - 2*barDuration, etc. All count-in pulses are non-accent.
-            for (int bar = 1; bar <= countInBars; bar++)
+            // Place clicks at beat1 - 1*step, beat1 - 2*step, ... beat1 - countInBeats*step.
+            for (int beat = 1; beat <= countInBeats; beat++)
             {
-                double barStart = beat1Ms - bar * barDurationMs;
-                foreach (double off in offsetsInBar)
-                {
-                    double t = barStart + off;
-                    // Only keep whole count-in beats whose time is >= 0 (clamp) and strictly before beat1.
-                    if (t >= 0 && t < beat1Ms)
-                        countIn.Add(new ClickPulse(t, false));
-                }
+                double t = beat1Ms - beat * countStepMs;
+                // Clamp: keep only count-in beats at t >= 0 and strictly before Beat 1.
+                if (t >= 0 && t < beat1Ms)
+                    countIn.Add(new ClickPulse(t, false));
             }
 
             countIn.Sort((a, b) => a.TimeMs.CompareTo(b.TimeMs));
@@ -548,11 +532,11 @@ public class BeatDetectionService
     /// Beat 1 position (<paramref name="beat1Ms"/>; defaults to grid.GridAnchorMs when &lt; 0) and the
     /// count-in bars, routing through <see cref="ComputeManualClickPulses"/>.
     /// </summary>
-    public List<double> BuildManualClickPositions(BeatGrid grid, double beat1Ms = -1, int countInBars = 0)
+    public List<double> BuildManualClickPositions(BeatGrid grid, double beat1Ms = -1, int countInBeats = 0)
     {
         double b1 = beat1Ms >= 0 ? beat1Ms : grid.GridAnchorMs;
         var pulses = ComputeManualClickPulses(b1, grid.Bpm,
-            grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, grid.TotalDurationMs, countInBars);
+            grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, grid.TotalDurationMs, countInBeats);
         return pulses.Select(p => p.TimeMs).ToList();
     }
 
@@ -636,13 +620,8 @@ public class BeatDetectionService
             }
         }
 
-        // Save as WAV (16-bit PCM mono). NAudio converts the float sample to the configured
-        // 16-bit format internally, so we write floats directly.
-        using var writer = new WaveFileWriter(outputPath, new WaveFormat(sampleRate, 16, 1));
-        foreach (float sample in clickAudio)
-        {
-            writer.WriteSample(Math.Clamp(sample, -1f, 1f));
-        }
+        // Save as STEREO 32-bit float WAV to match the song stems (see WriteStereoFloatWav note).
+        WriteStereoFloatWav(outputPath, clickAudio, sampleRate);
     }
 
     /// <summary>
@@ -657,9 +636,9 @@ public class BeatDetectionService
     /// Manual-click Beat 1 position (ms); the first non-count-in pulse lands here. When &lt; 0 the
     /// method falls back to grid.GridAnchorMs so existing callers are unaffected.
     /// </param>
-    /// <param name="countInBars">Count-in bars prepended immediately before Beat 1 (clamped to &gt;= 0 ms).</param>
+    /// <param name="countInBeats">Count-in BEATS prepended one beat apart immediately before Beat 1 (clamped to &gt;= 0 ms).</param>
     public void GenerateManualClickTrack(BeatGrid grid, string outputPath, int sampleRate = 44100,
-        double beat1Ms = -1, int countInBars = 0)
+        double beat1Ms = -1, int countInBeats = 0)
     {
         double totalDurationMs = grid.TotalDurationMs;
         if (totalDurationMs <= 0 || sampleRate <= 0)
@@ -685,7 +664,7 @@ public class BeatDetectionService
         // Single source of truth: the manual-click pulse schedule (Beat 1 offset + count-in).
         double b1 = beat1Ms >= 0 ? beat1Ms : grid.GridAnchorMs;
         var pulses = ComputeManualClickPulses(b1, grid.Bpm,
-            grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, totalDurationMs, countInBars);
+            grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, totalDurationMs, countInBeats);
 
         foreach (var pulse in pulses)
         {
@@ -699,10 +678,25 @@ public class BeatDetectionService
             }
         }
 
-        using var writer = new WaveFileWriter(outputPath, new WaveFormat(sampleRate, 16, 1));
-        foreach (float sample in clickAudio)
+        // Write STEREO 32-bit float to match the separated stems (vocals/drums/… are stereo). A mono
+        // click was the only mono track in the mixer; keeping every track the same channel layout
+        // removes any mono/stereo handling asymmetry that could desync the click from the song.
+        WriteStereoFloatWav(outputPath, clickAudio, sampleRate);
+    }
+
+    /// <summary>
+    /// Write a mono float buffer out as a STEREO 32-bit IEEE-float WAV by duplicating each sample to
+    /// both channels. Used so generated click tracks share the exact format of the song stems.
+    /// </summary>
+    private static void WriteStereoFloatWav(string outputPath, float[] mono, int sampleRate)
+    {
+        using var writer = new WaveFileWriter(outputPath,
+            WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 2));
+        for (int i = 0; i < mono.Length; i++)
         {
-            writer.WriteSample(Math.Clamp(sample, -1f, 1f));
+            float s = Math.Clamp(mono[i], -1f, 1f);
+            writer.WriteSample(s); // L
+            writer.WriteSample(s); // R
         }
     }
 

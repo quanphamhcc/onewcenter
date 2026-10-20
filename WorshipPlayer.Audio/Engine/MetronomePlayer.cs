@@ -45,12 +45,12 @@ public sealed class MetronomePlayer : IDisposable
         => Start(bpm, numerator, denominator, 0);
 
     /// <summary>
-    /// Start (or restart) the looping metronome, playing <paramref name="countInBars"/> bars of
-    /// count-in clicks ONCE before the steady bar pattern begins looping. A pure looping bar cannot
-    /// itself encode a one-time count-in, so the count-in is sequenced as a one-shot prefix buffer
-    /// in front of the looping steady bar. Idempotent and never throws.
+    /// Start (or restart) the looping metronome, playing <paramref name="countInBeats"/> count-in
+    /// beats ONCE before the steady bar pattern begins looping. A pure looping bar cannot itself
+    /// encode a one-time count-in, so the count-in is sequenced as a one-shot prefix buffer in
+    /// front of the looping steady bar. Idempotent and never throws.
     /// </summary>
-    public void Start(double bpm, int numerator, int denominator, int countInBars)
+    public void Start(double bpm, int numerator, int denominator, int countInBeats)
     {
         lock (_lock)
         {
@@ -70,7 +70,7 @@ public sealed class MetronomePlayer : IDisposable
                 return;
             }
 
-            float[] countIn = BuildCountInSamples(bpm, numerator, denominator, countInBars);
+            float[] countIn = BuildCountInSamples(bpm, numerator, denominator, countInBeats);
 
             try
             {
@@ -106,7 +106,7 @@ public sealed class MetronomePlayer : IDisposable
     /// If not playing, this is equivalent to <see cref="Start(double,int,int,int)"/>, which plays the
     /// count-in once from the top.
     /// </summary>
-    public void Update(double bpm, int numerator, int denominator, int countInBars)
+    public void Update(double bpm, int numerator, int denominator, int countInBeats)
     {
         lock (_lock)
         {
@@ -114,7 +114,7 @@ public sealed class MetronomePlayer : IDisposable
 
             if (!IsPlaying || _provider == null)
             {
-                Start(bpm, numerator, denominator, countInBars);
+                Start(bpm, numerator, denominator, countInBeats);
                 return;
             }
 
@@ -125,7 +125,7 @@ public sealed class MetronomePlayer : IDisposable
                 return;
             }
 
-            float[] countIn = BuildCountInSamples(bpm, numerator, denominator, countInBars);
+            float[] countIn = BuildCountInSamples(bpm, numerator, denominator, countInBeats);
 
             // Swap the loop buffer in place so the running WaveOutEvent keeps playing
             // the new pattern without opening a second device; re-arm the one-shot count-in.
@@ -134,31 +134,33 @@ public sealed class MetronomePlayer : IDisposable
     }
 
     /// <summary>
-    /// Render the one-shot count-in prefix: <paramref name="countInBars"/> bars of NON-accent clicks
-    /// at the grid interval, using the same per-meter pulse rule as the steady bar (6/8 felt-in-2 =>
-    /// 2 pulses/bar). Returns an empty array when there is no count-in or the tempo is degenerate.
+    /// Render the one-shot count-in prefix: <paramref name="countInBeats"/> NON-accent clicks spaced
+    /// one beat apart (the classic "1-2-3-4" lead-in). In 6/8 felt-in-2 the "beat" is the
+    /// dotted-quarter pulse (3 eighths). Returns an empty array when there is no count-in or the
+    /// tempo is degenerate.
     /// </summary>
-    private float[] BuildCountInSamples(double bpm, int numerator, int denominator, int countInBars)
+    private float[] BuildCountInSamples(double bpm, int numerator, int denominator, int countInBeats)
     {
-        if (countInBars <= 0 || bpm <= 0 || numerator <= 0)
+        if (countInBeats <= 0 || bpm <= 0 || numerator <= 0)
             return Array.Empty<float>();
 
         double beatIntervalMs = 60000.0 / bpm;
         if (beatIntervalMs <= 0 || double.IsNaN(beatIntervalMs) || double.IsInfinity(beatIntervalMs))
             return Array.Empty<float>();
 
-        double barDurationMs = (denominator == 8 && numerator == 6)
-            ? 3.0 * beatIntervalMs
-            : numerator * beatIntervalMs;
-        if (barDurationMs <= 0)
+        // The count-in step is one beat (dotted-quarter pulse in 6/8 felt-in-2).
+        double stepMs = (denominator == 8 && numerator == 6)
+            ? 3.0 * (beatIntervalMs / 2.0)
+            : beatIntervalMs;
+        if (stepMs <= 0)
             return Array.Empty<float>();
 
-        double totalMs = barDurationMs * countInBars;
+        double totalMs = stepMs * countInBeats;
 
         // Derive count-in pulses from the SHARED pure method so preview == WAV. Placing Beat 1 at
-        // totalMs makes the count-in occupy exactly [0, totalMs); we drop the body pulse at totalMs
-        // because the steady loop plays it.
-        var pulses = _beatService.ComputeManualClickPulses(totalMs, bpm, numerator, denominator, totalMs + 1, countInBars);
+        // totalMs makes the count-in occupy exactly [0, totalMs); the body pulse at totalMs is
+        // dropped below because the steady loop plays it.
+        var pulses = _beatService.ComputeManualClickPulses(totalMs, bpm, numerator, denominator, totalMs + 1, countInBeats);
 
         int totalSamples = (int)Math.Round(totalMs / 1000.0 * SampleRate);
         if (totalSamples <= 0)

@@ -24,6 +24,15 @@ public class AudioEngine : IDisposable
 
     public MultiTrackMixer? Mixer => _mixer;
 
+    /// <summary>
+    /// Approximate output latency in ms between a sample being READ by the mixer and it actually
+    /// being HEARD at the device. Used to convert the mixer's read position into the position the
+    /// user is currently hearing, so a "Tap Beat 1" captured while listening is not stored too late.
+    /// This is a dedicated, tunable value (not the raw requested buffer) because the true audible
+    /// latency is usually a little less than the requested buffer; the user can fine-tune it.
+    /// </summary>
+    public double OutputLatencyMs => _settings.TapLatencyCompensationMs;
+
     public AudioEngine(AppSettings settings)
     {
         _settings = settings;
@@ -273,6 +282,20 @@ public class AudioEngine : IDisposable
             return _mixer.GetActualPositionMs();
         }
         return _mixer?.CurrentPositionMs ?? 0;
+    }
+
+    /// <summary>
+    /// Get the position the user is currently HEARING, i.e. the mixer's read position minus the
+    /// output latency. Use this (not <see cref="GetPositionMs"/>) when capturing a timestamp from a
+    /// user action taken in response to the audio (e.g. tapping Beat 1 on the downbeat), so the
+    /// captured value matches what was audible rather than what has already been buffered ahead.
+    /// Clamped to &gt;= 0 so a tap during the first few hundred ms never yields a negative time.
+    /// </summary>
+    public double GetAudiblePositionMs()
+    {
+        double read = GetPositionMs();
+        double audible = read - OutputLatencyMs;
+        return audible < 0 ? 0 : audible;
     }
 
     /// <summary>

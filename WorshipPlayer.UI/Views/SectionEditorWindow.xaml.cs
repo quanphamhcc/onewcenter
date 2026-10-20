@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using WorshipPlayer.Audio.DSP;
 using WorshipPlayer.Audio.Engine;
 using WorshipPlayer.Core.Models;
@@ -40,6 +41,17 @@ public partial class SectionEditorWindow : Window
     //     and the AudioEngine transport always reflect this one flag; Start is idempotent and never
     //     stacks a second song or metronome.
     private bool _playWithClickActive = false;
+
+    // Play-with-Click arming: when Beat 1 (minus count-in) is after song position 0, the metronome
+    // must NOT start at 0 — it is armed later, when the song clock reaches alignment.ArmAtSongMs.
+    // This timer polls the song position and fires the click exactly at that moment so the first
+    // click lands on the user's Beat 1 (or the count-in that precedes it). Null when not pending.
+    private DispatcherTimer? _clickArmTimer;
+    private ClickSyncScheduler.ClickAlignment _pendingAlignment;
+    private double _pendingBpm;
+    private int _pendingNum = 4;
+    private int _pendingDen = 4;
+    private int _pendingCountIn;
 
     private const string PlayWithClickStartLabel = "▶ Play with Click";
     private const string PlayWithClickStopLabel = "■ Stop";
@@ -120,9 +132,9 @@ public partial class SectionEditorWindow : Window
             double bpm = _song.Bpm > 0 ? _song.Bpm : 120.0;
             bpm = ClampBpm(bpm);
 
-            ManualBpmBox.Text = bpm.ToString("0.#");
+            ManualBpmBox.Text = FormatBpm(bpm);
             ManualBpmSlider.Value = bpm;
-            ManualBpmEcho.Text = $"Current: {bpm:0.#} BPM";
+            ManualBpmEcho.Text = $"Current: {bpm:0.##} BPM";
 
             // Select the time-signature item matching the song (default 4/4).
             int num = _song.TimeSignatureNumerator > 0 ? _song.TimeSignatureNumerator : 4;
@@ -142,8 +154,8 @@ public partial class SectionEditorWindow : Window
             ManualBeat1Box.Text = MsToTimecode(beat1);
             ManualBeat1Display.Text = $"Beat 1 @ {MsToTimecode(beat1)} ({beat1:F1} ms)";
 
-            int countIn = Math.Clamp(_song.ManualClickCountInBars, 0, 2);
-            CountInComboBox.SelectedIndex = countIn; // items are 0/1/2 bars in order
+            int countIn = Math.Clamp(_song.ManualClickCountInBeats, 0, 4);
+            CountInComboBox.SelectedIndex = countIn; // items are 0/1/2/3/4 beats in order
         }
         finally
         {
@@ -190,6 +202,9 @@ public partial class SectionEditorWindow : Window
             try { _audioEngine?.Stop(); } catch { /* never throw during teardown */ }
             _playWithClickActive = false;
         }
+
+        // Cancel any pending deferred click-arm timer so it can't fire after close.
+        try { StopClickArmTimer(); } catch { /* never throw during teardown */ }
 
         try
         {
@@ -1581,9 +1596,9 @@ public partial class SectionEditorWindow : Window
         _suppressTempoSync = true;
         try
         {
-            ManualBpmBox.Text = bpm.ToString("0.#");
+            ManualBpmBox.Text = FormatBpm(bpm);
             ManualBpmSlider.Value = bpm;
-            ManualBpmEcho.Text = $"Current: {bpm:0.#} BPM  ({num}/{den})";
+            ManualBpmEcho.Text = $"Current: {bpm:0.##} BPM  ({num}/{den})";
             SongInfoText.Text = $"BPM: {_song.Bpm:F2} | Key: {_song.OriginalKey} | Beat: {_song.BeatIntervalMs:F3} ms | Bar: {_song.BarDurationMs:F3} ms | Anchor: {MsToTimecode(_song.GridAnchorMs)}";
         }
         finally
@@ -1623,7 +1638,7 @@ public partial class SectionEditorWindow : Window
         if (ManualBpmBox == null) return;
 
         string text = ManualBpmBox.Text?.Trim() ?? "";
-        if (double.TryParse(text, out double bpm) && !double.IsNaN(bpm) && bpm > 0)
+        if (TryParseBpm(text, out double bpm) && !double.IsNaN(bpm) && bpm > 0)
         {
             ApplyManualTempo(bpm);
         }
@@ -1631,10 +1646,34 @@ public partial class SectionEditorWindow : Window
         {
             // Invalid/empty — revert to the current value, no crash.
             _suppressTempoSync = true;
-            try { ManualBpmBox.Text = CurrentManualBpm().ToString("0.#"); }
+            try { ManualBpmBox.Text = FormatBpm(CurrentManualBpm()); }
             finally { _suppressTempoSync = false; }
         }
     }
+
+    /// <summary>
+    /// Parse a user-typed BPM allowing decimals regardless of the machine's locale. We accept
+    /// BOTH '.' and ',' as the decimal separator (so "97.5" works on a comma-locale and "97,5"
+    /// works on a dot-locale), then parse with InvariantCulture. This is why the box previously
+    /// seemed to reject decimals: the culture-sensitive double.TryParse failed on a '.' when the
+    /// OS decimal separator was ',' and the value silently reverted.
+    /// </summary>
+    private static bool TryParseBpm(string text, out double bpm)
+    {
+        bpm = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        string normalized = text.Replace(',', '.');
+        return double.TryParse(normalized,
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out bpm);
+    }
+
+    /// <summary>
+    /// Format a BPM for the input box with up to two decimals, trimming trailing zeros, using
+    /// InvariantCulture so the shown separator matches what <see cref="TryParseBpm"/> accepts.
+    /// </summary>
+    private static string FormatBpm(double bpm)
+        => bpm.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
     private void BpmNudgePlus1_Click(object sender, RoutedEventArgs e) => ApplyManualTempo(CurrentManualBpm() + 1);
     private void BpmNudgeMinus1_Click(object sender, RoutedEventArgs e) => ApplyManualTempo(CurrentManualBpm() - 1);
@@ -1669,13 +1708,13 @@ public partial class SectionEditorWindow : Window
         return b1 < 0 ? 0 : b1;
     }
 
-    /// <summary>Count-in bars (0/1/2) from the selector; defaults to the stored song value.</summary>
-    private int CurrentCountInBars()
+    /// <summary>Count-in beats (0-4) from the selector; defaults to the stored song value.</summary>
+    private int CurrentCountInBeats()
     {
         if (CountInComboBox?.SelectedItem is ComboBoxItem item && item.Tag is string tag &&
-            int.TryParse(tag, out int bars))
-            return Math.Clamp(bars, 0, 2);
-        return Math.Clamp(_song.ManualClickCountInBars, 0, 2);
+            int.TryParse(tag, out int beats))
+            return Math.Clamp(beats, 0, 4);
+        return Math.Clamp(_song.ManualClickCountInBeats, 0, 4);
     }
 
     /// <summary>
@@ -1721,7 +1760,7 @@ public partial class SectionEditorWindow : Window
         if (_metronome != null && _metronome.IsPlaying)
         {
             var (num, den) = GetSelectedTimeSignature();
-            _metronome.Update(CurrentManualBpm(), num, den, CurrentCountInBars());
+            _metronome.Update(CurrentManualBpm(), num, den, CurrentCountInBeats());
         }
     }
 
@@ -1760,9 +1799,13 @@ public partial class SectionEditorWindow : Window
     {
         if (_song == null || ManualBeat1Box == null) return;
 
-        // Use a sentinel for "no engine" so a genuine position of exactly 0 ms (a song that
-        // truly starts on Beat 1) is a VALID capture rather than being treated as "not playing".
-        double pos = _audioEngine?.GetPositionMs() ?? -1;
+        // Capture the position the user is actually HEARING, not the mixer's read-ahead position.
+        // The output buffer makes the read position lead the audible sound by the output latency;
+        // tapping on the downbeat you HEAR would otherwise store Beat 1 that-many ms too late (which
+        // made the generated click sound ~1/4s late with the default 256ms buffer). GetAudiblePositionMs
+        // subtracts the output latency so the tap matches what was heard.
+        // Sentinel -1 = "no engine" so a genuine 0 ms capture (song truly on Beat 1) stays valid.
+        double pos = _audioEngine?.GetAudiblePositionMs() ?? -1;
         if (_audioEngine == null || pos < 0)
         {
             // Nothing playing / no engine — friendly status, do nothing else (no crash).
@@ -1772,7 +1815,11 @@ public partial class SectionEditorWindow : Window
         }
 
         ApplyManualBeat1(pos);
-        ManualClickStatus.Text = $"Beat 1 captured at {MsToTimecode(CurrentManualBeat1())}.";
+        double comp = _audioEngine.OutputLatencyMs;
+        ManualClickStatus.Text =
+            $"Beat 1 captured at {MsToTimecode(CurrentManualBeat1())} " +
+            $"(−{comp:F0} ms output-latency compensation). " +
+            "If it's slightly early/late, use ±1/±10 ms to fine-tune.";
         ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
     }
 
@@ -1805,12 +1852,12 @@ public partial class SectionEditorWindow : Window
         // Guard against firing during XAML init.
         if (_suppressTempoSync || _song == null || CountInComboBox == null) return;
 
-        _song.ManualClickCountInBars = CurrentCountInBars();
+        _song.ManualClickCountInBeats = CurrentCountInBeats();
         RetuneMetronomeIfPlaying();
 
-        ManualClickStatus.Text = _song.ManualClickCountInBars == 0
+        ManualClickStatus.Text = _song.ManualClickCountInBeats == 0
             ? "Count-in off."
-            : $"Count-in: {_song.ManualClickCountInBars} bar(s) before Beat 1.";
+            : $"Count-in: {_song.ManualClickCountInBeats} beat(s) before Beat 1.";
         ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGray;
     }
 
@@ -1864,7 +1911,7 @@ public partial class SectionEditorWindow : Window
 
         double bpm = CurrentManualBpm();
         var (num, den) = GetSelectedTimeSignature();
-        int countIn = CurrentCountInBars();
+        int countIn = CurrentCountInBeats();
         double beat1 = CurrentManualBeat1();
 
         // Pure alignment math (approach A): song starts at 0, so the first click (count-in start or
@@ -1889,10 +1936,56 @@ public partial class SectionEditorWindow : Window
             return;
         }
 
-        // Start the aligned click. Since the song starts at 0 and the first click is at
-        // ArmAtSongMs >= 0, arming the metronome now (with the count-in as its one-shot prefix)
-        // lines its count-in/Beat 1 up with the song clock. The metronome owns its own device and
-        // never throws; on no device it reports LastError and stays not-playing.
+        // The first click (count-in start, or Beat 1 when there is no count-in) must land at
+        // alignment.ArmAtSongMs on the SONG clock. If that moment is now (song starts at 0 and the
+        // first click is at/near 0), arm the metronome immediately. Otherwise DEFER it: a small
+        // polling timer arms the metronome the instant the song reaches ArmAtSongMs, so the click
+        // begins on the user's Beat 1 instead of at 0:00. Previously the click was always armed
+        // immediately, which is why it never started at Beat 1.
+        _metronome ??= new MetronomePlayer();
+
+        double songPos = 0;
+        try { songPos = _audioEngine.GetPositionMs(); } catch { songPos = 0; }
+
+        if (ClickSyncScheduler.ShouldArmNow(songPos, alignment))
+        {
+            if (!TryStartMetronomeNow(bpm, num, den, countIn))
+                return; // TryStartMetronomeNow already stopped the song and set the status.
+        }
+        else
+        {
+            // Defer: remember the schedule and poll until the song reaches ArmAtSongMs.
+            _pendingAlignment = alignment;
+            _pendingBpm = bpm;
+            _pendingNum = num;
+            _pendingDen = den;
+            _pendingCountIn = countIn;
+            StartClickArmTimer();
+        }
+
+        // SUCCESS: commit the single true state (song is playing; click is live or pending-armed).
+        _playWithClickActive = true;
+        PlayWithClickBtn.Content = PlayWithClickStopLabel;
+
+        string countInNote = countIn > 0
+            ? $", {countIn}-bar count-in ({alignment.CountInDurationMs:F0} ms)"
+            : "";
+        string whenNote = alignment.ArmAtSongMs > 1
+            ? $" Click arms at {MsToTimecode(alignment.ArmAtSongMs)}."
+            : "";
+        ManualClickStatus.Text =
+            $"Playing song + click from start: {bpm:0.#} BPM ({num}/{den}), " +
+            $"Beat 1 @ {MsToTimecode(beat1)}{countInNote}.{whenNote}";
+        ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
+    }
+
+    /// <summary>
+    /// Start the metronome right now with the given parameters. Returns true on success. On any
+    /// failure (exception, or no audio device) it stops the song, surfaces a status, and returns
+    /// false so the caller aborts. Shared by the immediate-arm path and the deferred timer.
+    /// </summary>
+    private bool TryStartMetronomeNow(double bpm, int num, int den, int countIn)
+    {
         _metronome ??= new MetronomePlayer();
         try
         {
@@ -1900,37 +1993,70 @@ public partial class SectionEditorWindow : Window
         }
         catch (Exception ex)
         {
-            // Defensive — Start should not throw. Keep song + button state consistent: stop the song
-            // too, since "play with click" could not actually start the click.
-            try { _audioEngine.Stop(); } catch { }
+            try { _audioEngine?.Stop(); } catch { }
+            StopClickArmTimer();
             ManualClickStatus.Text = $"Click error: {ex.Message}";
             ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
-            return;
+            return false;
         }
 
         if (!_metronome.IsPlaying)
         {
-            // No audio device for the click — do not leave the button showing Stop with only the
-            // song playing. Treat as a failed start: stop the song and report.
-            try { _audioEngine.Stop(); } catch { }
+            try { _audioEngine?.Stop(); } catch { }
+            StopClickArmTimer();
             ManualClickStatus.Text = _metronome.LastError != null
                 ? $"Cannot start click: {_metronome.LastError}"
                 : "Cannot start click (no audio output device).";
             ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Begin polling the song position so the pending metronome is armed exactly when the song
+    /// clock reaches alignment.ArmAtSongMs. Uses a short interval for tight timing. Idempotent.
+    /// </summary>
+    private void StartClickArmTimer()
+    {
+        StopClickArmTimer();
+        _clickArmTimer = new DispatcherTimer(DispatcherPriority.Send)
+        {
+            Interval = TimeSpan.FromMilliseconds(10)
+        };
+        _clickArmTimer.Tick += ClickArmTimer_Tick;
+        _clickArmTimer.Start();
+    }
+
+    private void StopClickArmTimer()
+    {
+        if (_clickArmTimer != null)
+        {
+            _clickArmTimer.Stop();
+            _clickArmTimer.Tick -= ClickArmTimer_Tick;
+            _clickArmTimer = null;
+        }
+    }
+
+    private void ClickArmTimer_Tick(object? sender, EventArgs e)
+    {
+        // If play-with-click was stopped while pending, cancel quietly.
+        if (!_playWithClickActive || _audioEngine == null)
+        {
+            StopClickArmTimer();
             return;
         }
 
-        // SUCCESS: commit the single true state.
-        _playWithClickActive = true;
-        PlayWithClickBtn.Content = PlayWithClickStopLabel;
+        double pos;
+        try { pos = _audioEngine.GetPositionMs(); }
+        catch { return; } // transient read error — try again next tick
 
-        string countInNote = countIn > 0
-            ? $", {countIn}-bar count-in ({alignment.CountInDurationMs:F0} ms)"
-            : "";
-        ManualClickStatus.Text =
-            $"Playing song + click from start: {bpm:0.#} BPM ({num}/{den}), " +
-            $"Beat 1 @ {MsToTimecode(beat1)}{countInNote}.";
-        ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
+        if (ClickSyncScheduler.ShouldArmNow(pos, _pendingAlignment))
+        {
+            StopClickArmTimer();
+            TryStartMetronomeNow(_pendingBpm, _pendingNum, _pendingDen, _pendingCountIn);
+        }
     }
 
     /// <summary>
@@ -1941,6 +2067,9 @@ public partial class SectionEditorWindow : Window
     /// </summary>
     private void StopPlayWithClick()
     {
+        // Cancel any pending deferred-arm so it can't fire the click after we stop.
+        StopClickArmTimer();
+
         // Stop the click first (its own device), then the song.
         try { _metronome?.Stop(); } catch { }
 
@@ -1983,7 +2112,7 @@ public partial class SectionEditorWindow : Window
 
         double bpm = CurrentManualBpm();
         var (num, den) = GetSelectedTimeSignature();
-        int countIn = CurrentCountInBars();
+        int countIn = CurrentCountInBeats();
 
         try
         {
@@ -2052,11 +2181,21 @@ public partial class SectionEditorWindow : Window
         string outputPath = Path.Combine(_song.FolderPath, "Generated_Click_Manual.wav");
 
         double beat1 = CurrentManualBeat1();
-        int countInBars = CurrentCountInBars();
+        int countInBeats = CurrentCountInBeats();
+
+        // Count how many count-in clicks actually land BEFORE Beat 1. When the requested count-in
+        // is longer than the room before Beat 1 (e.g. Beat 1 is near the start of the song), the
+        // schedule clamps to only the clicks that fit at t >= 0. Reporting the real number makes it
+        // obvious why fewer lead-in clicks are heard than the chosen beat count would imply.
+        var (num0, den0) = GetSelectedTimeSignature();
+        int actualCountInClicks = _beatService
+            .ComputeManualClickPulses(beat1, _currentGrid.Bpm, num0, den0,
+                _currentGrid.TotalDurationMs, countInBeats)
+            .Count(p => p.TimeMs < beat1 - 0.001);
 
         try
         {
-            _beatService.GenerateManualClickTrack(_currentGrid, outputPath, 44100, beat1, countInBars);
+            _beatService.GenerateManualClickTrack(_currentGrid, outputPath, 44100, beat1, countInBeats);
         }
         catch (Exception ex)
         {
@@ -2084,7 +2223,18 @@ public partial class SectionEditorWindow : Window
         });
 
         var (num, den) = GetSelectedTimeSignature();
-        string countInText = countInBars > 0 ? $"{countInBars} bar(s)" : "none";
+        string countInText;
+        if (countInBeats <= 0)
+            countInText = "none";
+        else if (actualCountInClicks == 0)
+            countInText = $"{countInBeats} beat(s) requested, but Beat 1 is too close to the start " +
+                          "— no room for lead-in clicks";
+        else if (actualCountInClicks < countInBeats)
+            countInText = $"{actualCountInClicks} of {countInBeats} beat(s) " +
+                          "(Beat 1 too close to the start to fit them all)";
+        else
+            countInText = $"{countInBeats} beat(s) before Beat 1";
+
         ManualClickStatus.Text =
             $"Generated {manualFileName} at {_currentGrid.Bpm:0.#} BPM ({num}/{den}), " +
             $"Beat 1 @ {MsToTimecode(beat1)}, count-in {countInText}.";
@@ -2119,6 +2269,22 @@ public partial class SectionEditorWindow : Window
             MessageBox.Show("Cannot determine song duration. Add audio files first.",
                 "No Duration", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
+        }
+
+        // Anchor the generated click to the user's manual Beat 1 when they have set one. The grid's
+        // GridAnchorMs is seeded from auto-detect and is NOT updated by the Beat 1 "Set" button
+        // (that only writes _song.ManualClickBeat1Ms), so without this the A/B/C tracks would ignore
+        // the downbeat the user placed. Rebuild the grid phase from that anchor, keeping the current
+        // BPM / time-signature / duration, so all three modes (Adaptive/Hybrid/PureGrid) line up on it.
+        double manualBeat1 = CurrentManualBeat1();
+        if (manualBeat1 >= 0 && Math.Abs(manualBeat1 - _currentGrid.GridAnchorMs) > 0.001)
+        {
+            var (anchNum, anchDen) = GetSelectedTimeSignature();
+            var reanchored = _beatService.BuildGridFromManualAnchor(
+                manualBeat1, _currentGrid.Bpm, anchNum, anchDen, _currentGrid.TotalDurationMs);
+            reanchored.TotalDurationMs = _currentGrid.TotalDurationMs;
+            _currentGrid = reanchored;
+            _song.GridAnchorMs = reanchored.GridAnchorMs;
         }
 
         // Check if there's an existing click track to sync with

@@ -57,12 +57,13 @@ public class Song
     public double ManualClickBeat1Ms { get; set; } = -1.0;
 
     /// <summary>
-    /// Number of count-in bars (0, 1, 2) of clicks emitted immediately BEFORE the manual-click Beat 1
-    /// in both the live metronome preview and the generated Generated_Click_Manual.wav. Additive and
-    /// backward-compatible; defaults to 0.
+    /// Number of count-in BEATS (0-4) of clicks emitted immediately BEFORE the manual-click Beat 1
+    /// — the classic "1-2-3-4" lead-in — in both the live metronome preview and the generated
+    /// Generated_Click_Manual.wav. Each count-in click is spaced one beat apart. Additive and
+    /// backward-compatible; defaults to 4 (a full one-bar-of-4 count-in).
     /// </summary>
-    [JsonPropertyName("manualClickCountInBars")]
-    public int ManualClickCountInBars { get; set; } = 0;
+    [JsonPropertyName("manualClickCountInBeats")]
+    public int ManualClickCountInBeats { get; set; } = 4;
 
     [JsonPropertyName("originalKey")]
     public string OriginalKey { get; set; } = "C";

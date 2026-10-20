@@ -2,6 +2,7 @@
   "audioDevice": "",
   "sampleRate": 44100,
   "bufferSize": 256,
+  "tapLatencyCompensationMs": 235,
   "outputMode": "PanSplit",
   "wasapiExclusive": false,
   "songsFolder": "Songs",

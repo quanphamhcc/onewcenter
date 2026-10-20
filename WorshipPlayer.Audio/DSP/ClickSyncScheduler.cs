@@ -47,13 +47,13 @@ public static class ClickSyncScheduler
     /// <summary>
     /// Compute how the metronome aligns to a song that starts at position 0.
     ///
-    /// <para>The count-in occupies <c>countInBars</c> whole bars ending exactly at Beat 1, but it is
-    /// CLAMPED so it never starts before song position 0 (mirroring
+    /// <para>The count-in occupies <c>countInBeats</c> individual beats ending exactly at Beat 1, but
+    /// it is CLAMPED so it never starts before song position 0 (mirroring
     /// <see cref="BeatDetectionService.ComputeManualClickPulses"/>, which drops count-in pulses that
     /// would fall before 0). Therefore:</para>
     /// <list type="bullet">
     ///   <item><description><c>Beat1SongMs</c> = the user's Beat 1 (clamped to &gt;= 0).</description></item>
-    ///   <item><description><c>CountInDurationMs</c> = min(countInBars*bar, Beat1SongMs) — the audible
+    ///   <item><description><c>CountInDurationMs</c> = min(countInBeats*beat, Beat1SongMs) — the audible
     ///   count-in cannot extend before the song start.</description></item>
     ///   <item><description><c>ArmAtSongMs</c> = Beat1SongMs - CountInDurationMs = the song position at
     ///   which the metronome's very first click must sound (count-in start, or Beat 1 itself when
@@ -62,14 +62,14 @@ public static class ClickSyncScheduler
     ///   whether that is the count-in's first beat or Beat 1).</description></item>
     /// </list>
     ///
-    /// Degenerate tempo/meter yields a zero-bar alignment anchored at the clamped Beat 1 so callers
-    /// can safely no-op. <paramref name="countInBars"/> is clamped to &gt;= 0.
+    /// Degenerate tempo/meter yields a zero-length alignment anchored at the clamped Beat 1 so
+    /// callers can safely no-op. <paramref name="countInBeats"/> is clamped to &gt;= 0.
     /// </summary>
     public static ClickAlignment ComputeAlignment(double beat1Ms, double bpm,
-        int numerator, int denominator, int countInBars)
+        int numerator, int denominator, int countInBeats)
     {
         if (beat1Ms < 0) beat1Ms = 0;
-        if (countInBars < 0) countInBars = 0;
+        if (countInBeats < 0) countInBeats = 0;
 
         double bar = BarDurationMs(bpm, numerator, denominator);
         if (bar <= 0)
@@ -78,7 +78,12 @@ public static class ClickSyncScheduler
             return new ClickAlignment(0, 0, beat1Ms, beat1Ms, beat1Ms);
         }
 
-        double requestedCountIn = countInBars * bar;
+        // Count-in is measured in BEATS. In 6/8 felt-in-2 the "beat" is the dotted-quarter pulse.
+        bool sixEightFeltInTwo = (denominator == 8 && numerator == 6);
+        double beatIntervalMs = 60000.0 / bpm;
+        double stepMs = sixEightFeltInTwo ? 3.0 * (beatIntervalMs / 2.0) : beatIntervalMs;
+
+        double requestedCountIn = countInBeats * stepMs;
         // Clamp so the count-in never begins before song start (position 0).
         double countInDuration = Math.Min(requestedCountIn, beat1Ms);
         if (countInDuration < 0) countInDuration = 0;
