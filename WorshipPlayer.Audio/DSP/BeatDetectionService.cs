@@ -462,14 +462,97 @@ public class BeatDetectionService
     }
 
     /// <summary>
-    /// Return the WAV click positions (ms) for the SAME pulse pattern used by the live preview, so
-    /// the generated WAV and the metronome match exactly. Pure (no I/O). Starts at
-    /// grid.GridAnchorMs and covers grid.TotalDurationMs.
+    /// Compute the full manual-click pulse schedule honoring an explicit Beat-1 position and an
+    /// optional count-in. This is the PURE source of truth for the Manual Click Track workflow
+    /// (FEAT-002); the live metronome preview and the generated WAV both derive from it, so they
+    /// cannot diverge.
+    ///
+    /// Semantics:
+    ///   • The FIRST non-count-in pulse lands EXACTLY at <paramref name="beat1Ms"/> and is the
+    ///     LOUDER beat-1 accent. Subsequent beats continue at the grid interval to
+    ///     <paramref name="totalDurationMs"/> following the existing per-meter accent rules
+    ///     (reusing <see cref="ComputeMetronomePulses"/> with gridAnchor = beat1Ms).
+    ///   • <paramref name="countInBars"/> bars of clicks are prepended at the grid interval
+    ///     IMMEDIATELY BEFORE beat1Ms, using the same per-meter pulse rule as the body:
+    ///       4/4 → 4 clicks/bar, 3/4 → 3 clicks/bar, 6/8 felt-in-2 → 2 pulses/bar (at the bar
+    ///       start and +3*eighthMs). Count-in pulses are NON-accent (IsAccent == false) so the
+    ///       beat-1 accent is unambiguous.
+    ///   • CLAMP to &gt;= 0 ms: if beat1Ms is too close to 0 to fit all requested count-in beats,
+    ///     ONLY the whole count-in beats whose time is &gt;= 0 are emitted (beats that would land at a
+    ///     negative time are dropped). This is the chosen clamp behavior.
+    ///   • Degenerate inputs (bpm &lt;= 0, numerator &lt;= 0, totalDurationMs &lt;= 0) return an empty
+    ///     list and never throw. A negative beat1Ms is treated as 0.
     /// </summary>
-    public List<double> BuildManualClickPositions(BeatGrid grid)
+    public List<ClickPulse> ComputeManualClickPulses(double beat1Ms, double bpm,
+        int timeSigNumerator, int timeSigDenominator, double totalDurationMs, int countInBars)
     {
-        var pulses = ComputeMetronomePulses(grid.GridAnchorMs, grid.Bpm,
-            grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, grid.TotalDurationMs);
+        if (bpm <= 0 || timeSigNumerator <= 0 || totalDurationMs <= 0)
+            return new List<ClickPulse>();
+
+        if (beat1Ms < 0) beat1Ms = 0;
+
+        // Body: first non-count-in pulse lands exactly at beat1Ms (gridAnchor = beat1Ms), then
+        // continues at the grid interval with the standard per-meter accent pattern.
+        var result = ComputeMetronomePulses(beat1Ms, bpm, timeSigNumerator, timeSigDenominator, totalDurationMs);
+
+        // Count-in: prepend countInBars worth of pulses immediately BEFORE beat1Ms using the same
+        // per-meter rule, clamped to >= 0. We synthesize them by walking the per-meter pulse offsets
+        // within a bar, placed on the bars immediately preceding beat1Ms.
+        if (countInBars > 0)
+        {
+            double beatIntervalMs = 60000.0 / bpm;
+            bool sixEightFeltInTwo = (timeSigDenominator == 8 && timeSigNumerator == 6);
+
+            // Per-bar pulse offsets (relative to bar start) and the bar length.
+            double barDurationMs;
+            double[] offsetsInBar;
+            if (sixEightFeltInTwo)
+            {
+                double eighthMs = beatIntervalMs / 2.0;
+                barDurationMs = 6 * eighthMs;               // felt-in-2 bar
+                offsetsInBar = new[] { 0.0, 3 * eighthMs }; // two dotted-quarter pulses
+            }
+            else
+            {
+                barDurationMs = beatIntervalMs * timeSigNumerator;
+                offsetsInBar = new double[timeSigNumerator];
+                for (int b = 0; b < timeSigNumerator; b++)
+                    offsetsInBar[b] = b * beatIntervalMs;
+            }
+
+            var countIn = new List<ClickPulse>();
+            // Bars are placed immediately before beat1Ms: bar index -1 starts at beat1Ms - barDuration,
+            // bar index -2 at beat1Ms - 2*barDuration, etc. All count-in pulses are non-accent.
+            for (int bar = 1; bar <= countInBars; bar++)
+            {
+                double barStart = beat1Ms - bar * barDurationMs;
+                foreach (double off in offsetsInBar)
+                {
+                    double t = barStart + off;
+                    // Only keep whole count-in beats whose time is >= 0 (clamp) and strictly before beat1.
+                    if (t >= 0 && t < beat1Ms)
+                        countIn.Add(new ClickPulse(t, false));
+                }
+            }
+
+            countIn.Sort((a, b) => a.TimeMs.CompareTo(b.TimeMs));
+            result.InsertRange(0, countIn);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Return the WAV click positions (ms) for the SAME pulse pattern used by the live preview, so
+    /// the generated WAV and the metronome match exactly. Pure (no I/O). Honors the manual-click
+    /// Beat 1 position (<paramref name="beat1Ms"/>; defaults to grid.GridAnchorMs when &lt; 0) and the
+    /// count-in bars, routing through <see cref="ComputeManualClickPulses"/>.
+    /// </summary>
+    public List<double> BuildManualClickPositions(BeatGrid grid, double beat1Ms = -1, int countInBars = 0)
+    {
+        double b1 = beat1Ms >= 0 ? beat1Ms : grid.GridAnchorMs;
+        var pulses = ComputeManualClickPulses(b1, grid.Bpm,
+            grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, grid.TotalDurationMs, countInBars);
         return pulses.Select(p => p.TimeMs).ToList();
     }
 
@@ -570,7 +653,13 @@ public class BeatDetectionService
     /// Degenerate grids (duration/sampleRate &lt;= 0) write a valid empty/silent WAV and never throw,
     /// exactly like <see cref="GenerateClickTrack(BeatGrid,string,ClickGenerationMode,int,string?)"/>.
     /// </summary>
-    public void GenerateManualClickTrack(BeatGrid grid, string outputPath, int sampleRate = 44100)
+    /// <param name="beat1Ms">
+    /// Manual-click Beat 1 position (ms); the first non-count-in pulse lands here. When &lt; 0 the
+    /// method falls back to grid.GridAnchorMs so existing callers are unaffected.
+    /// </param>
+    /// <param name="countInBars">Count-in bars prepended immediately before Beat 1 (clamped to &gt;= 0 ms).</param>
+    public void GenerateManualClickTrack(BeatGrid grid, string outputPath, int sampleRate = 44100,
+        double beat1Ms = -1, int countInBars = 0)
     {
         double totalDurationMs = grid.TotalDurationMs;
         if (totalDurationMs <= 0 || sampleRate <= 0)
@@ -588,9 +677,10 @@ public class BeatDetectionService
         float[] clickAccent = GenerateClickSound(sampleRate, 1500, clickLengthSamples, 0.9f); // beat 1 accent (louder)
         float[] clickNormal = GenerateClickSound(sampleRate, 1000, clickLengthSamples, 0.6f); // other pulses
 
-        // Single source of truth: the metronome pulse pattern.
-        var pulses = ComputeMetronomePulses(grid.GridAnchorMs, grid.Bpm,
-            grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, totalDurationMs);
+        // Single source of truth: the manual-click pulse schedule (Beat 1 offset + count-in).
+        double b1 = beat1Ms >= 0 ? beat1Ms : grid.GridAnchorMs;
+        var pulses = ComputeManualClickPulses(b1, grid.Bpm,
+            grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, totalDurationMs, countInBars);
 
         foreach (var pulse in pulses)
         {

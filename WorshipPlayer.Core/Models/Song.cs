@@ -46,6 +46,24 @@ public class Song
     [JsonPropertyName("gridAnchor_ms")]
     public double GridAnchorMs { get; set; } = 0.0;
 
+    /// <summary>
+    /// DEDICATED manual-click Beat 1 position (ms) used ONLY by the Manual Click Track workflow
+    /// (FEAT-002). This is independent of <see cref="GridAnchorMs"/> so that setting/tapping/nudging
+    /// the manual-click Beat 1 never moves section loop points, <see cref="BeatPositionsMs"/>, or the
+    /// separate "Downbeat (Beat 1)" panel. A sentinel of -1 means "unset -> fall back to GridAnchorMs".
+    /// Additive and backward-compatible: older song.json without this field load with the default.
+    /// </summary>
+    [JsonPropertyName("manualClickBeat1_ms")]
+    public double ManualClickBeat1Ms { get; set; } = -1.0;
+
+    /// <summary>
+    /// Number of count-in bars (0, 1, 2) of clicks emitted immediately BEFORE the manual-click Beat 1
+    /// in both the live metronome preview and the generated Generated_Click_Manual.wav. Additive and
+    /// backward-compatible; defaults to 0.
+    /// </summary>
+    [JsonPropertyName("manualClickCountInBars")]
+    public int ManualClickCountInBars { get; set; } = 0;
+
     [JsonPropertyName("originalKey")]
     public string OriginalKey { get; set; } = "C";
 

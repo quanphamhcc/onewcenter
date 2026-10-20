@@ -202,6 +202,52 @@
                             <TextBlock x:Name="ManualClickStatus" Text="" FontSize="10"
                                        Foreground="#7ED321" TextWrapping="Wrap" Margin="0,0,0,6" />
 
+                            <!-- ═══ Beat 1 position (manual-click only — does NOT move sections) ═══ -->
+                            <TextBlock Text="Beat 1 position:" FontSize="11" Foreground="#B0B0C0"
+                                       Margin="0,0,0,4" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBox x:Name="ManualBeat1Box" Width="90" Height="24"
+                                         FontSize="11" Background="#2B2B3D" Foreground="White"
+                                         BorderBrush="#4A4A60" VerticalContentAlignment="Center"
+                                         Padding="4,0" KeyDown="ManualBeat1Box_KeyDown"
+                                         ToolTip="Where the click's first downbeat (Beat 1) lands (M:SS:MMM or ms)" />
+                                <Button Content="Set" Style="{StaticResource TransportButton}"
+                                        Click="SetManualBeat1_Click" Margin="4,0,0,0"
+                                        ToolTip="Set Beat 1 to the typed time" />
+                                <Button Content="Tap Beat 1" Style="{StaticResource TransportButton}"
+                                        Click="TapBeat1_Click" Margin="4,0,0,0"
+                                        ToolTip="Capture Beat 1 from the live playback position" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <Button Content="-10ms" Style="{StaticResource TransportButton}"
+                                        Click="ManualBeat1NudgeMinus10_Click" Margin="0,0,2,0"
+                                        ToolTip="Move Beat 1 earlier by 10 ms" />
+                                <Button Content="-1ms" Style="{StaticResource TransportButton}"
+                                        Click="ManualBeat1NudgeMinus1_Click" Margin="2,0,2,0"
+                                        ToolTip="Move Beat 1 earlier by 1 ms" />
+                                <Button Content="+1ms" Style="{StaticResource TransportButton}"
+                                        Click="ManualBeat1NudgePlus1_Click" Margin="2,0,2,0"
+                                        ToolTip="Move Beat 1 later by 1 ms" />
+                                <Button Content="+10ms" Style="{StaticResource TransportButton}"
+                                        Click="ManualBeat1NudgePlus10_Click" Margin="2,0,0,0"
+                                        ToolTip="Move Beat 1 later by 10 ms" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="Count-in:" FontSize="11" Foreground="#B0B0C0"
+                                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <ComboBox x:Name="CountInComboBox" Width="80" Height="24"
+                                          FontSize="11" Background="#2B2B3D" Foreground="White"
+                                          BorderBrush="#4A4A60"
+                                          SelectionChanged="CountIn_SelectionChanged"
+                                          ToolTip="Bars of count-in clicks before Beat 1">
+                                    <ComboBoxItem Content="0 bars" Tag="0" />
+                                    <ComboBoxItem Content="1 bar" Tag="1" />
+                                    <ComboBoxItem Content="2 bars" Tag="2" />
+                                </ComboBox>
+                            </StackPanel>
+                            <TextBlock x:Name="ManualBeat1Display" Text="" FontSize="10"
+                                       Foreground="#7ED321" TextWrapping="Wrap" Margin="0,0,0,6" />
+
                             <Separator Background="#4A4A60" Margin="0,0,0,8" />
 
                             <WrapPanel Margin="0,0,0,8">

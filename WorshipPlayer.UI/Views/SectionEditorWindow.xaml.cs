@@ -107,6 +107,16 @@ public partial class SectionEditorWindow : Window
                 "6/8" => 2,
                 _ => 1 // 4/4 default
             };
+
+            // Seed the manual-click Beat 1 controls. Beat 1 defaults to GridAnchorMs when unset
+            // (sentinel -1). This is a DEDICATED field and never touches GridAnchorMs.
+            double beat1 = _song.ManualClickBeat1Ms >= 0 ? _song.ManualClickBeat1Ms : _song.GridAnchorMs;
+            if (beat1 < 0) beat1 = 0;
+            ManualBeat1Box.Text = MsToTimecode(beat1);
+            ManualBeat1Display.Text = $"Beat 1 @ {MsToTimecode(beat1)} ({beat1:F1} ms)";
+
+            int countIn = Math.Clamp(_song.ManualClickCountInBars, 0, 2);
+            CountInComboBox.SelectedIndex = countIn; // items are 0/1/2 bars in order
         }
         finally
         {
@@ -1518,6 +1528,154 @@ public partial class SectionEditorWindow : Window
         // Guard against firing during XAML init (controls not yet wired).
         if (_suppressTempoSync || ManualBpmBox == null) return;
         ApplyManualTempo(CurrentManualBpm());
+        // Changing the meter changes the count-in pattern — keep the live metronome in sync.
+        RetuneMetronomeIfPlaying();
+    }
+
+    // ─── MANUAL CLICK: BEAT 1 POSITION + COUNT-IN ─────────────────────────
+
+    /// <summary>Current manual-click Beat 1 (ms), defaulting to GridAnchorMs when unset (sentinel -1).</summary>
+    private double CurrentManualBeat1()
+    {
+        double b1 = _song.ManualClickBeat1Ms >= 0 ? _song.ManualClickBeat1Ms : _song.GridAnchorMs;
+        return b1 < 0 ? 0 : b1;
+    }
+
+    /// <summary>Count-in bars (0/1/2) from the selector; defaults to the stored song value.</summary>
+    private int CurrentCountInBars()
+    {
+        if (CountInComboBox?.SelectedItem is ComboBoxItem item && item.Tag is string tag &&
+            int.TryParse(tag, out int bars))
+            return Math.Clamp(bars, 0, 2);
+        return Math.Clamp(_song.ManualClickCountInBars, 0, 2);
+    }
+
+    /// <summary>
+    /// SINGLE sync point for the manual-click Beat 1. Clamps <paramref name="ms"/> to
+    /// [0, song duration] (duration unknown => clamp only &gt;= 0), stores it in the DEDICATED
+    /// _song.ManualClickBeat1Ms field (NEVER GridAnchorMs, section loop points or BeatPositionsMs),
+    /// refreshes the Beat 1 box + display under _suppressTempoSync, and retunes the live metronome
+    /// in place if it is playing. Does NOT invoke the Downbeat panel logic.
+    /// </summary>
+    private void ApplyManualBeat1(double ms)
+    {
+        if (ms < 0) ms = 0;
+        double duration = EstimateTotalDuration();
+        if (duration > 0 && ms > duration) ms = duration;
+
+        _song.ManualClickBeat1Ms = ms;
+
+        _suppressTempoSync = true;
+        try
+        {
+            ManualBeat1Box.Text = MsToTimecode(ms);
+            ManualBeat1Display.Text = $"Beat 1 @ {MsToTimecode(ms)} ({ms:F1} ms)";
+        }
+        finally
+        {
+            _suppressTempoSync = false;
+        }
+
+        RetuneMetronomeIfPlaying();
+    }
+
+    /// <summary>Retune the live metronome (bpm/time-sig/beat1/count-in) without stacking players.</summary>
+    private void RetuneMetronomeIfPlaying()
+    {
+        if (_metronome != null && _metronome.IsPlaying)
+        {
+            var (num, den) = GetSelectedTimeSignature();
+            _metronome.Update(CurrentManualBpm(), num, den, CurrentCountInBars());
+        }
+    }
+
+    private void SetManualBeat1_Click(object sender, RoutedEventArgs e)
+    {
+        if (_song == null || ManualBeat1Box == null) return;
+
+        string input = ManualBeat1Box.Text?.Trim() ?? "";
+        double ms = ParseTimecodeOrMs(input);
+        if (ms < 0)
+        {
+            // Invalid/empty — friendly status and revert, no crash.
+            ManualClickStatus.Text = "Invalid Beat 1 time. Use M:SS:MMM or milliseconds.";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            _suppressTempoSync = true;
+            try { ManualBeat1Box.Text = MsToTimecode(CurrentManualBeat1()); }
+            finally { _suppressTempoSync = false; }
+            return;
+        }
+
+        ApplyManualBeat1(ms);
+        ManualClickStatus.Text = $"Beat 1 set to {MsToTimecode(CurrentManualBeat1())}.";
+        ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
+    }
+
+    private void ManualBeat1Box_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            e.Handled = true;
+            SetManualBeat1_Click(sender, e);
+        }
+    }
+
+    private void TapBeat1_Click(object sender, RoutedEventArgs e)
+    {
+        if (_song == null || ManualBeat1Box == null) return;
+
+        // Use a sentinel for "no engine" so a genuine position of exactly 0 ms (a song that
+        // truly starts on Beat 1) is a VALID capture rather than being treated as "not playing".
+        double pos = _audioEngine?.GetPositionMs() ?? -1;
+        if (_audioEngine == null || pos < 0)
+        {
+            // Nothing playing / no engine — friendly status, do nothing else (no crash).
+            ManualClickStatus.Text = "Play the song, then tap Beat 1 on the downbeat to capture it.";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            return;
+        }
+
+        ApplyManualBeat1(pos);
+        ManualClickStatus.Text = $"Beat 1 captured at {MsToTimecode(CurrentManualBeat1())}.";
+        ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
+    }
+
+    private void ManualBeat1NudgeMinus10_Click(object sender, RoutedEventArgs e)
+    {
+        if (_song == null || ManualBeat1Box == null) return;
+        ApplyManualBeat1(CurrentManualBeat1() - 10);
+    }
+
+    private void ManualBeat1NudgeMinus1_Click(object sender, RoutedEventArgs e)
+    {
+        if (_song == null || ManualBeat1Box == null) return;
+        ApplyManualBeat1(CurrentManualBeat1() - 1);
+    }
+
+    private void ManualBeat1NudgePlus1_Click(object sender, RoutedEventArgs e)
+    {
+        if (_song == null || ManualBeat1Box == null) return;
+        ApplyManualBeat1(CurrentManualBeat1() + 1);
+    }
+
+    private void ManualBeat1NudgePlus10_Click(object sender, RoutedEventArgs e)
+    {
+        if (_song == null || ManualBeat1Box == null) return;
+        ApplyManualBeat1(CurrentManualBeat1() + 10);
+    }
+
+    private void CountIn_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // Guard against firing during XAML init.
+        if (_suppressTempoSync || _song == null || CountInComboBox == null) return;
+
+        _song.ManualClickCountInBars = CurrentCountInBars();
+        RetuneMetronomeIfPlaying();
+
+        ManualClickStatus.Text = _song.ManualClickCountInBars == 0
+            ? "Count-in off."
+            : $"Count-in: {_song.ManualClickCountInBars} bar(s) before Beat 1.";
+        ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGray;
     }
 
     // ─── METRONOME LIVE PREVIEW ───────────────────────────────────────────
@@ -1537,10 +1695,11 @@ public partial class SectionEditorWindow : Window
 
         double bpm = CurrentManualBpm();
         var (num, den) = GetSelectedTimeSignature();
+        int countIn = CurrentCountInBars();
 
         try
         {
-            _metronome.Start(bpm, num, den);
+            _metronome.Start(bpm, num, den, countIn);
         }
         catch (Exception ex)
         {
@@ -1554,7 +1713,8 @@ public partial class SectionEditorWindow : Window
         if (_metronome.IsPlaying)
         {
             MetronomeToggleBtn.Content = "Stop Metronome";
-            ManualClickStatus.Text = $"Metronome playing at {bpm:0.#} BPM ({num}/{den}).";
+            string countInNote = countIn > 0 ? $", {countIn}-bar count-in" : "";
+            ManualClickStatus.Text = $"Metronome playing at {bpm:0.#} BPM ({num}/{den}{countInNote}).";
             ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
         }
         else
@@ -1603,9 +1763,12 @@ public partial class SectionEditorWindow : Window
 
         string outputPath = Path.Combine(_song.FolderPath, "Generated_Click_Manual.wav");
 
+        double beat1 = CurrentManualBeat1();
+        int countInBars = CurrentCountInBars();
+
         try
         {
-            _beatService.GenerateManualClickTrack(_currentGrid, outputPath);
+            _beatService.GenerateManualClickTrack(_currentGrid, outputPath, 44100, beat1, countInBars);
         }
         catch (Exception ex)
         {
@@ -1633,13 +1796,17 @@ public partial class SectionEditorWindow : Window
         });
 
         var (num, den) = GetSelectedTimeSignature();
-        ManualClickStatus.Text = $"Generated {manualFileName} at {_currentGrid.Bpm:0.#} BPM ({num}/{den}).";
+        string countInText = countInBars > 0 ? $"{countInBars} bar(s)" : "none";
+        ManualClickStatus.Text =
+            $"Generated {manualFileName} at {_currentGrid.Bpm:0.#} BPM ({num}/{den}), " +
+            $"Beat 1 @ {MsToTimecode(beat1)}, count-in {countInText}.";
         ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
 
         MessageBox.Show(
             $"Generated {manualFileName}\n\n" +
             $"BPM: {_currentGrid.Bpm:0.#}  |  Time Sig: {num}/{den}\n" +
-            $"Start (Beat 1): {MsToTimecode(_currentGrid.GridAnchorMs)}\n\n" +
+            $"Beat 1: {MsToTimecode(beat1)} ({beat1:F1} ms)\n" +
+            $"Count-in: {countInText}\n\n" +
             "Added as the 'Click (Manual)' track (IEM).",
             "Manual Click Generated", MessageBoxButton.OK, MessageBoxImage.Information);
     }
