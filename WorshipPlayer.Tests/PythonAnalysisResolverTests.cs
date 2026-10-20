@@ -210,4 +210,39 @@ public class PythonAnalysisResolverTests
         Assert.Equal("python3", chosen);
         Assert.Contains(tried, t => t.Contains("stub"));
     }
+
+    [Fact]
+    public void LauncherStyleConfiguredValue_IsProbedAsLauncher_ReturnsConcretePath()
+    {
+        // User configured the launcher "py -3" rather than a concrete python.exe. The resolver must
+        // probe it as a launcher (ExecutablePath "py") and return the concrete resolved exe.
+        var candidates = new[]
+        {
+            new Candidate("python", null, "python (PATH)"),
+        };
+        var probe = FakeProbe(new Dictionary<string, ProbeResult>
+        {
+            ["py"] = Usable(@"C:\Users\Admin\AppData\Local\Python\pythoncore-3.13-64\python.exe"),
+            ["python"] = Usable(),
+        });
+
+        var (chosen, _) = PythonAnalysisService.ResolvePythonExecutable("py -3", candidates, probe);
+
+        Assert.Equal(@"C:\Users\Admin\AppData\Local\Python\pythoncore-3.13-64\python.exe", chosen);
+    }
+
+    [Theory]
+    [InlineData("py", true)]
+    [InlineData("py -3", true)]
+    [InlineData("PY -3.13", true)]
+    [InlineData("  py  -3 ", true)]
+    [InlineData(@"C:\Python313\python.exe", false)]
+    [InlineData("python", false)]
+    [InlineData("/usr/bin/python3", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsLauncherConfiguredValue_DetectsLauncherForm(string? value, bool expected)
+    {
+        Assert.Equal(expected, PythonAnalysisService.IsLauncherConfiguredValue(value));
+    }
 }

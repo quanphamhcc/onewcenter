@@ -51,7 +51,7 @@
                                      FontSize="11" Background="#2B2B3D" Foreground="White"
                                      BorderBrush="#4A4A60" VerticalContentAlignment="Center"
                                      Padding="4,2" Margin="0,0,0,4" TextWrapping="NoWrap"
-                                     ToolTip="The Python used for analysis. Empty means auto-discover." />
+                                     ToolTip="The Python used for analysis. Point at a concrete python.exe, or enter the launcher (py / py -3). Empty means auto-discover." />
                             <Button Content="Set Python…"
                                     Style="{StaticResource TransportButton}"
                                     Click="SetPython_Click" Margin="0,0,0,8" HorizontalAlignment="Stretch"

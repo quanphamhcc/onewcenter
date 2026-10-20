@@ -233,8 +233,7 @@ public class PythonAnalysisService
         // Build the effective order: configured path first (when non-empty), then the rest.
         var ordered = new List<PythonCandidate>();
         if (!string.IsNullOrWhiteSpace(configuredPath))
-            ordered.Add(new PythonCandidate(configuredPath!.Trim(),
-                Description: $"configured path ({configuredPath!.Trim()})"));
+            ordered.Add(BuildConfiguredCandidate(configuredPath!.Trim()));
         if (candidateOrder != null)
             ordered.AddRange(candidateOrder);
 
@@ -289,6 +288,49 @@ public class PythonAnalysisService
         }
 
         return (null, tried);
+    }
+
+    /// <summary>
+    /// Turn a user-configured Settings value into a candidate. Usually this is a concrete
+    /// python.exe, but a user may enter the Windows launcher instead (e.g. "py", "py -3",
+    /// "py -3.13"). Detect that launcher form and build a launcher candidate (ExecutablePath "py"
+    /// + ArgumentPrefix) so the probe resolves it to a concrete interpreter, instead of trying to
+    /// Process.Start a bare "py -3" string as if it were one executable path (which would always
+    /// fail). Anything else is treated as a concrete executable path, exactly as before.
+    /// This is pure string handling — no File/Process access.
+    /// </summary>
+    /// <summary>
+    /// True when a configured Settings value is the Windows "py" launcher form (e.g. "py",
+    /// "py -3") rather than a concrete python.exe path. Pure string check (no I/O). Used by the UI
+    /// so the "configured path not used" notice isn't wrongly shown when a launcher config
+    /// correctly resolves to a concrete interpreter.
+    /// </summary>
+    public static bool IsLauncherConfiguredValue(string? configured)
+    {
+        if (string.IsNullOrWhiteSpace(configured)) return false;
+        string trimmed = configured.Trim();
+        string[] parts = trimmed.Split(
+            (char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 1
+            && string.Equals(parts[0], "py", StringComparison.OrdinalIgnoreCase)
+            && !trimmed.Contains('\\')
+            && !trimmed.Contains('/');
+    }
+
+    private static PythonCandidate BuildConfiguredCandidate(string configured)
+    {
+        // "py", "py -3", "py -3.13" etc. become a launcher candidate; a real path like
+        // "C:\Python 3\python.exe" contains a separator and is never misread as a launcher.
+        if (IsLauncherConfiguredValue(configured))
+        {
+            string[] parts = configured.Split(
+                (char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            string? argPrefix = parts.Length > 1 ? string.Join(' ', parts[1..]) : null;
+            return new PythonCandidate("py", argPrefix,
+                $"configured launcher ({configured})");
+        }
+
+        return new PythonCandidate(configured, Description: $"configured path ({configured})");
     }
 
     private static bool ContainsWindowsAppsStub(string? path)
@@ -457,8 +499,16 @@ public class PythonAnalysisService
         }
     }
 
-    /// <summary>Static, short-timeout process launcher used by the real probe (mirrors RunCommand).</summary>
-    private static (int exitCode, string output, string error) RunProcess(string exe, string args)
+    /// <summary>
+    /// Static, short-timeout process launcher used by the real probe. Mirrors
+    /// <see cref="RunCommandAsync"/>: it starts the concurrent stdout/stderr reads FIRST, then
+    /// waits for exit with a hard timeout, and KILLS the process if the timeout elapses. This
+    /// matters because a probe candidate may be a hung interpreter — reading both pipes
+    /// concurrently prevents a full stderr buffer from deadlocking the read, and the kill ensures
+    /// the timeout actually bounds a wedged child instead of being dead code.
+    /// </summary>
+    private static (int exitCode, string output, string error) RunProcess(
+        string exe, string args, int timeoutMs = 10000)
     {
         var psi = new ProcessStartInfo
         {
@@ -474,9 +524,20 @@ public class PythonAnalysisService
         if (process == null)
             return (-1, "", "Failed to start process");
 
-        string output = process.StandardOutput.ReadToEnd();
-        string error = process.StandardError.ReadToEnd();
-        process.WaitForExit(10000);
+        // Start reading BOTH streams before waiting so a full pipe buffer can never deadlock.
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+
+        if (!process.WaitForExit(timeoutMs))
+        {
+            // Hung or flooding interpreter — kill it so the timeout genuinely bounds discovery.
+            try { process.Kill(entireProcessTree: true); } catch { /* already gone */ }
+            return (-1, "", $"Timed out after {timeoutMs} ms");
+        }
+
+        // Process has exited; the read tasks are complete or will complete immediately.
+        string output = outputTask.GetAwaiter().GetResult();
+        string error = errorTask.GetAwaiter().GetResult();
         return (process.ExitCode, output, error);
     }
 

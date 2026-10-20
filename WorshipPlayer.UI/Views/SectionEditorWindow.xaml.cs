@@ -997,10 +997,16 @@ public partial class SectionEditorWindow : Window
         // Use the configured path first (when set), then auto-discovery. The pure resolver runs
         // the real probe against each candidate (actually launching `--version` + import check)
         // and skips the Windows Store alias stub. No files or settings are mutated here.
+        // Each candidate probe launches `--version` + a librosa import (seconds each), so run the
+        // whole discovery sweep OFF the UI thread to keep the Section Editor responsive.
         bool hadConfiguredPath = !string.IsNullOrWhiteSpace(_configuredPythonPath);
-        var candidateOrder = PythonAnalysisService.BuildCandidateOrder();
-        var (chosenPath, tried) = PythonAnalysisService.ResolvePythonExecutable(
-            _configuredPythonPath, candidateOrder, PythonAnalysisService.ProbeCandidate);
+        string configuredPathSnapshot = _configuredPythonPath;
+        var (chosenPath, tried) = await Task.Run(() =>
+        {
+            var candidateOrder = PythonAnalysisService.BuildCandidateOrder();
+            return PythonAnalysisService.ResolvePythonExecutable(
+                configuredPathSnapshot, candidateOrder, PythonAnalysisService.ProbeCandidate);
+        });
 
         if (string.IsNullOrEmpty(chosenPath))
         {
@@ -1011,7 +1017,11 @@ public partial class SectionEditorWindow : Window
 
         // If the user had configured a path but discovery chose a DIFFERENT interpreter, the
         // configured one failed its probe — tell the user rather than silently ignoring it.
-        if (hadConfiguredPath &&
+        // Exception: a launcher-style config ("py -3") legitimately resolves to a concrete
+        // python.exe, so a differing chosenPath there is expected, not a fallback.
+        bool configuredWasLauncher =
+            PythonAnalysisService.IsLauncherConfiguredValue(_configuredPythonPath);
+        if (hadConfiguredPath && !configuredWasLauncher &&
             !string.Equals(chosenPath, _configuredPythonPath.Trim(), StringComparison.OrdinalIgnoreCase))
         {
             MessageBox.Show(
@@ -1329,10 +1339,22 @@ public partial class SectionEditorWindow : Window
         sb.AppendLine(@"the Windows Store stub under \Microsoft\WindowsApps\ was skipped.");
         if (tried != null && tried.Count > 0)
         {
+            // Cap the list so a machine with many globbed installs can't produce a MessageBox
+            // taller than the screen. Show the most relevant entries (any packages-missing
+            // candidates first, then the rest) plus a count of what was omitted.
+            const int maxShown = 8;
+            var ordered = tried
+                .OrderByDescending(t => t.Contains("packages missing"))
+                .ToList();
+            var shown = ordered.Take(maxShown).ToList();
+
             sb.AppendLine();
-            sb.AppendLine("Tried:");
-            foreach (var t in tried)
+            sb.AppendLine($"Tried {tried.Count} candidate(s):");
+            foreach (var t in shown)
                 sb.AppendLine($"  • {t}");
+            int omitted = tried.Count - shown.Count;
+            if (omitted > 0)
+                sb.AppendLine($"  … and {omitted} more (all unusable).");
         }
 
         sb.AppendLine();
