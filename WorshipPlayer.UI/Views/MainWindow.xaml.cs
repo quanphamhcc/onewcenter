@@ -522,6 +522,74 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Remove the selected setlist song. Confirms first, stops playback if the song being
+    /// removed is the one currently loaded, drops it from the registry so it won't reappear
+    /// on restart, then refreshes the list and loads a sensible neighbour. Audio files on
+    /// disk are left untouched.
+    /// </summary>
+    private async void DeleteSong_Click(object sender, RoutedEventArgs e)
+    {
+        int index = SetlistBox.SelectedIndex;
+        if (index < 0 || index >= _songManager.Songs.Count)
+        {
+            StatusText.Text = "Select a song in the setlist first, then click Delete Song.";
+            return;
+        }
+
+        var song = _songManager.Songs[index];
+
+        var confirm = MessageBox.Show(
+            $"Remove \"{song.Title}\" from the setlist?\n\n" +
+            "This only removes it from the list. The audio files and song.json on disk are kept.",
+            "Remove Song",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        try
+        {
+            bool removingCurrent = ReferenceEquals(song, _currentSong);
+            if (removingCurrent)
+            {
+                // Stop playback and release the audio engine's hold on this song before removal.
+                StopPlayback();
+                _audioEngine.UnloadSong();
+            }
+
+            await _songManager.RemoveSongAsync(song, deleteFiles: false);
+            RefreshSongList();
+
+            if (_songManager.Songs.Count == 0)
+            {
+                // Nothing left to show — clear the current song view.
+                _currentSong = null;
+                SongTitleText.Text = "No song loaded";
+                SongInfoText.Text = "";
+                SectionButtonsPanel.Children.Clear();
+                SectionsPanel.Children.Clear();
+                StatusText.Text = $"Removed: {song.Title}. Setlist is empty.";
+                return;
+            }
+
+            if (removingCurrent)
+            {
+                // Load the song that now occupies the removed slot (or the new last song).
+                int nextIndex = Math.Min(index, _songManager.Songs.Count - 1);
+                SetlistBox.SelectedIndex = nextIndex;
+                LoadSong(_songManager.Songs[nextIndex]);
+            }
+
+            StatusText.Text = $"Removed from setlist: {song.Title}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error removing song: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private async void EditSongInfo_Click(object sender, RoutedEventArgs e)
     {
         if (_currentSong == null) return;

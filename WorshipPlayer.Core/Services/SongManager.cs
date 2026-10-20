@@ -184,6 +184,33 @@ CREATE TABLE IF NOT EXISTS Setlists (
     }
 
     /// <summary>
+    /// Remove a song path from the registry so it is not re-loaded on next startup.
+    /// Matches entries by normalized path (drive-letter case / trailing separator
+    /// insensitive), mirroring <see cref="LoadSongsFromRegistryAsync"/>. No-op if the
+    /// registry file or the entry does not exist.
+    /// </summary>
+    public async Task UnregisterSongPathAsync(string folderPath)
+    {
+        var registryPath = Path.Combine(_songsBasePath, "_song_registry.json");
+        if (!File.Exists(registryPath)) return;
+
+        List<string> paths;
+        try
+        {
+            var json = await File.ReadAllTextAsync(registryPath);
+            paths = JsonSerializer.Deserialize<List<string>>(json, _jsonOptions) ?? new();
+        }
+        catch { return; }
+
+        var remaining = paths.Where(p => !SongPathResolver.PathsEqual(p, folderPath)).ToList();
+        if (remaining.Count != paths.Count)
+        {
+            var json = JsonSerializer.Serialize(remaining, _jsonOptions);
+            await File.WriteAllTextAsync(registryPath, json);
+        }
+    }
+
+    /// <summary>
     /// Save a song's configuration to its folder.
     /// Auto-backs up the previous version before overwriting (keeps last 5).
     /// </summary>
@@ -386,6 +413,32 @@ CREATE TABLE IF NOT EXISTS Setlists (
         {
             Directory.Delete(song.FolderPath, true);
         }
+    }
+
+    /// <summary>
+    /// Remove a song from the list and persist the removal: drop it from the in-memory
+    /// <see cref="Songs"/> list, unregister its folder from <c>_song_registry.json</c> so it
+    /// does not reappear on next startup, optionally delete its files, and reconcile the
+    /// SQLite mirror. The registry update and mirror reconcile are the persistent parts;
+    /// the file deletion is opt-in and irreversible.
+    /// </summary>
+    public async Task RemoveSongAsync(Song song, bool deleteFiles = false)
+    {
+        Songs.Remove(song);
+
+        if (!string.IsNullOrEmpty(song.FolderPath))
+        {
+            await UnregisterSongPathAsync(song.FolderPath);
+
+            if (deleteFiles && Directory.Exists(song.FolderPath))
+            {
+                try { Directory.Delete(song.FolderPath, true); }
+                catch { /* best-effort; the list/registry removal already succeeded */ }
+            }
+        }
+
+        // Keep the SQLite mirror in sync with the now-reduced loaded set (best-effort).
+        await ReconcileSongsSafeAsync(Songs);
     }
 
     /// <summary>

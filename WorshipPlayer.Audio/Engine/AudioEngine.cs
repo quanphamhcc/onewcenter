@@ -145,6 +145,24 @@ public class AudioEngine : IDisposable
     }
 
     /// <summary>
+    /// Stop playback and fully release the currently loaded song: dispose the WASAPI output
+    /// and the mixer so decoded track audio and file handles are freed. Safe to call when no
+    /// song is loaded. Call <see cref="ActivateSong"/> to load another song afterwards.
+    /// </summary>
+    public void UnloadSong()
+    {
+        if (_wasapiOut != null)
+        {
+            _wasapiOut.Stop();
+            _wasapiOut.Dispose();
+            _wasapiOut = null;
+        }
+
+        _mixer?.Dispose();
+        _mixer = null;
+    }
+
+    /// <summary>
     /// Jump to a specific section.
     /// </summary>
     public void JumpToSection(int sectionIndex)

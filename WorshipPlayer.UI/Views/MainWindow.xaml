@@ -48,6 +48,11 @@
                          BorderThickness="0"
                          SelectionChanged="SetlistBox_SelectionChanged"
                          Margin="4,0">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Delete Song" Click="DeleteSong_Click" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
                 </ListBox>
 
                 <!-- Sections Header -->
@@ -69,6 +74,10 @@
                 <StackPanel Grid.Row="4" Margin="8,4,8,8">
                     <Button Content="+ Add Song" Style="{StaticResource TransportButton}"
                             Click="AddSong_Click" Margin="0,3" FontSize="12" MinHeight="34" />
+                    <Button Content="Delete Song" Style="{StaticResource TransportButton}"
+                            Click="DeleteSong_Click" Margin="0,3" FontSize="12" MinHeight="34"
+                            BorderBrush="Transparent" BorderThickness="0"
+                            ToolTip="Remove the selected song from the setlist" />
                     <Button Content="Edit Song Info" Style="{StaticResource TransportButton}"
                             Click="EditSongInfo_Click" Margin="0,3" FontSize="12" MinHeight="34" />
                     <Button Content="Edit Sections" Style="{StaticResource TransportButton}"
