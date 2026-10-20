@@ -595,10 +595,10 @@ public class BeatDetectionService
         int totalSamples = (int)(totalDurationMs / 1000.0 * sampleRate);
         float[] clickAudio = new float[Math.Max(0, totalSamples)];
 
-        // Generate click sound (short sine burst)
-        int clickLengthSamples = (int)(0.01 * sampleRate); // 10ms click
-        float[] clickHigh = GenerateClickSound(sampleRate, 1500, clickLengthSamples, 0.9f); // Beat 1: higher pitch
-        float[] clickLow = GenerateClickSound(sampleRate, 1000, clickLengthSamples, 0.6f);  // Beats 2-4: lower pitch
+        // Generate click sound (louder, longer sine burst — see GenerateManualClickTrack notes).
+        int clickLengthSamples = (int)(ClickLengthMs / 1000.0 * sampleRate);
+        float[] clickHigh = GenerateClickSound(sampleRate, 1500, clickLengthSamples, 1.0f);  // Beat 1: higher pitch, full-scale accent
+        float[] clickLow = GenerateClickSound(sampleRate, 1000, clickLengthSamples, 0.95f);  // Beats 2-4: lower pitch, loud
 
         // Decode the existing click to mono (only when a mode that uses it is selected).
         float[]? existingMono = null;
@@ -648,8 +648,8 @@ public class BeatDetectionService
     /// <summary>
     /// Generate a single click WAV for the manual-tempo workflow using the metronome pulse pattern
     /// (the SAME <see cref="ComputeMetronomePulses"/> schedule as the live preview, so the WAV and
-    /// preview match exactly). Beat-1 accents are synthesized LOUDER (1500Hz amp 0.9) than normal
-    /// clicks (1000Hz amp 0.6). Honors 3/4, 4/4 and 6/8-felt-in-2 and starts at grid.GridAnchorMs.
+    /// preview match exactly). Beat-1 accents are synthesized LOUDER (1500Hz amp 1.0) than normal
+    /// clicks (1000Hz amp 0.8). Honors 3/4, 4/4 and 6/8-felt-in-2 and starts at grid.GridAnchorMs.
     /// Degenerate grids (duration/sampleRate &lt;= 0) write a valid empty/silent WAV and never throw,
     /// exactly like <see cref="GenerateClickTrack(BeatGrid,string,ClickGenerationMode,int,string?)"/>.
     /// </summary>
@@ -672,10 +672,15 @@ public class BeatDetectionService
         int totalSamples = (int)(totalDurationMs / 1000.0 * sampleRate);
         float[] clickAudio = new float[Math.Max(0, totalSamples)];
 
-        // Click sounds: louder beat-1 accent vs. normal click (mirrors GenerateClickTrack).
-        int clickLengthSamples = (int)(0.01 * sampleRate); // 10ms click
-        float[] clickAccent = GenerateClickSound(sampleRate, 1500, clickLengthSamples, 0.9f); // beat 1 accent (louder)
-        float[] clickNormal = GenerateClickSound(sampleRate, 1000, clickLengthSamples, 0.6f); // other pulses
+        // Click sounds: loud beat-1 accent vs. normal click (mirrors GenerateClickTrack).
+        // LOUDNESS (user request): the manual click WAV must be as loud as possible so it is
+        // clearly audible OVER the song track. We (a) raise the normal click to near full scale
+        // (0.95) so every click sits close to the accent, and (b) lengthen the burst to ~40ms with
+        // a slower decay (see ClickDecayRate) so each click carries far more energy/RMS than the
+        // old 10ms fast-decay burst — that is the real perceived-loudness win over the music.
+        int clickLengthSamples = (int)(ClickLengthMs / 1000.0 * sampleRate);
+        float[] clickAccent = GenerateClickSound(sampleRate, 1500, clickLengthSamples, 1.0f);  // beat 1 accent (full-scale)
+        float[] clickNormal = GenerateClickSound(sampleRate, 1000, clickLengthSamples, 0.95f); // other pulses (loud)
 
         // Single source of truth: the manual-click pulse schedule (Beat 1 offset + count-in).
         double b1 = beat1Ms >= 0 ? beat1Ms : grid.GridAnchorMs;
@@ -1108,16 +1113,30 @@ public class BeatDetectionService
     }
 
     /// <summary>
-    /// Generate a short sine burst for click sound.
+    /// Click burst length (ms). Lengthened from 10ms so each click carries much more energy and is
+    /// clearly audible over the song track (user-requested loudness increase).
+    /// </summary>
+    internal const double ClickLengthMs = 40.0;
+
+    /// <summary>
+    /// Exponential-decay rate for the click envelope. A slower decay (smaller value) keeps the
+    /// burst near its peak for longer, raising perceived loudness without exceeding full scale.
+    /// </summary>
+    internal const double ClickDecayRate = 90.0;
+
+    /// <summary>
+    /// Generate a short sine burst for click sound. The envelope holds near full amplitude for the
+    /// first few ms then decays, maximizing perceived loudness while the PEAK sample never exceeds
+    /// <paramref name="amplitude"/> (so full-scale accents do not clip).
     /// </summary>
     private float[] GenerateClickSound(int sampleRate, double frequency, int lengthSamples, float amplitude)
     {
-        float[] click = new float[lengthSamples];
-        for (int i = 0; i < lengthSamples; i++)
+        float[] click = new float[Math.Max(0, lengthSamples)];
+        for (int i = 0; i < click.Length; i++)
         {
             double t = (double)i / sampleRate;
-            // Sine wave with exponential decay envelope
-            double envelope = Math.Exp(-t * 500); // Fast decay
+            // Sine wave with a slower exponential decay envelope (louder, more energy than before).
+            double envelope = Math.Exp(-t * ClickDecayRate);
             click[i] = (float)(Math.Sin(2 * Math.PI * frequency * t) * envelope * amplitude);
         }
         return click;

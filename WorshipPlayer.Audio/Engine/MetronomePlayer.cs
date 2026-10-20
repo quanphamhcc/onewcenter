@@ -165,8 +165,8 @@ public sealed class MetronomePlayer : IDisposable
             return Array.Empty<float>();
 
         float[] buffer = new float[totalSamples];
-        int clickLengthSamples = Math.Min(totalSamples, (int)(0.01 * SampleRate));
-        float[] normal = SynthClick(1000, clickLengthSamples, 0.6f); // count-in clicks are non-accent
+        int clickLengthSamples = Math.Min(totalSamples, (int)(ClickLengthMs / 1000.0 * SampleRate));
+        float[] normal = SynthClick(1000, clickLengthSamples, 0.95f); // count-in clicks are non-accent but LOUD
 
         foreach (var pulse in pulses)
         {
@@ -241,9 +241,9 @@ public sealed class MetronomePlayer : IDisposable
 
         float[] buffer = new float[totalSamples];
 
-        int clickLengthSamples = Math.Min(totalSamples, (int)(0.01 * SampleRate)); // 10ms click
-        float[] accent = SynthClick(1500, clickLengthSamples, 0.9f);  // LOUDER beat-1 accent
-        float[] normal = SynthClick(1000, clickLengthSamples, 0.6f);  // other beats
+        int clickLengthSamples = Math.Min(totalSamples, (int)(ClickLengthMs / 1000.0 * SampleRate)); // longer click
+        float[] accent = SynthClick(1500, clickLengthSamples, 1.0f);   // LOUD beat-1 accent (full-scale)
+        float[] normal = SynthClick(1000, clickLengthSamples, 0.95f);  // other beats (loud, audible over the song)
 
         foreach (var pulse in pulses)
         {
@@ -257,14 +257,20 @@ public sealed class MetronomePlayer : IDisposable
         return buffer;
     }
 
-    /// <summary>Short sine burst with a quick fade so clicks don't pop. Matches the WAV click shape.</summary>
+    /// <summary>
+    /// Burst length (ms) for the live click, matching the generated WAV so preview == file. Longer
+    /// than the old 10ms so the click is clearly audible over the song during Play-with-Click.
+    /// </summary>
+    private const double ClickLengthMs = 40.0;
+
+    /// <summary>Short sine burst with a slow decay so clicks are LOUD without popping. Matches the WAV click shape.</summary>
     private static float[] SynthClick(double frequency, int lengthSamples, float amplitude)
     {
         float[] click = new float[Math.Max(0, lengthSamples)];
         for (int i = 0; i < click.Length; i++)
         {
             double t = (double)i / SampleRate;
-            double envelope = Math.Exp(-t * 300.0); // fast decay
+            double envelope = Math.Exp(-t * 90.0); // slow decay => louder/more energy
             click[i] = (float)(amplitude * envelope * Math.Sin(2 * Math.PI * frequency * t));
         }
         return click;

@@ -310,6 +310,70 @@ public class ManualClickBeat1CountInTests
         }
     }
 
+    // ── (g4) Generated WAV loudness (FEAT-002): accent peak is full-scale (~1.0) and ─
+    // normal clicks are ~0.8, with the beat-1 accent strictly louder than normal clicks.
+    // Reads back the rendered 16-bit WAV (file I/O only, no audio device) and inspects peaks.
+    [Fact]
+    public void GeneratedWav_AccentPeakIsFullScale_NormalIsLouder_NoClipping()
+    {
+        var service = new BeatDetectionService();
+        const int sampleRate = 44100;
+        double bpm = 120;
+        double beat1 = 0; // Beat 1 at the very start = accent at sample 0
+        var grid = service.BuildGridFromManualAnchor(0, bpm, 4, 4, 5000);
+
+        var pulses = service.ComputeManualClickPulses(beat1, bpm, 4, 4, grid.TotalDurationMs, 0);
+        // First pulse is the beat-1 accent; the next is a normal (non-accent) click.
+        Assert.True(pulses[0].IsAccent);
+        var normalPulse = pulses.First(p => !p.IsAccent);
+
+        string path = Path.Combine(Path.GetTempPath(), $"owc_loudness_{Guid.NewGuid():N}.wav");
+        try
+        {
+            service.GenerateManualClickTrack(grid, path, sampleRate, beat1, 0);
+            Assert.True(File.Exists(path));
+
+            float[] samples;
+            using (var reader = new NAudio.Wave.AudioFileReader(path))
+            {
+                var buffer = new List<float>();
+                var chunk = new float[4096];
+                int read;
+                while ((read = reader.Read(chunk, 0, chunk.Length)) > 0)
+                    for (int i = 0; i < read; i++)
+                        buffer.Add(chunk[i]);
+                samples = buffer.ToArray();
+            }
+
+            int windowSamples = (int)(0.045 * sampleRate); // whole ~40ms click
+
+            float accentPeak = PeakAbs(samples, (int)(beat1 / 1000.0 * sampleRate), windowSamples);
+            float normalPeak = PeakAbs(samples, (int)(normalPulse.TimeMs / 1000.0 * sampleRate), windowSamples);
+
+            // LOUDNESS (user request): the manual click WAV is made as loud as possible to be heard
+            // over the song. The accent is synthesized at full-scale amplitude 1.0; the longer,
+            // slower-decay burst lets a sample reach very near full scale. It must NOT exceed 1.0.
+            Assert.True(accentPeak >= 0.95f && accentPeak <= 1.0f,
+                $"accent peak {accentPeak} should be at/near full scale (1.0 amplitude, no clipping)");
+            // The normal click is now synthesized at amplitude 0.95 (loud) and must still be at or
+            // below the accent (never louder than beat 1).
+            Assert.True(normalPeak >= 0.85f && normalPeak <= accentPeak,
+                $"normal peak {normalPeak} should be ~0.95-scale (loud) and not exceed accent {accentPeak}");
+            // No sample anywhere exceeds full scale (no clipping introduced).
+            Assert.True(PeakAbs(samples, 0, samples.Length) <= 1.0f, "no sample may exceed 1.0");
+            // Beat-1 accent is at least as loud as normal clicks (1.0 >= 0.95).
+            Assert.True(accentPeak >= normalPeak, $"accent {accentPeak} must be >= normal {normalPeak}");
+            // The accent/normal peak ratio reflects the 1.0/0.95 amplitude design (close to 1.0).
+            float ratio = accentPeak / normalPeak;
+            Assert.True(ratio >= 1.0f && ratio < 1.15f,
+                $"accent/normal peak ratio {ratio} should reflect the 1.0/0.95 loud design");
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
     // ── (h) Degenerate inputs return empty and write a valid silent WAV, no throw ────
     [Fact]
     public void Degenerate_Inputs_ReturnEmpty_NoThrow()

@@ -27,6 +27,23 @@ public partial class SectionEditorWindow : Window
     private MetronomePlayer? _metronome;
     private bool _suppressTempoSync = false;
 
+    // ─── PLAY-WITH-CLICK STATE MODEL (FEAT-003) ───────────────────────────
+    // There is ONE MetronomePlayer (_metronome) shared by two mutually-exclusive toggles:
+    //   • Metronome_Click      — standalone looping click, NO song playback.
+    //   • PlayWithClick_Click  — plays the song (shared AudioEngine) AND the click together.
+    // _playWithClickActive is the single source of truth for which mode (if any) owns the song
+    // transport. Invariants enforced everywhere:
+    //   • At most ONE mode is active at a time; starting one cleanly takes over from the other.
+    //   • _playWithClickActive == true  ⇒  the editor started the shared AudioEngine and must Stop
+    //     it on toggle-off and on window close (Stop only — the engine belongs to MainWindow).
+    //   • The button labels (PlayWithClickBtn / MetronomeToggleBtn), the metronome IsPlaying state,
+    //     and the AudioEngine transport always reflect this one flag; Start is idempotent and never
+    //     stacks a second song or metronome.
+    private bool _playWithClickActive = false;
+
+    private const string PlayWithClickStartLabel = "▶ Play with Click";
+    private const string PlayWithClickStopLabel = "■ Stop";
+
     public SectionEditorWindow(Song song, AudioEngine? audioEngine = null)
     {
         InitializeComponent();
@@ -156,6 +173,14 @@ public partial class SectionEditorWindow : Window
     /// </summary>
     protected override void OnClosed(EventArgs e)
     {
+        // If Play-with-Click started the shared song playback, STOP it (never Dispose — the engine
+        // belongs to MainWindow) so closing the editor mid-playback leaves no orphaned running song.
+        if (_playWithClickActive)
+        {
+            try { _audioEngine?.Stop(); } catch { /* never throw during teardown */ }
+            _playWithClickActive = false;
+        }
+
         try
         {
             _metronome?.Stop();
@@ -1465,11 +1490,10 @@ public partial class SectionEditorWindow : Window
         // Keep sections/bars view in sync with the rebuilt grid.
         SectionsGrid.Items.Refresh();
 
-        // If the metronome is live, retune it without stacking players.
-        if (_metronome != null && _metronome.IsPlaying)
-        {
-            _metronome.Update(bpm, num, den);
-        }
+        // If the metronome is live (standalone preview OR play-with-click), retune it in place
+        // without stopping the song or stacking players. Routed through the single retune point so
+        // the count-in/meter are always honored the same way for both modes.
+        RetuneMetronomeIfPlaying();
     }
 
     /// <summary>Current BPM from the song, falling back to 120 and clamped to range.</summary>
@@ -1579,7 +1603,15 @@ public partial class SectionEditorWindow : Window
         RetuneMetronomeIfPlaying();
     }
 
-    /// <summary>Retune the live metronome (bpm/time-sig/beat1/count-in) without stacking players.</summary>
+    /// <summary>
+    /// Re-sync the live click (bpm/time-sig/beat1/count-in) IN PLACE without stacking players.
+    /// This is the SINGLE re-sync point shared by both the standalone metronome preview and the
+    /// Play-with-Click mode (both drive the same _metronome). MetronomePlayer.Update is
+    /// phase-preserving, so a Beat-1 nudge / BPM / meter / count-in change retunes the running loop
+    /// without restarting it, and it NEVER touches the song transport — so during Play-with-Click
+    /// the song keeps playing uninterrupted while the click change is heard immediately. No second
+    /// player is ever opened (Update reuses the existing output), so there is no drift or stacking.
+    /// </summary>
     private void RetuneMetronomeIfPlaying()
     {
         if (_metronome != null && _metronome.IsPlaying)
@@ -1678,11 +1710,163 @@ public partial class SectionEditorWindow : Window
         ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGray;
     }
 
+    // ─── PLAY WITH CLICK (song audio + aligned click) ─────────────────────
+
+    /// <summary>
+    /// Single toggle that plays the loaded song from the BEGINNING together with the click, aligned
+    /// to the current Beat 1 + count-in + BPM + meter (via the pure BeatDetectionService schedule,
+    /// so it matches Generated_Click_Manual.wav). Pressing again stops BOTH. Idempotent and
+    /// crash-proof: every FAIL case surfaces a status on ManualClickStatus and leaves ONE true state.
+    /// </summary>
+    private void PlayWithClick_Click(object sender, RoutedEventArgs e)
+    {
+        // XAML-init / teardown guard, mirroring the other handlers.
+        if (_song == null || PlayWithClickBtn == null || ManualClickStatus == null) return;
+
+        // Toggle OFF: stop both the song and the click, reset to the Start state.
+        if (_playWithClickActive)
+        {
+            StopPlayWithClick();
+            ManualClickStatus.Text = "Stopped song + click.";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGray;
+            return;
+        }
+
+        // Toggle ON ──────────────────────────────────────────────────────────
+
+        // FAIL: no shared engine handed in, or no playable song audio loaded in it.
+        if (_audioEngine == null)
+        {
+            ManualClickStatus.Text = "No audio engine available — cannot play the song here.";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            return;
+        }
+
+        bool hasAudio = (_audioEngine.Mixer?.TrackCount ?? 0) > 0;
+        if (!hasAudio)
+        {
+            ManualClickStatus.Text = "No song audio available to play. Load/activate the song first.";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            return;
+        }
+
+        // Take over cleanly from the standalone metronome preview if it is running, so the two
+        // toggles never fight over the shared _metronome or leave a stale "Stop Metronome" label.
+        if (_metronome != null && _metronome.IsPlaying)
+        {
+            _metronome.Stop();
+            MetronomeToggleBtn.Content = "Start Metronome";
+        }
+
+        double bpm = CurrentManualBpm();
+        var (num, den) = GetSelectedTimeSignature();
+        int countIn = CurrentCountInBars();
+        double beat1 = CurrentManualBeat1();
+
+        // Pure alignment math (approach A): song starts at 0, so the first click (count-in start or
+        // Beat 1) lands at ArmAtSongMs on the song clock. We start the song at 0 and the metronome
+        // together; the count-in occupies [ArmAtSongMs, Beat1SongMs) exactly as the WAV schedules it.
+        var alignment = ClickSyncScheduler.ComputeAlignment(beat1, bpm, num, den, countIn);
+
+        // Start the song from the BEGINNING. Stop (resets position) then SeekToMs(0) so playback
+        // always starts at the very top, not at the first section's loop-in.
+        try
+        {
+            _audioEngine.Stop();
+            _audioEngine.SeekToMs(0);
+            _audioEngine.Play();
+        }
+        catch (Exception ex)
+        {
+            // Never crash; leave the shared engine stopped and the button in the Start state.
+            try { _audioEngine.Stop(); } catch { }
+            ManualClickStatus.Text = $"Could not start the song: {ex.Message}";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            return;
+        }
+
+        // Start the aligned click. Since the song starts at 0 and the first click is at
+        // ArmAtSongMs >= 0, arming the metronome now (with the count-in as its one-shot prefix)
+        // lines its count-in/Beat 1 up with the song clock. The metronome owns its own device and
+        // never throws; on no device it reports LastError and stays not-playing.
+        _metronome ??= new MetronomePlayer();
+        try
+        {
+            _metronome.Start(bpm, num, den, countIn);
+        }
+        catch (Exception ex)
+        {
+            // Defensive — Start should not throw. Keep song + button state consistent: stop the song
+            // too, since "play with click" could not actually start the click.
+            try { _audioEngine.Stop(); } catch { }
+            ManualClickStatus.Text = $"Click error: {ex.Message}";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            return;
+        }
+
+        if (!_metronome.IsPlaying)
+        {
+            // No audio device for the click — do not leave the button showing Stop with only the
+            // song playing. Treat as a failed start: stop the song and report.
+            try { _audioEngine.Stop(); } catch { }
+            ManualClickStatus.Text = _metronome.LastError != null
+                ? $"Cannot start click: {_metronome.LastError}"
+                : "Cannot start click (no audio output device).";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            return;
+        }
+
+        // SUCCESS: commit the single true state.
+        _playWithClickActive = true;
+        PlayWithClickBtn.Content = PlayWithClickStopLabel;
+
+        string countInNote = countIn > 0
+            ? $", {countIn}-bar count-in ({alignment.CountInDurationMs:F0} ms)"
+            : "";
+        ManualClickStatus.Text =
+            $"Playing song + click from start: {bpm:0.#} BPM ({num}/{den}), " +
+            $"Beat 1 @ {MsToTimecode(beat1)}{countInNote}.";
+        ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
+    }
+
+    /// <summary>
+    /// Stop BOTH the song playback that Play-with-Click started and the click, and reset the state
+    /// to the Start label. Safe to call when nothing is active (no-op) and never throws — used by
+    /// the toggle-off path and by OnClosed teardown. Only STOPS the shared AudioEngine (it belongs
+    /// to MainWindow and must never be disposed here).
+    /// </summary>
+    private void StopPlayWithClick()
+    {
+        // Stop the click first (its own device), then the song.
+        try { _metronome?.Stop(); } catch { }
+
+        if (_playWithClickActive)
+        {
+            try { _audioEngine?.Stop(); } catch { }
+        }
+
+        _playWithClickActive = false;
+
+        // Keep labels consistent with the true (stopped) state.
+        if (PlayWithClickBtn != null) PlayWithClickBtn.Content = PlayWithClickStartLabel;
+        if (MetronomeToggleBtn != null) MetronomeToggleBtn.Content = "Start Metronome";
+    }
+
     // ─── METRONOME LIVE PREVIEW ───────────────────────────────────────────
 
     private void Metronome_Click(object sender, RoutedEventArgs e)
     {
         _metronome ??= new MetronomePlayer();
+
+        // If Play-with-Click owns the transport, stop it cleanly first so the two toggles never
+        // fight over the shared _metronome (this also stops the song).
+        if (_playWithClickActive)
+        {
+            StopPlayWithClick();
+            ManualClickStatus.Text = "Stopped song + click.";
+            ManualClickStatus.Foreground = System.Windows.Media.Brushes.LightGray;
+            return;
+        }
 
         if (_metronome.IsPlaying)
         {

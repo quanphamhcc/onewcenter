@@ -190,6 +190,10 @@
 
                             <!-- Metronome preview + generate -->
                             <WrapPanel Margin="0,0,0,4">
+                                <Button x:Name="PlayWithClickBtn" Content="▶ Play with Click"
+                                        Style="{StaticResource TransportButton}"
+                                        Click="PlayWithClick_Click" Margin="0,0,4,4"
+                                        ToolTip="Play the loaded song from the beginning with the click on top, aligned to your Beat 1 + count-in, so you can nudge Beat 1/BPM and hear it re-sync live" />
                                 <Button x:Name="MetronomeToggleBtn" Content="Start Metronome"
                                         Style="{StaticResource TransportButton}"
                                         Click="Metronome_Click" Margin="0,0,4,4"
