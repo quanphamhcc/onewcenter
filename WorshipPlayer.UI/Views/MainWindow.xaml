@@ -185,10 +185,6 @@
                                FontSize="24" FontFamily="Consolas"
                                Foreground="{StaticResource AccentGreenBrush}"
                                VerticalAlignment="Center" />
-                    <TextBlock x:Name="BarBeatText" Text="  Bar 1 | Beat 1"
-                               FontSize="16" FontFamily="Consolas"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               VerticalAlignment="Center" Margin="20,0,0,0" />
                     <TextBlock x:Name="CurrentSectionText" Text="  [INTRO]"
                                FontSize="16" FontWeight="Bold"
                                Foreground="{StaticResource AccentOrangeBrush}"

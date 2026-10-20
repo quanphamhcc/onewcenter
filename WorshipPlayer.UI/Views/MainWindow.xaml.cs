@@ -1264,33 +1264,6 @@ public partial class MainWindow : Window
         // Update MIDI cue service with current position
         _midiCueService?.UpdatePosition(ms);
 
-        if (_currentSong != null && _currentSong.BeatIntervalMs > 0)
-        {
-            // Calculate bar and beat from the grid anchor
-            double elapsed = ms - _currentSong.GridAnchorMs;
-            if (elapsed < 0) elapsed = 0;
-
-            int totalBeats = (int)(elapsed / _currentSong.BeatIntervalMs);
-            int bar = (totalBeats / _currentSong.TimeSignatureNumerator) + 1;
-            int beat = (totalBeats % _currentSong.TimeSignatureNumerator) + 1;
-
-            BarBeatText.Text = $"  Bar {bar} | Beat {beat}";
-
-            // Make Beat 1 three times bigger for visibility
-            if (beat == 1)
-            {
-                BarBeatText.FontSize = 36;
-                BarBeatText.FontWeight = FontWeights.ExtraBold;
-                BarBeatText.Foreground = FindResource("AccentGreenBrush") as SolidColorBrush;
-            }
-            else
-            {
-                BarBeatText.FontSize = 16;
-                BarBeatText.FontWeight = FontWeights.Normal;
-                BarBeatText.Foreground = FindResource("TextSecondaryBrush") as SolidColorBrush;
-            }
-        }
-
         // Update section progress bars and queued section indicator
         UpdateSectionProgress(ms);
     }
