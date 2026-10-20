@@ -553,7 +553,13 @@ public partial class MainWindow : Window
     private async void EditSections_Click(object sender, RoutedEventArgs e)
     {
         if (_currentSong == null) return;
-        var editor = new SectionEditorWindow(_currentSong, _audioEngine);
+        var editor = new SectionEditorWindow(_currentSong, _audioEngine,
+            _settings.PythonExecutablePath,
+            async value =>
+            {
+                _settings.PythonExecutablePath = value;
+                await _settingsService.SaveAsync();
+            });
         if (editor.ShowDialog() == true)
         {
             try
