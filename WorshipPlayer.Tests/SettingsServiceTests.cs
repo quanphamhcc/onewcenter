@@ -89,6 +89,29 @@ public class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task PythonExecutablePath_RoundTripsThroughFreshInstance()
+    {
+        var writer = new SettingsService(_dbPath);
+        await writer.LoadAsync();
+        writer.Settings.PythonExecutablePath = @"C:\Python313\python.exe";
+        await writer.SaveAsync();
+
+        var reader = new SettingsService(_dbPath);
+        await reader.LoadAsync();
+
+        Assert.Equal(@"C:\Python313\python.exe", reader.Settings.PythonExecutablePath);
+    }
+
+    [Fact]
+    public async Task PythonExecutablePath_DefaultsToEmpty()
+    {
+        var service = new SettingsService(_dbPath);
+        await service.LoadAsync();
+
+        Assert.Equal("", service.Settings.PythonExecutablePath);
+    }
+
+    [Fact]
     public async Task EnumFields_RoundTripAsStringNamesInDataJson()
     {
         var writer = new SettingsService(_dbPath);

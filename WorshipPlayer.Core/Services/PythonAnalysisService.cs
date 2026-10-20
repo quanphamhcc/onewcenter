@@ -166,6 +166,381 @@ public class PythonAnalysisService
         _pythonPath = path;
     }
 
+    // ─── PYTHON DISCOVERY (FEAT-002) ──────────────────────────────────────
+    // Three cleanly-separated pieces:
+    //   1. PythonCandidate            — a value describing one thing to try.
+    //   2. ResolvePythonExecutable    — a PURE, side-effect-free selector driven by an INJECTED
+    //                                   probe delegate (unit-testable with no process launches).
+    //   3. BuildCandidateOrder        — builds the ordered candidate list from the environment
+    //                                   (touches filesystem/env; compile-only verifiable here).
+    //   4. ProbeCandidate             — the real probe (per-candidate process launches; compile
+    //                                   -only verifiable here) that the UI passes into the pure
+    //                                   resolver.
+
+    /// <summary>
+    /// Case-insensitive segment that marks the Windows Store alias stub (a fake 0-byte
+    /// python.exe placeholder). Any candidate resolving under this path must NEVER be selected.
+    /// </summary>
+    public const string WindowsAppsStubSegment = @"\Microsoft\WindowsApps\";
+
+    /// <summary>
+    /// One thing to try when discovering Python. <see cref="ExecutablePath"/> is the executable to
+    /// launch (e.g. "python", "py", or a concrete python.exe). <see cref="ArgumentPrefix"/> is an
+    /// optional leading argument used for the Windows "py -3" launcher case; null/empty for a
+    /// plain interpreter. <see cref="Description"/> is a short human-readable label for the dialog.
+    /// </summary>
+    public readonly record struct PythonCandidate(
+        string ExecutablePath, string? ArgumentPrefix = null, string? Description = null)
+    {
+        /// <summary>True when this candidate is the Windows "py" launcher rather than a concrete exe.</summary>
+        public bool IsLauncher => !string.IsNullOrWhiteSpace(ArgumentPrefix);
+
+        public string Label => Description
+            ?? (IsLauncher ? $"{ExecutablePath} {ArgumentPrefix}" : ExecutablePath);
+    }
+
+    /// <summary>
+    /// Result of probing one candidate. <see cref="VersionOk"/> means `--version` exited 0 and
+    /// reported "Python 3". <see cref="PackagesOk"/> means the librosa/numpy/scipy import check
+    /// passed. <see cref="ResolvedConcretePath"/> is the concrete python.exe (used for the `py -3`
+    /// launcher case so the chosen path is always a concrete interpreter). <see cref="Detail"/> is
+    /// a short reason string for the dialog.
+    /// </summary>
+    public readonly record struct PythonProbeResult(
+        bool VersionOk, bool PackagesOk, string? ResolvedConcretePath, string Detail);
+
+    /// <summary>
+    /// PURE, side-effect-free resolver. Given a configured path, an ordered candidate list, and an
+    /// INJECTED probe delegate, returns the chosen concrete python path (or null) plus a list of
+    /// human-readable descriptions of everything tried and why it was rejected. Performs NO
+    /// File/Process access itself — all I/O lives in the injected <paramref name="probe"/> — so it
+    /// is fully unit-testable. Never throws on empty/null/garbage inputs.
+    ///
+    /// Rules:
+    ///   (a) the configured path (when non-empty) is placed FIRST;
+    ///   (b) any candidate whose path OR resolved concrete path contains
+    ///       <see cref="WindowsAppsStubSegment"/> (case-insensitive) is ALWAYS rejected;
+    ///   (c) candidates are tried in order; the FIRST with VersionOk AND PackagesOk wins;
+    ///   (d) for a `py -3` launcher win, the returned path is the resolved concrete python.exe.
+    /// </summary>
+    public static (string? chosenPath, IReadOnlyList<string> triedDescriptions) ResolvePythonExecutable(
+        string? configuredPath,
+        IEnumerable<PythonCandidate> candidateOrder,
+        Func<PythonCandidate, PythonProbeResult> probe)
+    {
+        var tried = new List<string>();
+
+        // Build the effective order: configured path first (when non-empty), then the rest.
+        var ordered = new List<PythonCandidate>();
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+            ordered.Add(BuildConfiguredCandidate(configuredPath!.Trim()));
+        if (candidateOrder != null)
+            ordered.AddRange(candidateOrder);
+
+        foreach (var candidate in ordered)
+        {
+            string label = candidate.Label;
+
+            // (b) Reject the WindowsApps stub up front — never even trust the probe for it.
+            if (ContainsWindowsAppsStub(candidate.ExecutablePath))
+            {
+                tried.Add($"{label}: skipped (Windows Store stub under {WindowsAppsStubSegment.Trim('\\')})");
+                continue;
+            }
+
+            PythonProbeResult result;
+            try
+            {
+                result = probe(candidate);
+            }
+            catch (Exception ex)
+            {
+                // A probe that throws must never crash discovery.
+                tried.Add($"{label}: error ({ex.Message})");
+                continue;
+            }
+
+            // A `py -3` launcher may resolve to a concrete exe that is itself the stub.
+            if (ContainsWindowsAppsStub(result.ResolvedConcretePath))
+            {
+                tried.Add($"{label}: skipped (resolved to Windows Store stub)");
+                continue;
+            }
+
+            if (!result.VersionOk)
+            {
+                tried.Add($"{label}: version check failed ({result.Detail})");
+                continue;
+            }
+
+            if (!result.PackagesOk)
+            {
+                tried.Add($"{label}: packages missing ({result.Detail})");
+                continue;
+            }
+
+            // Winner. For a launcher, prefer the concrete python.exe it resolved to.
+            string chosen = !string.IsNullOrWhiteSpace(result.ResolvedConcretePath)
+                ? result.ResolvedConcretePath!
+                : candidate.ExecutablePath;
+            tried.Add($"{label}: OK ({result.Detail})");
+            return (chosen, tried);
+        }
+
+        return (null, tried);
+    }
+
+    /// <summary>
+    /// Turn a user-configured Settings value into a candidate. Usually this is a concrete
+    /// python.exe, but a user may enter the Windows launcher instead (e.g. "py", "py -3",
+    /// "py -3.13"). Detect that launcher form and build a launcher candidate (ExecutablePath "py"
+    /// + ArgumentPrefix) so the probe resolves it to a concrete interpreter, instead of trying to
+    /// Process.Start a bare "py -3" string as if it were one executable path (which would always
+    /// fail). Anything else is treated as a concrete executable path, exactly as before.
+    /// This is pure string handling — no File/Process access.
+    /// </summary>
+    /// <summary>
+    /// True when a configured Settings value is the Windows "py" launcher form (e.g. "py",
+    /// "py -3") rather than a concrete python.exe path. Pure string check (no I/O). Used by the UI
+    /// so the "configured path not used" notice isn't wrongly shown when a launcher config
+    /// correctly resolves to a concrete interpreter.
+    /// </summary>
+    public static bool IsLauncherConfiguredValue(string? configured)
+    {
+        if (string.IsNullOrWhiteSpace(configured)) return false;
+        string trimmed = configured.Trim();
+        string[] parts = trimmed.Split(
+            (char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 1
+            && string.Equals(parts[0], "py", StringComparison.OrdinalIgnoreCase)
+            && !trimmed.Contains('\\')
+            && !trimmed.Contains('/');
+    }
+
+    private static PythonCandidate BuildConfiguredCandidate(string configured)
+    {
+        // "py", "py -3", "py -3.13" etc. become a launcher candidate; a real path like
+        // "C:\Python 3\python.exe" contains a separator and is never misread as a launcher.
+        if (IsLauncherConfiguredValue(configured))
+        {
+            string[] parts = configured.Split(
+                (char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            string? argPrefix = parts.Length > 1 ? string.Join(' ', parts[1..]) : null;
+            return new PythonCandidate("py", argPrefix,
+                $"configured launcher ({configured})");
+        }
+
+        return new PythonCandidate(configured, Description: $"configured path ({configured})");
+    }
+
+    private static bool ContainsWindowsAppsStub(string? path)
+        => !string.IsNullOrEmpty(path)
+           && path!.Contains(WindowsAppsStubSegment, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Build the ordered list of python candidates from the environment (EXCLUDING the configured
+    /// path, which the pure resolver prepends). Order: `py -3` then bare `py`; real install
+    /// locations under %LocalAppData% and Program Files; then bare `python`/`python3` on PATH.
+    /// Glob expansion is guarded by try/catch so a missing base directory never throws.
+    /// Touches the filesystem/environment, so it is compile-only verifiable on a non-Windows host.
+    /// </summary>
+    public static IReadOnlyList<PythonCandidate> BuildCandidateOrder()
+    {
+        var candidates = new List<PythonCandidate>
+        {
+            // Windows "py" launcher — prefer an explicit Python 3 then the bare launcher.
+            new PythonCandidate("py", "-3", "py -3 launcher"),
+            new PythonCandidate("py", null, "py launcher"),
+        };
+
+        string localAppData = SafeGetFolder(Environment.SpecialFolder.LocalApplicationData);
+
+        // %LocalAppData%\Python\pythoncore-*\python.exe
+        if (!string.IsNullOrEmpty(localAppData))
+        {
+            AddGlobbedExecutables(candidates,
+                Path.Combine(localAppData, "Python"), "pythoncore-*", "python.exe");
+            // %LocalAppData%\Programs\Python\Python3*\python.exe
+            AddGlobbedExecutables(candidates,
+                Path.Combine(localAppData, "Programs", "Python"), "Python3*", "python.exe");
+        }
+
+        // C:\Program Files\Python3*\python.exe
+        string programFiles = SafeGetFolder(Environment.SpecialFolder.ProgramFiles);
+        if (!string.IsNullOrEmpty(programFiles))
+            AddGlobbedExecutables(candidates, programFiles, "Python3*", "python.exe");
+
+        // C:\Python3*\python.exe
+        AddGlobbedExecutables(candidates, @"C:\", "Python3*", "python.exe");
+
+        // Finally, bare interpreters resolved via PATH.
+        candidates.Add(new PythonCandidate("python", null, "python (PATH)"));
+        candidates.Add(new PythonCandidate("python3", null, "python3 (PATH)"));
+
+        return candidates;
+    }
+
+    private static string SafeGetFolder(Environment.SpecialFolder folder)
+    {
+        try { return Environment.GetFolderPath(folder); }
+        catch { return ""; }
+    }
+
+    /// <summary>
+    /// Expand <paramref name="baseDir"/>\<paramref name="dirGlob"/>\<paramref name="exeName"/> and
+    /// append any matches as concrete candidates. Fully guarded so a missing/inaccessible base
+    /// directory simply yields nothing.
+    /// </summary>
+    private static void AddGlobbedExecutables(
+        List<PythonCandidate> candidates, string baseDir, string dirGlob, string exeName)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(baseDir) || !Directory.Exists(baseDir))
+                return;
+
+            foreach (var dir in Directory.GetDirectories(baseDir, dirGlob))
+            {
+                try
+                {
+                    string exe = Path.Combine(dir, exeName);
+                    if (File.Exists(exe))
+                        candidates.Add(new PythonCandidate(exe, null, exe));
+                }
+                catch
+                {
+                    // Skip an inaccessible directory entry and keep going.
+                }
+            }
+        }
+        catch
+        {
+            // Missing base dir / permission issue — just contribute no candidates.
+        }
+    }
+
+    /// <summary>
+    /// The real probe used by the UI. Reuses CheckPythonAvailable semantics so "works" == "usable
+    /// for analysis". For a plain exe: run `--version` (exit 0 AND output starts with "Python 3")
+    /// then the librosa/numpy/scipy import check. For a `py -3` launcher: first resolve the
+    /// concrete interpreter via `py -3 -c "import sys;print(sys.executable)"`, reject it if under
+    /// the WindowsApps stub, then probe that concrete exe. Every launch is wrapped in try/catch so
+    /// a missing exe / Win32Exception just yields VersionOk=false and discovery continues.
+    /// Distinguishes "version ok but packages missing" so the dialog can say so.
+    /// Does per-candidate process launches, so it is compile-only verifiable on this sandbox.
+    /// </summary>
+    public static PythonProbeResult ProbeCandidate(PythonCandidate candidate)
+    {
+        try
+        {
+            if (candidate.IsLauncher)
+            {
+                // Resolve the concrete interpreter the launcher would use.
+                var resolve = RunProcess(candidate.ExecutablePath,
+                    $"{candidate.ArgumentPrefix} -c \"import sys;print(sys.executable)\"");
+                if (resolve.exitCode != 0)
+                    return new PythonProbeResult(false, false, null,
+                        $"{candidate.Label} could not resolve an interpreter");
+
+                string concrete = resolve.output.Trim().Split('\n').FirstOrDefault()?.Trim() ?? "";
+                if (string.IsNullOrEmpty(concrete))
+                    return new PythonProbeResult(false, false, null,
+                        $"{candidate.Label} returned no interpreter path");
+
+                if (ContainsWindowsAppsStub(concrete))
+                    return new PythonProbeResult(false, false, concrete,
+                        "resolved to Windows Store stub");
+
+                var launcherProbe = ProbeConcreteExecutable(concrete);
+                return launcherProbe with { ResolvedConcretePath = concrete };
+            }
+
+            return ProbeConcreteExecutable(candidate.ExecutablePath);
+        }
+        catch (Exception ex)
+        {
+            // Includes Win32Exception when the exe is missing/unlaunchable.
+            return new PythonProbeResult(false, false, null, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Run `--version` then the import check against a concrete interpreter path, never throwing.
+    /// </summary>
+    private static PythonProbeResult ProbeConcreteExecutable(string exePath)
+    {
+        try
+        {
+            var version = RunProcess(exePath, "--version");
+            bool versionOk = version.exitCode == 0
+                && version.output.Trim().StartsWith("Python 3", StringComparison.Ordinal);
+            if (!versionOk)
+                return new PythonProbeResult(false, false, null,
+                    $"not a usable Python 3 ({version.output.Trim()}{version.error.Trim()})");
+
+            string pyVersion = version.output.Trim();
+
+            var libCheck = RunProcess(exePath,
+                "-c \"import librosa; import numpy; import scipy; print('OK')\"");
+            bool packagesOk = libCheck.exitCode == 0 && libCheck.output.Contains("OK");
+            if (!packagesOk)
+            {
+                string missing = !string.IsNullOrWhiteSpace(libCheck.error)
+                    ? libCheck.error.Trim()
+                    : libCheck.output.Trim();
+                return new PythonProbeResult(true, false, null, $"{pyVersion}; {missing}");
+            }
+
+            return new PythonProbeResult(true, true, null, pyVersion);
+        }
+        catch (Exception ex)
+        {
+            return new PythonProbeResult(false, false, null, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Static, short-timeout process launcher used by the real probe. Mirrors
+    /// <see cref="RunCommandAsync"/>: it starts the concurrent stdout/stderr reads FIRST, then
+    /// waits for exit with a hard timeout, and KILLS the process if the timeout elapses. This
+    /// matters because a probe candidate may be a hung interpreter — reading both pipes
+    /// concurrently prevents a full stderr buffer from deadlocking the read, and the kill ensures
+    /// the timeout actually bounds a wedged child instead of being dead code.
+    /// </summary>
+    private static (int exitCode, string output, string error) RunProcess(
+        string exe, string args, int timeoutMs = 10000)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = exe,
+            Arguments = args,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(psi);
+        if (process == null)
+            return (-1, "", "Failed to start process");
+
+        // Start reading BOTH streams before waiting so a full pipe buffer can never deadlock.
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+
+        if (!process.WaitForExit(timeoutMs))
+        {
+            // Hung or flooding interpreter — kill it so the timeout genuinely bounds discovery.
+            try { process.Kill(entireProcessTree: true); } catch { /* already gone */ }
+            return (-1, "", $"Timed out after {timeoutMs} ms");
+        }
+
+        // Process has exited; the read tasks are complete or will complete immediately.
+        string output = outputTask.GetAwaiter().GetResult();
+        string error = errorTask.GetAwaiter().GetResult();
+        return (process.ExitCode, output, error);
+    }
+
     private (int exitCode, string output, string error) RunCommand(string exe, string args)
     {
         var psi = new ProcessStartInfo

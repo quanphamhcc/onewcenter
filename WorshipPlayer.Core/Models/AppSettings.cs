@@ -28,6 +28,11 @@ public class AppSettings
     [JsonPropertyName("setlistsFolder")]
     public string SetlistsFolder { get; set; } = "";
 
+    // Optional explicit Python interpreter path for AI analysis. When set and valid it takes
+    // priority over auto-discovery; empty means "auto-discover". Persisted via SettingsService.
+    [JsonPropertyName("pythonExecutablePath")]
+    public string PythonExecutablePath { get; set; } = "";
+
     // AI Training Data Settings
     [JsonPropertyName("trainingDataFolder")]
     public string TrainingDataFolder { get; set; } = @"E:\temp\OWClogs";

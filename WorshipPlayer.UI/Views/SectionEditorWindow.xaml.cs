@@ -44,12 +44,22 @@ public partial class SectionEditorWindow : Window
     private const string PlayWithClickStartLabel = "▶ Play with Click";
     private const string PlayWithClickStopLabel = "■ Stop";
 
-    public SectionEditorWindow(Song song, AudioEngine? audioEngine = null)
+    // ─── PYTHON CONFIG (FEAT-002) ─────────────────────────────────────────
+    // The explicit interpreter path from Settings (may be empty = auto-discover) and a callback
+    // that persists a newly-picked path. Both are optional so existing callers/tests still compile.
+    private string _configuredPythonPath;
+    private readonly Action<string>? _onPythonPathSaved;
+
+    public SectionEditorWindow(Song song, AudioEngine? audioEngine = null,
+        string? configuredPythonPath = null, Action<string>? onPythonPathSaved = null)
     {
         InitializeComponent();
 
         _song = song;
         _audioEngine = audioEngine;
+        _configuredPythonPath = configuredPythonPath ?? "";
+        _onPythonPathSaved = onPythonPathSaved;
+        UpdatePythonPathDisplay();
         TitleText.Text = $"Section Editor - {song.Title}";
         SongInfoText.Text = $"BPM: {song.Bpm:F2} | Beat: {song.BeatIntervalMs:F3} ms | Bar: {song.BarDurationMs:F3} ms | Anchor: {MsToTimecode(song.GridAnchorMs)}";
 
@@ -942,31 +952,6 @@ public partial class SectionEditorWindow : Window
 
     private async void AutoDetect_Click(object sender, RoutedEventArgs e)
     {
-        // Determine Python path
-        // Priority: system PATH python first (where user installs packages via pip),
-        // then common manual install locations
-        string pythonPath = "python";
-
-        // Check if system python has the required packages
-        string[] possiblePaths = {
-            "python",  // System PATH (most likely where user ran pip install)
-            @"C:\AI\Python3-14\python.exe",
-            @"C:\AI\Python3-13-13\python.exe",
-            @"C:\Python314\python.exe",
-            @"C:\Python313\python.exe",
-            @"C:\Python312\python.exe",
-        };
-
-        // Find first Python that exists (for file paths) or use "python" for PATH-based
-        foreach (var path in possiblePaths)
-        {
-            if (path == "python" || File.Exists(path))
-            {
-                pythonPath = path;
-                break;
-            }
-        }
-
         // Find the analysis script — prefer new multitrack analyzer
         string appFolder = AppDomain.CurrentDomain.BaseDirectory;
         string scriptPath = Path.Combine(appFolder, "Scripts", "analyze_multitrack.py");
@@ -1008,22 +993,46 @@ public partial class SectionEditorWindow : Window
             return;
         }
 
-        // Run Python analysis
-        var service = new WorshipPlayer.Core.Services.PythonAnalysisService(pythonPath, scriptPath);
-
-        // Check Python is available
-        var (pyOk, pyMsg) = service.CheckPythonAvailable();
-        if (!pyOk)
+        // ─── PYTHON DISCOVERY (FEAT-002) ──────────────────────────────────
+        // Use the configured path first (when set), then auto-discovery. The pure resolver runs
+        // the real probe against each candidate (actually launching `--version` + import check)
+        // and skips the Windows Store alias stub. No files or settings are mutated here.
+        // Each candidate probe launches `--version` + a librosa import (seconds each), so run the
+        // whole discovery sweep OFF the UI thread to keep the Section Editor responsive.
+        bool hadConfiguredPath = !string.IsNullOrWhiteSpace(_configuredPythonPath);
+        string configuredPathSnapshot = _configuredPythonPath;
+        var (chosenPath, tried) = await Task.Run(() =>
         {
-            MessageBox.Show(
-                $"Python check failed:\n{pyMsg}\n\n" +
-                "Falling back to basic detection.\n\n" +
-                "For best results, install Python 3.13 and librosa:\n" +
-                "  pip install librosa numpy scipy scikit-learn",
-                "Python Not Available", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var candidateOrder = PythonAnalysisService.BuildCandidateOrder();
+            return PythonAnalysisService.ResolvePythonExecutable(
+                configuredPathSnapshot, candidateOrder, PythonAnalysisService.ProbeCandidate);
+        });
+
+        if (string.IsNullOrEmpty(chosenPath))
+        {
+            ShowPythonNotFoundDialog(tried, hadConfiguredPath);
             FallbackAutoDetect();
             return;
         }
+
+        // If the user had configured a path but discovery chose a DIFFERENT interpreter, the
+        // configured one failed its probe — tell the user rather than silently ignoring it.
+        // Exception: a launcher-style config ("py -3") legitimately resolves to a concrete
+        // python.exe, so a differing chosenPath there is expected, not a fallback.
+        bool configuredWasLauncher =
+            PythonAnalysisService.IsLauncherConfiguredValue(_configuredPythonPath);
+        if (hadConfiguredPath && !configuredWasLauncher &&
+            !string.Equals(chosenPath, _configuredPythonPath.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show(
+                $"The configured Python path was not usable:\n  {_configuredPythonPath.Trim()}\n\n" +
+                $"Auto-discovery is being used instead:\n  {chosenPath}\n\n" +
+                "You can update the path with the 'Set Python…' button in this window.",
+                "Configured Python Not Used", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // Run Python analysis with the verified interpreter.
+        var service = new WorshipPlayer.Core.Services.PythonAnalysisService(chosenPath, scriptPath);
 
         // ─── GPU/CUDA AUTO-SETUP (one-time check for single-track songs) ───
         // Single-track songs use Demucs AI separation which is 5-10x faster on GPU.
@@ -1263,6 +1272,101 @@ public partial class SectionEditorWindow : Window
                 "Analysis Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
             FallbackAutoDetect();
         }
+    }
+
+    // ─── PYTHON CONFIG UI + FAILURE DIALOG (FEAT-002) ─────────────────────
+
+    /// <summary>
+    /// Show the current configured Python path (or an "auto-discover" hint) in the display box.
+    /// </summary>
+    private void UpdatePythonPathDisplay()
+    {
+        if (PythonPathBox == null) return;
+        PythonPathBox.Text = string.IsNullOrWhiteSpace(_configuredPythonPath)
+            ? "(auto-discover)"
+            : _configuredPythonPath;
+    }
+
+    /// <summary>
+    /// Let the user pick a Python interpreter; persist it via the injected callback and update the
+    /// display. Read-only with respect to discovery — only an explicit user pick changes settings.
+    /// </summary>
+    private void SetPython_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Select the Python interpreter (python.exe)",
+            Filter = "Python executable (python.exe)|python.exe|Executables (*.exe)|*.exe|All files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            _configuredPythonPath = dialog.FileName;
+            UpdatePythonPathDisplay();
+            _onPythonPathSaved?.Invoke(_configuredPythonPath);
+            MessageBox.Show(
+                $"Python interpreter set to:\n{_configuredPythonPath}\n\n" +
+                "This will be used first for Auto-Detect.",
+                "Python Path Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    /// <summary>
+    /// Actionable "Python Not Available" dialog: lists what was tried, notes the Windows Store stub
+    /// was skipped, gives the exact pip command, and points the user to the 'Set Python…' control.
+    /// </summary>
+    private void ShowPythonNotFoundDialog(IReadOnlyList<string> tried, bool hadConfiguredPath)
+    {
+        // Surface a packages-missing candidate explicitly if we found one.
+        string? packagesMissing = tried?.FirstOrDefault(t => t.Contains("packages missing"));
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("No usable Python 3 (with librosa/numpy/scipy) was found.");
+        sb.AppendLine();
+        if (hadConfiguredPath)
+            sb.AppendLine("The configured Python path was tried first but was not usable.");
+
+        if (!string.IsNullOrEmpty(packagesMissing))
+        {
+            sb.AppendLine();
+            sb.AppendLine("Packages missing in a Python that was found:");
+            sb.AppendLine($"  {packagesMissing}");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Checked (py launcher, PATH, and common install locations);");
+        sb.AppendLine(@"the Windows Store stub under \Microsoft\WindowsApps\ was skipped.");
+        if (tried != null && tried.Count > 0)
+        {
+            // Cap the list so a machine with many globbed installs can't produce a MessageBox
+            // taller than the screen. Show the most relevant entries (any packages-missing
+            // candidates first, then the rest) plus a count of what was omitted.
+            const int maxShown = 8;
+            var ordered = tried
+                .OrderByDescending(t => t.Contains("packages missing"))
+                .ToList();
+            var shown = ordered.Take(maxShown).ToList();
+
+            sb.AppendLine();
+            sb.AppendLine($"Tried {tried.Count} candidate(s):");
+            foreach (var t in shown)
+                sb.AppendLine($"  • {t}");
+            int omitted = tried.Count - shown.Count;
+            if (omitted > 0)
+                sb.AppendLine($"  … and {omitted} more (all unusable).");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Fix: install the packages using the SAME Python, e.g.:");
+        sb.AppendLine("  pip install librosa numpy scipy scikit-learn");
+        sb.AppendLine();
+        sb.AppendLine("Or click 'Set Python…' in this window to point at a specific python.exe.");
+        sb.AppendLine();
+        sb.AppendLine("Falling back to basic detection for now.");
+
+        MessageBox.Show(sb.ToString(), "Python Not Available",
+            MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     /// <summary>
