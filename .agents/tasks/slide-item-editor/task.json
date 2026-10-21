@@ -1,0 +1,7 @@
+{
+  "task_id": "task-slide-item-editor",
+  "task_description": "Build the dedicated, full-featured dark-theme 'Edit Service Item (Slides)' editor from the APPROVED design: additive model fields (ServiceItem.AudioAttachments, ServiceItem.StageTemplateId), pure Core helpers (ServiceItemAudio, SlideAutoAdvanceMap), the SlideServiceItemEditorWindow (XAML + code-behind + pickers), OperatorWindow entry-point routing for Slides items with remove/save/refresh wiring, and round-trip/migration/mirror tests. 'When complete' reuses the existing AutoAdvanceGoTo + GoToItemId (NO new field). Additive and backward-compatible; the 3 real service JSONs + demos must still load.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}
