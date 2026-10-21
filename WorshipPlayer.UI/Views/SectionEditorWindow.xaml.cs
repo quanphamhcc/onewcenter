@@ -62,6 +62,18 @@ public partial class SectionEditorWindow : Window
     private string _configuredPythonPath;
     private readonly Action<string>? _onPythonPathSaved;
 
+    /// <summary>
+    /// Global lines-per-slide (from PresenterSettings.LinesPerSlide, clamped 2-4). Passed to the
+    /// Python analysis so Auto-Detect groups slides at this size. Optional; defaults to 4.
+    /// </summary>
+    public int LinesPerSlide { get; set; } = 4;
+
+    /// <summary>
+    /// Slide read-ahead lead (ms) from PresenterSettings.SlideLeadMs, passed to Python so each
+    /// auto-timed slide appears slightly before its first word. Optional; defaults to 500.
+    /// </summary>
+    public int SlideLeadMs { get; set; } = 500;
+
     public SectionEditorWindow(Song song, AudioEngine? audioEngine = null,
         string? configuredPythonPath = null, Action<string>? onPythonPathSaved = null)
     {
@@ -99,7 +111,8 @@ public partial class SectionEditorWindow : Window
                 EndBar = s.EndBar,
                 Color = s.Color,
                 LightingPresetIndex = s.LightingPresetIndex,
-                Text = s.Text
+                Text = s.Text,
+                LinesPerSlideOverride = s.LinesPerSlideOverride
             });
         }
 
@@ -605,7 +618,8 @@ public partial class SectionEditorWindow : Window
                 EndBar = vm.EndBar,
                 Color = vm.Color,
                 LightingPresetIndex = vm.LightingPresetIndex,
-                Text = vm.Text
+                Text = vm.Text,
+                LinesPerSlideOverride = vm.LinesPerSlideOverride
             });
         }
 
@@ -1161,7 +1175,9 @@ public partial class SectionEditorWindow : Window
             quality: _isSingleTrack ? GetSelectedQuality() : "default",
             bpmOverride: GetBpmOverride(),
             sectionHints: GetSectionHints(),
-            sectionLyrics: GetSectionLyrics());
+            sectionLyrics: GetSectionLyrics(),
+            linesPerSlide: LinesPerSlide,
+            slideLeadMs: SlideLeadMs);
 
         TapStatusText.Visibility = Visibility.Collapsed;
         ProgressPanel.Visibility = Visibility.Collapsed;
@@ -2415,7 +2431,8 @@ public partial class SectionEditorWindow : Window
                 Color = vm.Color,
                 LightingPresetIndex = vm.LightingPresetIndex,
                 Text = vm.Text,
-                CanLoop = vm.CanLoop
+                CanLoop = vm.CanLoop,
+                LinesPerSlideOverride = vm.LinesPerSlideOverride
             });
         }
     }
@@ -2769,6 +2786,12 @@ public class SectionViewModel
     public int LightingPresetIndex { get; set; } = -1;
     public string Text { get; set; } = "";
     public bool CanLoop { get; set; } = true;
+
+    /// <summary>
+    /// Per-section lines-per-slide override (null = use the global PresenterSettings default).
+    /// Mirrors <see cref="WorshipPlayer.Core.Models.Section.LinesPerSlideOverride"/>.
+    /// </summary>
+    public int? LinesPerSlideOverride { get; set; }
 
     public string LoopInTimecode
     {

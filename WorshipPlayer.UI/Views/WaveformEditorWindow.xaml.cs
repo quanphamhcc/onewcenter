@@ -54,6 +54,19 @@ public partial class WaveformEditorWindow : Window
 
     private readonly BeatDetectionService _beatService = new();
 
+    /// <summary>
+    /// Global lines-per-slide default (from PresenterSettings.LinesPerSlide). Used when a section
+    /// has no <see cref="WorshipPlayer.Core.Models.Section.LinesPerSlideOverride"/>. Optional — the
+    /// caller may set it after construction; defaults to 4 so behavior is sane if unset.
+    /// </summary>
+    public int GlobalLinesPerSlide { get; set; } = 4;
+
+    /// <summary>
+    /// Lead time (ms) subtracted from auto-computed slide times (PresenterSettings.SlideLeadMs).
+    /// Default 500; the caller may override after construction.
+    /// </summary>
+    public int SlideLeadMs { get; set; } = 500;
+
     public WaveformEditorWindow(Song song, SectionViewModel section,
         BeatDetectionService.BeatGrid? grid, AudioEngine? audioEngine = null)
     {
@@ -80,6 +93,9 @@ public partial class WaveformEditorWindow : Window
         // Load lyrics text for this section
         LyricsTextBox.Text = section.Text ?? "";
         _lyricsFullText = section.Text ?? ""; // Store full text with chords
+
+        // Reflect the section's per-section lines-per-slide override in the combo (Global = null).
+        InitSectionLinesPerSlideCombo();
 
         // Playback position timer (30fps)
         _playbackTimer = new DispatcherTimer
@@ -116,20 +132,67 @@ public partial class WaveformEditorWindow : Window
 
     // ─── SLIDE TIMING ───────────────────────────────────────────────────
 
+    // ─── PER-SECTION LINES-PER-SLIDE OVERRIDE ───────────────────────────
+    private bool _suppressSectionLinesCombo = false;
+
+    /// <summary>Select the combo item matching the section's current override (null = Global).</summary>
+    private void InitSectionLinesPerSlideCombo()
+    {
+        if (SectionLinesPerSlideCombo == null) return;
+        _suppressSectionLinesCombo = true;
+        try
+        {
+            string want = _section.LinesPerSlideOverride?.ToString() ?? "";
+            foreach (var obj in SectionLinesPerSlideCombo.Items)
+            {
+                if (obj is ComboBoxItem item && (item.Tag as string ?? "") == want)
+                {
+                    SectionLinesPerSlideCombo.SelectedItem = item;
+                    return;
+                }
+            }
+            SectionLinesPerSlideCombo.SelectedIndex = 0; // Global fallback
+        }
+        finally { _suppressSectionLinesCombo = false; }
+    }
+
+    private void SectionLinesPerSlide_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressSectionLinesCombo || _section == null) return;
+
+        int? overrideVal = null;
+        if (SectionLinesPerSlideCombo?.SelectedItem is ComboBoxItem item &&
+            item.Tag is string tag && !string.IsNullOrEmpty(tag) && int.TryParse(tag, out int n))
+            overrideVal = Math.Clamp(n, 2, 4);
+
+        _section.LinesPerSlideOverride = overrideVal;
+
+        // Re-group this section's slides at the new line count and refresh the view. Manual slide
+        // timings are preserved by RecalculateSlideTimings' manual-timing guard.
+        _section.Text = _lyricsFullText;
+        RecalculateSlideTimings();
+        _hasAppliedChanges = true;
+        DrawWaveforms();
+    }
+
     /// <summary>
     /// Recalculate chord chart slide timing from the section text.
-    /// Detects slide breaks (empty lines) and divides section time evenly.
-    /// Timing is stored SEPARATELY in chordChart.slides[] — text stays clean.
-    /// Also generates MIDI cues for Presenter auto-advance.
+    /// Groups lyrics into slides via SlideGroupingService (lines-per-slide + per-section override)
+    /// and divides section time evenly across slides. Timing is stored SEPARATELY in
+    /// chordChart.slides[] — text stays clean. Also generates MIDI cues for Presenter auto-advance.
     /// </summary>
     private void RecalculateSlideTimings()
     {
         string sectionText = _section.Text ?? "";
         if (string.IsNullOrWhiteSpace(sectionText)) return;
 
-        // Count slide blocks (split by empty lines)
-        var blocks = sectionText.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.None)
-            .Where(b => !string.IsNullOrWhiteSpace(b)).ToList();
+        // Group lyrics into slide blocks using the configured lines-per-slide (per-section override
+        // wins over the global default). This honors authored blank-line breaks AND sub-splits any
+        // block that exceeds the line count — the single source of grouping truth.
+        int effectiveLinesPerSlide = _section.LinesPerSlideOverride ?? GlobalLinesPerSlide;
+        var groupedBlocks = WorshipPlayer.Core.Services.SlideGroupingService
+            .GroupSection(sectionText, effectiveLinesPerSlide);
+        var blocks = groupedBlocks.Select(b => b.Text).ToList();
 
         if (blocks.Count == 0) return;
 
@@ -819,106 +882,70 @@ public partial class WaveformEditorWindow : Window
         double centerY = height / 2;
         double totalMs = _displayEndMs - _displayStartMs;
 
-        // Beat grid lines — use ACTUAL beat positions if available, else mathematical
-        if (_song.BeatPositionsMs != null && _song.BeatPositionsMs.Count > 0)
+        // ── Beat grid lines ──────────────────────────────────────────────────────────────
+        // Draw an EVENLY-SPACED grid, one bright (light-blue) line per bar downbeat, anchored to
+        // the click-track downbeat.
+        //
+        // IMPORTANT: the beat spacing is taken from the DETECTED beat positions (their median
+        // interval), NOT from the stored BPM field. The stored BPM can be rounded/slightly off
+        // (e.g. 98 stored vs ~97.0 actual = 6ms per beat), and that error ACCUMULATES bar over bar,
+        // so by later sections (VERSE 1) a BPM-derived grid drifts seconds away from the clicks.
+        // The detected beat positions are evenly spaced at the TRUE tempo, so using their median
+        // interval keeps the even grid locked to the real clicks across the whole song.
+        int beatsPerBar = _grid?.TimeSignatureNumerator ?? _song.TimeSignatureNumerator;
+        if (beatsPerBar <= 0) beatsPerBar = 4;
+
+        // Single source of truth shared with the Snap buttons.
+        var (beatMs, anchorMs) = GetEvenGrid();
+
+        if (beatMs > 0)
         {
-            // TIER 1: Actual beat positions from click track peaks
-            double barMs = _grid?.BarDurationMs ?? _song.BarDurationMs;
-            double beatMs = _grid?.BeatIntervalMs ?? _song.BeatIntervalMs;
-            int beatsPerBar = _grid?.TimeSignatureNumerator ?? _song.TimeSignatureNumerator;
+            double barMs = beatMs * beatsPerBar;
 
-            int beatCount = 0;
-            for (int bi = 0; bi < _song.BeatPositionsMs.Count; bi++)
+            // Step back from the anchor to the first beat at/after the visible range start, keeping
+            // exact bar/beat phase relative to the anchor so Beat 1 lines stay on the downbeats.
+            double firstBeat = anchorMs + Math.Floor((_displayStartMs - anchorMs) / beatMs) * beatMs;
+
+            int beatIdx = (int)Math.Round((firstBeat - anchorMs) / beatMs);
+            for (double beatTime = firstBeat; beatTime <= _displayEndMs; beatTime += beatMs, beatIdx++)
             {
-                double beatTimeMs = _song.BeatPositionsMs[bi];
-                if (beatTimeMs < _displayStartMs || beatTimeMs > _displayEndMs)
-                {
-                    beatCount++;
-                    continue;
-                }
-                double x = (beatTimeMs - _displayStartMs) / totalMs * width;
-                bool isDownbeat = (beatCount % beatsPerBar) == 0;
+                if (beatTime < _displayStartMs) continue;
+                double x = (beatTime - _displayStartMs) / totalMs * width;
 
-                // Main beat line
+                // Beat 1 of the bar = an exact whole number of bars from the anchor (non-negative
+                // modulo so beats before the anchor are classified correctly too).
+                int phase = ((beatIdx % beatsPerBar) + beatsPerBar) % beatsPerBar;
+                bool isDownbeat = phase == 0;
+
                 canvas.Children.Add(new Line
                 {
                     X1 = x, X2 = x, Y1 = 0, Y2 = height,
-                    Stroke = isDownbeat ? new SolidColorBrush(Color.FromRgb(135, 206, 250))  // Sky blue for beat 1
+                    Stroke = isDownbeat ? new SolidColorBrush(Color.FromRgb(135, 206, 250))  // Sky blue = Beat 1
                                         : new SolidColorBrush(Color.FromArgb(50, 255, 255, 255)),
                     StrokeThickness = isDownbeat ? 2.0 : 0.8
                 });
 
-                // Draw 32nd-note subdivisions (7 lines between this beat and next)
-                // Visual hierarchy like a ruler:
-                //   Beat = full height (quarter note)
-                //   1/8 note = 60% height (halfway between beats)
-                //   1/16 note = 40% height
-                //   1/32 note = 20% height (finest)
-                if (bi + 1 < _song.BeatPositionsMs.Count)
+                // Ruler subdivisions between this beat and the next (1/8, 1/16, 1/32 ticks).
+                double subdivLen = beatMs / 8.0;
+                for (int s = 1; s <= 7; s++)
                 {
-                    double nextBeatMs = _song.BeatPositionsMs[bi + 1];
-                    double subdivLen = (nextBeatMs - beatTimeMs) / 8.0;
-                    for (int s = 1; s <= 7; s++)
+                    double subdivMs = beatTime + s * subdivLen;
+                    if (subdivMs < _displayStartMs || subdivMs > _displayEndMs) continue;
+                    double sx = (subdivMs - _displayStartMs) / totalMs * width;
+
+                    double tickTop, tickBottom;
+                    byte alpha;
+                    if (s == 4) { tickTop = height * 0.25; tickBottom = height * 0.75; alpha = 35; }
+                    else if (s == 2 || s == 6) { tickTop = height * 0.35; tickBottom = height * 0.65; alpha = 25; }
+                    else { tickTop = height * 0.42; tickBottom = height * 0.58; alpha = 15; }
+
+                    canvas.Children.Add(new Line
                     {
-                        double subdivMs = beatTimeMs + s * subdivLen;
-                        if (subdivMs < _displayStartMs || subdivMs > _displayEndMs) continue;
-                        double sx = (subdivMs - _displayStartMs) / totalMs * width;
-
-                        // Ruler hierarchy: 4th subdiv = 1/8 note, 2nd/6th = 1/16, rest = 1/32
-                        double tickTop, tickBottom;
-                        byte alpha;
-                        if (s == 4)
-                        {
-                            // 1/8 note — medium tick
-                            tickTop = height * 0.25;
-                            tickBottom = height * 0.75;
-                            alpha = 35;
-                        }
-                        else if (s == 2 || s == 6)
-                        {
-                            // 1/16 note — smaller tick
-                            tickTop = height * 0.35;
-                            tickBottom = height * 0.65;
-                            alpha = 25;
-                        }
-                        else
-                        {
-                            // 1/32 note — smallest tick
-                            tickTop = height * 0.42;
-                            tickBottom = height * 0.58;
-                            alpha = 15;
-                        }
-
-                        canvas.Children.Add(new Line
-                        {
-                            X1 = sx, X2 = sx,
-                            Y1 = tickTop, Y2 = tickBottom,
-                            Stroke = new SolidColorBrush(Color.FromArgb(alpha, 255, 255, 255)),
-                            StrokeThickness = 0.5
-                        });
-                    }
+                        X1 = sx, X2 = sx, Y1 = tickTop, Y2 = tickBottom,
+                        Stroke = new SolidColorBrush(Color.FromArgb(alpha, 255, 255, 255)),
+                        StrokeThickness = 0.5
+                    });
                 }
-                beatCount++;
-            }
-        }
-        else if (_grid != null && _grid.BeatIntervalMs > 0)
-        {
-            double anchor = _grid.GridAnchorMs;
-            double beatMs = _grid.BeatIntervalMs;
-            double barMs = _grid.BarDurationMs;
-            double firstBeat = anchor + Math.Ceiling((_displayStartMs - anchor) / beatMs) * beatMs;
-
-            for (double beatTime = firstBeat; beatTime < _displayEndMs; beatTime += beatMs)
-            {
-                double x = (beatTime - _displayStartMs) / totalMs * width;
-                bool isDownbeat = Math.Abs((beatTime - anchor) % barMs) < beatMs * 0.1;
-                canvas.Children.Add(new Line
-                {
-                    X1 = x, X2 = x, Y1 = 0, Y2 = height,
-                    Stroke = isDownbeat ? new SolidColorBrush(Color.FromArgb(80, 255, 255, 255))
-                                        : new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
-                    StrokeThickness = isDownbeat ? 1.5 : 0.5
-                });
             }
         }
 
@@ -1983,60 +2010,87 @@ public partial class WaveformEditorWindow : Window
 
     private void SnapToBeat_Click(object sender, RoutedEventArgs e)
     {
-        // Snap to 32nd-note subdivisions (8 per beat)
-        if (_song.BeatPositionsMs != null && _song.BeatPositionsMs.Count > 1)
-        {
-            var subdivisions = new List<double>();
-            for (int i = 0; i < _song.BeatPositionsMs.Count - 1; i++)
-            {
-                double beatStart = _song.BeatPositionsMs[i];
-                double beatEnd = _song.BeatPositionsMs[i + 1];
-                double subdivLen = (beatEnd - beatStart) / 8.0;
-                for (int s = 0; s < 8; s++)
-                    subdivisions.Add(beatStart + s * subdivLen);
-            }
-            if (_song.BeatPositionsMs.Count > 0)
-                subdivisions.Add(_song.BeatPositionsMs[^1]);
+        // Snap to the nearest BEAT on the SAME even grid the waveform draws (GetEvenGrid uses the
+        // detected beat spacing anchored to the click-track downbeat), so a snap lands exactly on a
+        // drawn grid line.
+        var (beatMs, anchorMs) = GetEvenGrid();
+        if (beatMs <= 0) { UpdateLoopPointDisplay(); DrawWaveforms(); return; }
 
-            _loopInMs = subdivisions.OrderBy(b => Math.Abs(b - _loopInMs)).First();
-            _loopOutMs = subdivisions.OrderBy(b => Math.Abs(b - _loopOutMs)).First();
-        }
-        else if (_grid != null)
-        {
-            // Snap to 32nd-note mathematical grid
-            double subdivMs = _grid.BeatIntervalMs / 8.0;
-            double elapsedIn = _loopInMs - _grid.GridAnchorMs;
-            double elapsedOut = _loopOutMs - _grid.GridAnchorMs;
-            _loopInMs = _grid.GridAnchorMs + Math.Round(elapsedIn / subdivMs) * subdivMs;
-            _loopOutMs = _grid.GridAnchorMs + Math.Round(elapsedOut / subdivMs) * subdivMs;
-        }
+        _loopInMs = SnapToGrid(_loopInMs, anchorMs, beatMs);
+        _loopOutMs = SnapToGrid(_loopOutMs, anchorMs, beatMs);
+
         UpdateLoopPointDisplay();
         DrawWaveforms();
     }
 
     private void SnapToBar_Click(object sender, RoutedEventArgs e)
     {
-        int beatsPerBar = _song.TimeSignatureNumerator > 0 ? _song.TimeSignatureNumerator : 4;
+        // Snap to the nearest BAR DOWNBEAT (Beat 1) on the SAME even grid the waveform draws:
+        // downbeats are anchor + k * barMs (barMs = beatMs * beatsPerBar), with beatMs/anchor from
+        // GetEvenGrid (detected beat spacing anchored to the click-track high-pitch downbeat). This
+        // matches the bright light-blue lines exactly.
+        var (beatMs, anchorMs) = GetEvenGrid();
+        int beatsPerBar = (_grid?.TimeSignatureNumerator ?? _song.TimeSignatureNumerator);
+        if (beatsPerBar <= 0) beatsPerBar = 4;
+        if (beatMs <= 0) { UpdateLoopPointDisplay(); DrawWaveforms(); return; }
 
-        if (_song.BeatPositionsMs != null && _song.BeatPositionsMs.Count > 0)
-        {
-            // Snap to nearest downbeat (every Nth beat position)
-            var downbeats = _song.BeatPositionsMs
-                .Where((b, i) => i % beatsPerBar == 0)
-                .ToList();
-            if (downbeats.Count > 0)
-            {
-                _loopInMs = downbeats.OrderBy(b => Math.Abs(b - _loopInMs)).First();
-                _loopOutMs = downbeats.OrderBy(b => Math.Abs(b - _loopOutMs)).First();
-            }
-        }
-        else if (_grid != null)
-        {
-            _loopInMs = _beatService.SnapToBar(_loopInMs, _grid);
-            _loopOutMs = _beatService.SnapToBar(_loopOutMs, _grid);
-        }
+        double barMs = beatMs * beatsPerBar;
+        _loopInMs = SnapToGrid(_loopInMs, anchorMs, barMs);
+        _loopOutMs = SnapToGrid(_loopOutMs, anchorMs, barMs);
+
         UpdateLoopPointDisplay();
         DrawWaveforms();
+    }
+
+    /// <summary>
+    /// Snap a time (ms) to the nearest point on an evenly-spaced grid defined by an anchor and a
+    /// step: anchor + round((ms - anchor) / step) * step. Clamped to &gt;= 0. A non-positive step
+    /// returns the input unchanged.
+    /// </summary>
+    private static double SnapToGrid(double ms, double anchorMs, double stepMs)
+    {
+        if (stepMs <= 0) return ms;
+        double snapped = anchorMs + Math.Round((ms - anchorMs) / stepMs) * stepMs;
+        return snapped < 0 ? 0 : snapped;
+    }
+
+    /// <summary>
+    /// The authoritative beat spacing (ms) and Beat-1 anchor (ms) for the even grid. Prefers the
+    /// DETECTED beat positions (median interval + the detected beat nearest GridAnchorMs), because
+    /// the stored BPM can be slightly off and that error accumulates across a song. Falls back to
+    /// the stored BPM/anchor only when no detected beats exist. Returns beatMs = 0 when nothing is
+    /// available. This is the SINGLE source the grid drawing and both Snap buttons share, so they
+    /// always agree.
+    /// </summary>
+    private (double beatMs, double anchorMs) GetEvenGrid()
+    {
+        var beats = _song.BeatPositionsMs;
+        if (beats != null && beats.Count >= 2)
+        {
+            var intervals = new List<double>(beats.Count - 1);
+            for (int i = 1; i < beats.Count; i++)
+                intervals.Add(beats[i] - beats[i - 1]);
+            intervals.Sort();
+            double beatMs = intervals[intervals.Count / 2];
+
+            double storedAnchor = _grid?.GridAnchorMs ?? _song.GridAnchorMs;
+            double anchorMs = beats[0];
+            if (storedAnchor > 0)
+            {
+                double best = double.MaxValue;
+                foreach (var b in beats)
+                {
+                    double d = Math.Abs(b - storedAnchor);
+                    if (d < best) { best = d; anchorMs = b; }
+                }
+            }
+            return (beatMs, anchorMs);
+        }
+
+        double bpm = _grid?.Bpm ?? _song.Bpm;
+        double anchor = _grid?.GridAnchorMs ?? _song.GridAnchorMs;
+        if (anchor < 0) anchor = 0;
+        return (bpm > 0 ? 60000.0 / bpm : 0, anchor);
     }
 
     private void ZoomIn_Click(object sender, RoutedEventArgs e)

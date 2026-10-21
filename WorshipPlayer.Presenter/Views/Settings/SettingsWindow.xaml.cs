@@ -60,7 +60,7 @@ public partial class SettingsWindow : Window
         {
             return sectionName switch
             {
-                "Defaults" => _defaultsSection ??= new DefaultsSection(),
+                "Defaults" => GetDefaultsSection(),
                 "Footer" => GetFooterSection(),
                 "Interface" => _interfaceSection ??= new InterfaceSection(),
                 "Bibles" => _biblesSection ??= new BiblesSection(),
@@ -69,7 +69,7 @@ public partial class SettingsWindow : Window
                 "Library" => _librarySection ??= new LibrarySection(),
                 "MIDI" => _midiSection ??= new MidiSection(),
                 "Updates" => _updatesCacheSection ??= new UpdatesCacheSection(),
-                _ => _defaultsSection ??= new DefaultsSection()
+                _ => GetDefaultsSection()
             };
         }
         catch (Exception ex)
@@ -104,6 +104,14 @@ public partial class SettingsWindow : Window
                 PresenterSettings.CcliLicenseNumber = _footerSection.CcliLicenseNumber;
             }
 
+            // Persist the auto-timed-slides defaults (lines-per-slide + lead) from the Defaults
+            // section if it's been loaded.
+            if (_defaultsSection != null && PresenterSettings != null)
+            {
+                PresenterSettings.LinesPerSlide = _defaultsSection.LinesPerSlide;
+                PresenterSettings.SlideLeadMs = _defaultsSection.SlideLeadMs;
+            }
+
             OnSaveRequested?.Invoke();
             MessageBox.Show("Settings saved successfully.", "Settings",
                 MessageBoxButton.OK, MessageBoxImage.Information);
@@ -118,6 +126,20 @@ public partial class SettingsWindow : Window
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private DefaultsSection GetDefaultsSection()
+    {
+        if (_defaultsSection == null)
+        {
+            _defaultsSection = new DefaultsSection();
+            if (PresenterSettings != null)
+            {
+                _defaultsSection.LinesPerSlide = PresenterSettings.LinesPerSlide;
+                _defaultsSection.SlideLeadMs = PresenterSettings.SlideLeadMs;
+            }
+        }
+        return _defaultsSection;
     }
 
     private FooterSection GetFooterSection()

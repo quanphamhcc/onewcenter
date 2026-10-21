@@ -247,6 +247,14 @@ public class Section
     public string? TemplateId { get; set; }
 
     /// <summary>
+    /// Optional per-section override of the global lines-per-slide setting
+    /// (<c>PresenterSettings.LinesPerSlide</c>). Null = use the global value. Clamped 2–4 when set.
+    /// Lets a dense verse group differently from a short chorus. Additive and backward-compatible.
+    /// </summary>
+    [JsonPropertyName("linesPerSlideOverride")]
+    public int? LinesPerSlideOverride { get; set; }
+
+    /// <summary>
     /// The effective loop-in point for the vocal track (LoopInMs - VocalPickupMs).
     /// </summary>
     [JsonIgnore]

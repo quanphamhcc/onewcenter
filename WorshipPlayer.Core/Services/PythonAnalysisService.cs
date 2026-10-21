@@ -66,7 +66,8 @@ public class PythonAnalysisService
         Action<int, string>? onProgress = null,
         string quality = "default", double? bpmOverride = null,
         List<string>? sectionHints = null,
-        Dictionary<string, string>? sectionLyrics = null)
+        Dictionary<string, string>? sectionLyrics = null,
+        int linesPerSlide = 4, int slideLeadMs = 500)
     {
         if (!File.Exists(_scriptPath))
             return (null, $"Analysis script not found: {_scriptPath}");
@@ -92,12 +93,15 @@ public class PythonAnalysisService
                 await File.WriteAllTextAsync(lyricsPath, lyricsJson);
             }
 
-            // Run the Python analysis script with LLM mode flag and optional quality/BPM
+            // Run the Python analysis script with LLM mode flag and optional quality/BPM.
             var args = $"\"{_scriptPath}\" \"{songFolderPath}\" --llm {llmMode}";
             if (!string.IsNullOrEmpty(quality) && quality != "default")
                 args += $" --quality {quality}";
             if (bpmOverride.HasValue && bpmOverride.Value > 0)
                 args += $" --bpm {bpmOverride.Value:F1}";
+            // Slide grouping/timing options: lines-per-slide (2-4) and the read-ahead lead (ms).
+            args += $" --lines-per-slide {Math.Clamp(linesPerSlide, 2, 4)}";
+            args += $" --slide-lead-ms {Math.Max(0, slideLeadMs)}";
 
             var result = await RunCommandWithProgressAsync(_pythonPath, args,
                 timeoutSeconds: 600, onProgress: onProgress);

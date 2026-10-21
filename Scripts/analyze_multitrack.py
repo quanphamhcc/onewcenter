@@ -3163,7 +3163,8 @@ def snap_sections_to_grid(sections: List[Dict], grid: Dict, time_sig: int = 4) -
 # ═══════════════════════════════════════════════════════════════════════
 
 def build_chord_chart(grid: Dict, sections: List[Dict], chords: List[str],
-                      whisper_data: Dict, time_sig: int = 4) -> Dict:
+                      whisper_data: Dict, time_sig: int = 4,
+                      lines_per_slide: int = 4, slide_lead_ms: int = 500) -> Dict:
     """Build chord chart data and populate section text with inline [chord] format.
 
     NEW UNIFIED SYSTEM:
@@ -3291,14 +3292,18 @@ def build_chord_chart(grid: Dict, sections: List[Dict], chords: List[str],
         section_texts[section_name] = section_text
 
         # Build slide timing entries (group lines into slides of ~4 lines)
-        lines_per_slide = 4
+        # Group phrases into slides of the configured size (clamped 2-4). The slide START is the
+        # first word's start minus the read-ahead lead (so the slide appears slightly before the
+        # word is sung), clamped so it never precedes the section start.
+        lps = max(2, min(4, lines_per_slide))
         slide_index = 0
-        for i in range(0, len(phrases), lines_per_slide):
-            slide_phrases = phrases[i:i + lines_per_slide]
+        for i in range(0, len(phrases), lps):
+            slide_phrases = phrases[i:i + lps]
             if not slide_phrases:
                 continue
 
-            slide_start = slide_phrases[0][0]['start_sec'] * 1000
+            raw_start = slide_phrases[0][0]['start_sec'] * 1000
+            slide_start = max(section_start_sec * 1000, raw_start - slide_lead_ms)
             slide_end = slide_phrases[-1][-1]['end_sec'] * 1000
 
             slides.append({
@@ -3306,8 +3311,8 @@ def build_chord_chart(grid: Dict, sections: List[Dict], chords: List[str],
                 'slideIndex': slide_index,
                 'startMs': slide_start,
                 'endMs': slide_end,
-                'nextSectionName': next_section_name if i + lines_per_slide >= len(phrases) else "",
-                'nextSectionChord': next_section_chord if i + lines_per_slide >= len(phrases) else "",
+                'nextSectionName': next_section_name if i + lps >= len(phrases) else "",
+                'nextSectionChord': next_section_chord if i + lps >= len(phrases) else "",
                 'manualTiming': False
             })
             slide_index += 1
@@ -3497,7 +3502,8 @@ def _guess_track_label(filepath: str) -> str:
 
 def analyze_multitrack(folder_path: str, llm_mode: str = "openai",
                        time_sig: int = 4, override_bpm: float = None,
-                       demucs_quality: str = 'default') -> Optional[Dict]:
+                       demucs_quality: str = 'default',
+                       lines_per_slide: int = 4, slide_lead_ms: int = 500) -> Optional[Dict]:
     """Full multi-signal analysis pipeline."""
     print(f"\n{'='*60}")
     print(f"  MULTITRACK ANALYSIS: {Path(folder_path).name}")
@@ -3730,8 +3736,9 @@ def analyze_multitrack(folder_path: str, llm_mode: str = "openai",
     # Step 8: Chord detection (for chord chart)
     chords_for_chart = detect_chords_per_bar(classified, grid, time_sig) if has_cue_track else chords
 
-    # Step 9: Build chord chart data
-    chord_chart = build_chord_chart(grid, sections, chords_for_chart, whisper_data, time_sig)
+    # Step 9: Build chord chart data (honors configured lines-per-slide + read-ahead lead)
+    chord_chart = build_chord_chart(grid, sections, chords_for_chart, whisper_data, time_sig,
+                                    lines_per_slide=lines_per_slide, slide_lead_ms=slide_lead_ms)
     chart_slides = len(chord_chart.get('slides', []))
     if chart_slides > 0:
         print(f"  Chord chart: {chart_slides} slides generated")
@@ -3779,6 +3786,8 @@ def main():
     llm_mode = 'azure'  # Default to Azure OpenAI
     override_bpm = None
     demucs_quality = 'default'  # htdemucs_6s, shifts=2
+    lines_per_slide = 4         # slide grouping: lyric lines per slide (clamped 2-4)
+    slide_lead_ms = 500         # slide read-ahead lead (subtracted from each slide start)
 
     # Parse optional arguments
     if '--output' in sys.argv:
@@ -3811,6 +3820,24 @@ def main():
                 print(f"WARNING: Invalid --quality '{q}'. Options: fast, default, best",
                       file=sys.stderr)
 
+    if '--lines-per-slide' in sys.argv:
+        idx = sys.argv.index('--lines-per-slide')
+        if idx + 1 < len(sys.argv):
+            try:
+                lines_per_slide = max(2, min(4, int(sys.argv[idx + 1])))
+                print(f"  Lines per slide: {lines_per_slide}")
+            except ValueError:
+                print(f"WARNING: Invalid --lines-per-slide value, using 4", file=sys.stderr)
+
+    if '--slide-lead-ms' in sys.argv:
+        idx = sys.argv.index('--slide-lead-ms')
+        if idx + 1 < len(sys.argv):
+            try:
+                slide_lead_ms = max(0, int(sys.argv[idx + 1]))
+                print(f"  Slide lead: {slide_lead_ms} ms")
+            except ValueError:
+                print(f"WARNING: Invalid --slide-lead-ms value, using 500", file=sys.stderr)
+
     if not os.path.isdir(folder_path):
         print(f"ERROR: Folder not found: {folder_path}", file=sys.stderr)
         sys.exit(1)
@@ -3819,7 +3846,9 @@ def main():
     try:
         song_data = analyze_multitrack(folder_path, llm_mode=llm_mode,
                                        override_bpm=override_bpm,
-                                       demucs_quality=demucs_quality)
+                                       demucs_quality=demucs_quality,
+                                       lines_per_slide=lines_per_slide,
+                                       slide_lead_ms=slide_lead_ms)
     except Exception as e:
         print(f"ERROR: Unhandled exception: {e}", file=sys.stderr)
         import traceback

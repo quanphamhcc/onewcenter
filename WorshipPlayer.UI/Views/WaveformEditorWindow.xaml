@@ -88,6 +88,17 @@
                                   ToolTip="Toggle chord display [B] [E] on/off" />
                     <TextBlock x:Name="ChordFormatHint" Text="Inline format: [B]lyrics [E]here"
                                FontSize="9" Foreground="#808090" VerticalAlignment="Center" />
+                    <TextBlock Text="   Lines/slide:" FontSize="10" Foreground="#B0B0C0"
+                               VerticalAlignment="Center" Margin="8,0,4,0" />
+                    <ComboBox x:Name="SectionLinesPerSlideCombo" Width="90" Height="22" FontSize="10"
+                              Background="#2B2B3D" Foreground="White" BorderBrush="#4A4A60"
+                              SelectionChanged="SectionLinesPerSlide_Changed"
+                              ToolTip="Lines per slide for THIS section (Global = use the Presenter default)">
+                        <ComboBoxItem Content="Global" Tag="" Foreground="Black" IsSelected="True" />
+                        <ComboBoxItem Content="2 lines" Tag="2" Foreground="Black" />
+                        <ComboBoxItem Content="3 lines" Tag="3" Foreground="Black" />
+                        <ComboBoxItem Content="4 lines" Tag="4" Foreground="Black" />
+                    </ComboBox>
                 </StackPanel>
                 <TextBox x:Name="LyricsTextBox" AcceptsReturn="True" TextWrapping="NoWrap"
                          MinHeight="80" MaxHeight="250"

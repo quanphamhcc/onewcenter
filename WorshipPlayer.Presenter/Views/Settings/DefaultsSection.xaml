@@ -86,6 +86,46 @@
                 </StackPanel>
             </Border>
 
+            <!-- Auto-Timed Slides (lyric grouping + vocal timing) -->
+            <Border Style="{StaticResource OwcSurfaceBorder}" Padding="12" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Auto-Timed Slides" FontSize="11"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,8"/>
+
+                    <TextBlock Text="Lines per slide" FontSize="11"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="LinesPerSlideComboBox"
+                              Background="{StaticResource OwcSurfaceBrush}"
+                              Foreground="{StaticResource OwcTextPrimaryBrush}"
+                              FontSize="12" Padding="8,6" Margin="0,0,0,10">
+                        <ComboBoxItem Content="2 lines" Tag="2"/>
+                        <ComboBoxItem Content="3 lines" Tag="3"/>
+                        <ComboBoxItem Content="4 lines" Tag="4" IsSelected="True"/>
+                    </ComboBox>
+
+                    <TextBlock Text="Slide lead time (ms before first word is sung)" FontSize="11"
+                               Foreground="{StaticResource OwcTextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        <Slider x:Name="SlideLeadSlider" Grid.Column="0"
+                                Minimum="0" Maximum="1500" Value="500"
+                                Style="{StaticResource OwcSlider}"
+                                ValueChanged="SlideLead_ValueChanged"/>
+                        <TextBlock Grid.Column="1" x:Name="SlideLeadDisplay" Text="500ms"
+                                   Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                   FontSize="12" HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <TextBlock Text="Used when Auto-Detect groups lyrics into slides and times them to the vocals. A section can override the line count individually."
+                               FontSize="11" Foreground="{StaticResource OwcTextMutedBrush}"
+                               TextWrapping="Wrap" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
             <!-- Media Defaults -->
             <Border Style="{StaticResource OwcSurfaceBorder}" Padding="12" Margin="0,0,0,12">
                 <StackPanel>

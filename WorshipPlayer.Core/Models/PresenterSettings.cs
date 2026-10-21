@@ -47,6 +47,23 @@ public class PresenterSettings
     [JsonPropertyName("autoAdvanceFromTimestamp")]
     public bool AutoAdvanceFromTimestamp { get; set; } = true;
 
+    // ─── Auto-Timed Slides (lyric grouping + vocal timing) ─────────
+    /// <summary>
+    /// Global default number of lyric lines per slide when auto-grouping a section's lyrics
+    /// (clamped 2–4). A section may override this via <c>Section.LinesPerSlideOverride</c>.
+    /// Additive and backward-compatible; defaults to 4.
+    /// </summary>
+    [JsonPropertyName("linesPerSlide")]
+    public int LinesPerSlide { get; set; } = 4;
+
+    /// <summary>
+    /// Lead time (ms) subtracted from each auto-computed slide advance time so the slide appears
+    /// slightly BEFORE the first word of the slide is sung (congregation reads ahead). Clamped so a
+    /// slide time never goes below 0 or before its section start. Default 500 ms.
+    /// </summary>
+    [JsonPropertyName("slideLeadMs")]
+    public int SlideLeadMs { get; set; } = 500;
+
     /// <summary>
     /// Automatically advance to the next service item when a song ends.
     /// </summary>
