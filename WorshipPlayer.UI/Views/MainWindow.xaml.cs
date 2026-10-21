@@ -59,25 +59,12 @@ public partial class MainWindow : Window
         await _settingsService.LoadAsync();
         _settings = _settingsService.Settings;
 
-        // ─── FIRST LAUNCH: AI Training Data folder prompt ─────────────────
-        if (string.IsNullOrEmpty(_settings.TrainingDataFolder) || !Directory.Exists(_settings.TrainingDataFolder))
+        // ─── AI Training Data folder: resolve silently, never prompt on startup ───
+        // Covers empty/whitespace and a stale saved path on a missing drive (IsUsable == false).
+        if (!TrainingDataPaths.IsUsable(_settings.TrainingDataFolder))
         {
-            // Prompt user for location
-            var dialog = new Microsoft.Win32.OpenFolderDialog
-            {
-                Title = "Select folder for AI Training Data (section corrections will be saved here)"
-            };
-
-            if (dialog.ShowDialog(this) == true)
-            {
-                _settings.TrainingDataFolder = dialog.FolderName;
-                await _settingsService.SaveAsync();
-            }
-            else
-            {
-                // Default fallback
-                _settings.TrainingDataFolder = @"E:\temp\OWClogs";
-            }
+            _settings.TrainingDataFolder = TrainingDataPaths.DefaultFolder();
+            await _settingsService.SaveAsync();
         }
 
         // Ensure folder exists

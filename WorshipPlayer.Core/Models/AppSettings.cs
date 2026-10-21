@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using WorshipPlayer.Core.Services;
 
 namespace WorshipPlayer.Core.Models;
 
@@ -45,7 +46,7 @@ public class AppSettings
 
     // AI Training Data Settings
     [JsonPropertyName("trainingDataFolder")]
-    public string TrainingDataFolder { get; set; } = @"E:\temp\OWClogs";
+    public string TrainingDataFolder { get; set; } = TrainingDataPaths.DefaultFolder();
 
     // OSC Settings for MaestroDMX
     [JsonPropertyName("oscEnabled")]
