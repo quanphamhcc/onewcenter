@@ -1,0 +1,20 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "NIT",
+      "title": "\"copies ItemSettingsMapping.ToGoTo/GoToLabel verbatim\" overstates it; the editor's \"Do nothing\" label has no counterpart in the real mapping, and ItemSettingsMapping is internal to the Presenter assembly so a Core helper must re-implement rather than call it",
+      "where": "Gap #1 label table caption; Auto-advance mapping \"When complete ⇄ AutoAdvanceGoTo\"; Summary of decisions",
+      "fix": "Replace the \"verbatim copy\" claim with: mirrors ItemSettingsMapping's enum targets but uses this editor's sentence-case labels and adds an explicit 'Do nothing' option mapped to the model default NextSlide (the original folds NextSlide into 'Next Item'); the mapping is re-implemented in the Core SlideAutoAdvanceMap helper because ItemSettingsMapping is internal to the Presenter assembly."
+    },
+    {
+      "id": 2,
+      "severity": "NIT",
+      "title": "\"Do nothing\" + \"Go to next slide after = Time Delay\" is reachable and the resolver advances to next item (NextSlide branch), contradicting the label; design does not state the expected outcome",
+      "where": "Gap #1 label table \"Do nothing\" row; Auto-advance mapping \"What is written on save\"",
+      "fix": "Add one sentence: under a real trigger, 'Do nothing' stores NextSlide, which the resolver treats as advance-to-next-item; state this is intended ('Do nothing' = no special end-of-item destination, fall through to natural next item), matching the existing panel's NextSlide/NextItem fold; a true 'stay put' is Loop."
+    }
+  ],
+  "reviewDoc": "c:\\Users\\Quang\\Documents\\OneWorshipcenter\\owc-multitrack-feature-lyric-presenter\\owc-multitrack-feature-lyric-presenter\\.worktrees\\slide-item-editor\\.agents\\tasks\\slide-item-editor\\design-review.md"
+}
