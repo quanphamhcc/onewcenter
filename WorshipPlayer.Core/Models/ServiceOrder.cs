@@ -182,6 +182,26 @@ public class ServiceItem
     /// </summary>
     [JsonPropertyName("audioAttachmentPath")]
     public string AudioAttachmentPath { get; set; } = "";
+
+    /// <summary>
+    /// Attached audio files for this item. Additive multi-audio replacement for the legacy single
+    /// <see cref="AudioAttachmentPath"/>. Nullable so it is omitted from JSON when unset (older files
+    /// have no such key). On load, a non-empty legacy AudioAttachmentPath is migrated into this list
+    /// as the first entry (see <see cref="Services.ServiceItemAudio.Resolve"/>).
+    /// Plain nullable with only [JsonPropertyName] — the manager's global WhenWritingNull
+    /// serialization condition omits it from JSON when null (same convention as
+    /// <see cref="SlidePresentationId"/>/<see cref="ThemeId"/>).
+    /// </summary>
+    [JsonPropertyName("audioAttachments")]
+    public List<string>? AudioAttachments { get; set; }
+
+    /// <summary>
+    /// Id of the stage-display template this item uses, or null to inherit the service default.
+    /// Plain nullable with only [JsonPropertyName] — the manager's global WhenWritingNull
+    /// serialization condition omits it from JSON when null (older files have no such key).
+    /// </summary>
+    [JsonPropertyName("stageTemplateId")]
+    public string? StageTemplateId { get; set; }
 }
 
 /// <summary>
