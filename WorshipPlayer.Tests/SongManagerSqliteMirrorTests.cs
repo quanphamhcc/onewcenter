@@ -136,6 +136,104 @@ public class SongManagerSqliteMirrorTests : IDisposable
         Assert.Equal(SongPathResolver.Normalize(folder), storedKey);
     }
 
+    // ─── SQL-AUTHORITATIVE cutover (song.json is now a BACKUP, app.db is the source of truth) ──
+
+    [Fact]
+    public async Task Load_ReadsFromDb_AndSurvivesDeletedSongJsonBackup()
+    {
+        // Seed one song via its song.json backup, then first-load imports it into app.db.
+        WriteSong("Amazing_Grace", "Amazing Grace", "John Newton", "G");
+        var folder = Path.Combine(_songsDir, "Amazing_Grace");
+
+        var m1 = new SongManager(_songsDir, _setlistsDir, _appDbPath);
+        await m1.LoadAllSongsAsync();
+        Assert.Single(m1.Songs);
+        Assert.Equal("Amazing Grace", m1.Songs[0].Title);
+        Assert.Equal(1, CountRows("Songs"));
+
+        // Delete the song.json BACKUP. Because SQL is now authoritative, the song must STILL load.
+        File.Delete(Path.Combine(folder, "song.json"));
+        Assert.False(File.Exists(Path.Combine(folder, "song.json")));
+
+        var m2 = new SongManager(_songsDir, _setlistsDir, _appDbPath);
+        await m2.LoadAllSongsAsync();
+        Assert.Single(m2.Songs); // loaded from app.db, not the (deleted) json
+        Assert.Equal("Amazing Grace", m2.Songs[0].Title);
+        Assert.Equal(folder, m2.Songs[0].FolderPath, ignoreCase: true);
+    }
+
+    [Fact]
+    public async Task Save_PersistsToDb_AndRewritesJsonBackup()
+    {
+        WriteSong("Amazing_Grace", "Amazing Grace", "John Newton", "G");
+        var folder = Path.Combine(_songsDir, "Amazing_Grace");
+
+        var m1 = new SongManager(_songsDir, _setlistsDir, _appDbPath);
+        await m1.LoadAllSongsAsync();
+        var song = m1.Songs[0];
+
+        // Edit + save. The DB is authoritative; the json backup should also be refreshed.
+        song.Bpm = 123.45;
+        song.Title = "Amazing Grace (edited)";
+        await m1.SaveSongAsync(song);
+
+        // json backup rewritten with the new value.
+        var backup = await File.ReadAllTextAsync(Path.Combine(folder, "song.json"));
+        Assert.Contains("123.45", backup);
+        Assert.Contains("Amazing Grace (edited)", backup);
+
+        // A fresh manager (DB-authoritative load) reflects the saved change.
+        var m2 = new SongManager(_songsDir, _setlistsDir, _appDbPath);
+        await m2.LoadAllSongsAsync();
+        var reloaded = Assert.Single(m2.Songs);
+        Assert.Equal("Amazing Grace (edited)", reloaded.Title);
+        Assert.Equal(123.45, reloaded.Bpm, 2);
+    }
+
+    [Fact]
+    public async Task Remove_DeletesDbRow_SongDoesNotReappearOnReload()
+    {
+        WriteSong("Amazing_Grace", "Amazing Grace", "John Newton", "G");
+        WriteSong("Grace_Flows", "Grace Flows Down", "Christy Nockels", "D");
+
+        var m1 = new SongManager(_songsDir, _setlistsDir, _appDbPath);
+        await m1.LoadAllSongsAsync();
+        Assert.Equal(2, m1.Songs.Count);
+
+        var toRemove = m1.Songs.First(s => s.Title == "Amazing Grace");
+        await m1.RemoveSongAsync(toRemove, deleteFiles: false);
+
+        Assert.Single(m1.Songs);
+        Assert.Equal(1, CountRows("Songs")); // row deleted from the authoritative table
+
+        // Even though the song.json backup still exists on disk, the removed song must NOT
+        // reappear — the DB is authoritative and the row is gone.
+        Assert.True(File.Exists(Path.Combine(_songsDir, "Amazing_Grace", "song.json")));
+        var m2 = new SongManager(_songsDir, _setlistsDir, _appDbPath);
+        await m2.LoadAllSongsAsync();
+        var remaining = Assert.Single(m2.Songs);
+        Assert.Equal("Grace Flows Down", remaining.Title);
+    }
+
+    [Fact]
+    public async Task Load_SkipsSongsWhoseFolderNoLongerExists()
+    {
+        WriteSong("Amazing_Grace", "Amazing Grace", "John Newton", "G");
+        var folder = Path.Combine(_songsDir, "Amazing_Grace");
+
+        var m1 = new SongManager(_songsDir, _setlistsDir, _appDbPath);
+        await m1.LoadAllSongsAsync();
+        Assert.Single(m1.Songs);
+
+        // Remove the whole folder (audio stems gone). The DB row still exists, but the song can't
+        // play, so a reload must NOT surface it.
+        Directory.Delete(folder, recursive: true);
+
+        var m2 = new SongManager(_songsDir, _setlistsDir, _appDbPath);
+        await m2.LoadAllSongsAsync();
+        Assert.Empty(m2.Songs);
+    }
+
     private void WriteSong(string folderName, string title, string artist, string key)
     {
         var folder = Path.Combine(_songsDir, folderName);

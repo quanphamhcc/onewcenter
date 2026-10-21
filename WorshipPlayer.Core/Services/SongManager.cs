@@ -78,12 +78,41 @@ CREATE TABLE IF NOT EXISTS Setlists (
         Songs.Clear();
 
         if (!Directory.Exists(_songsBasePath))
-        {
             Directory.CreateDirectory(_songsBasePath);
-            return;
+
+        // SQL is now the SOURCE OF TRUTH for song metadata. EnsureInitializedAsync creates the
+        // schema and, the FIRST time the table is empty, imports any existing song.json files
+        // (base-path folders + registry) into the DB so nothing is lost on the cutover. After
+        // that, songs load from app.db; the per-folder song.json files are only a backup/export.
+        try
+        {
+            await EnsureInitializedAsync();
+            var fromDb = await ReadAllSongsFromDbAsync();
+            if (fromDb.Count > 0)
+            {
+                // Drop songs whose folder no longer exists on disk (the audio stems are gone), so a
+                // stale row never surfaces a song that cannot actually play. Keep rows for valid
+                // folders even if their song.json backup was deleted — the DB is authoritative.
+                foreach (var song in fromDb)
+                {
+                    if (!string.IsNullOrEmpty(song.FolderPath) && Directory.Exists(song.FolderPath))
+                        Songs.Add(song);
+                }
+                if (Songs.Count > 0)
+                    return;
+            }
+        }
+        catch (Exception ex)
+        {
+            // If the DB is unavailable/corrupt, fall through to the on-disk JSON scan below so the
+            // app still loads from the backup files rather than showing an empty library.
+            Console.WriteLine($"DB song load failed, falling back to JSON scan: {ex.Message}");
+            Songs.Clear();
         }
 
-        // Scan subdirectories of the songs base path
+        // ── Fallback path (DB empty with no importable JSON, or DB unavailable) ──
+        // Load from the on-disk song.json backups exactly as before, then reconcile into the DB
+        // so subsequent loads come from SQL.
         foreach (var dir in Directory.GetDirectories(_songsBasePath))
         {
             var songJsonPath = Path.Combine(dir, "song.json");
@@ -106,13 +135,48 @@ CREATE TABLE IF NOT EXISTS Setlists (
             }
         }
 
-        // Also load songs from the registry (songs added from outside the base path)
         await LoadSongsFromRegistryAsync();
-
-        // Reconcile the SQLite mirror with the songs that ended up in the in-memory list
-        // (dedup already applied above). Best-effort: the in-memory list and its ordering come
-        // only from the folder scan + registry load; a DB failure here is swallowed.
         await ReconcileSongsSafeAsync(Songs);
+    }
+
+    /// <summary>
+    /// Read every song from the authoritative <c>Songs</c> table, reconstructing each from its
+    /// <c>DataJson</c> column (the full serialized <see cref="Song"/>) and restoring the
+    /// <see cref="Song.FolderPath"/> from the primary-key column (FolderPath is <c>[JsonIgnore]</c>
+    /// so it is not inside DataJson). Ordered by Title for a stable listing. Throws only on a real
+    /// DB failure (the caller handles fallback); a single malformed row is skipped.
+    /// </summary>
+    private async Task<List<Song>> ReadAllSongsFromDbAsync()
+    {
+        var result = new List<Song>();
+
+        using var connection = _database.CreateConnection();
+        await connection.OpenAsync();
+
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT FolderPath, DataJson FROM Songs ORDER BY Title COLLATE NOCASE";
+
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var folderPath = reader.GetString(0);
+            var dataJson = reader.GetString(1);
+            try
+            {
+                var song = JsonSerializer.Deserialize<Song>(dataJson, _jsonOptions);
+                if (song != null)
+                {
+                    song.FolderPath = folderPath; // restore the [JsonIgnore] identity from the key
+                    result.Add(song);
+                }
+            }
+            catch
+            {
+                // Skip a single corrupt DataJson row; the rest of the library still loads.
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -219,20 +283,30 @@ CREATE TABLE IF NOT EXISTS Setlists (
         if (string.IsNullOrEmpty(song.FolderPath))
             throw new InvalidOperationException("Song folder path is not set.");
 
-        var songJsonPath = Path.Combine(song.FolderPath, "song.json");
-
-        // Auto-backup before overwriting
-        if (File.Exists(songJsonPath))
+        // SQL is the SOURCE OF TRUTH: commit the song to app.db FIRST and let a DB failure throw
+        // (the save genuinely failed if the authoritative store could not be written).
+        await EnsureInitializedAsync();
+        using (var connection = _database.CreateConnection())
         {
-            BackupSongJson(songJsonPath);
+            await connection.OpenAsync();
+            await UpsertSongRowAsync(connection, null, song);
         }
 
-        var json = JsonSerializer.Serialize(song, _jsonOptions);
-        await File.WriteAllTextAsync(songJsonPath, json);
+        // Then write song.json as a human-readable BACKUP/export (best-effort). A backup-write
+        // failure must NOT fail the save, since the authoritative DB write already succeeded.
+        try
+        {
+            var songJsonPath = Path.Combine(song.FolderPath, "song.json");
+            if (File.Exists(songJsonPath))
+                BackupSongJson(songJsonPath); // rotate song.json.1..5 before overwriting
 
-        // Mirror the saved song into app.db keyed by the normalized folder path (= identity).
-        // Best-effort: song.json is authoritative and already written above.
-        await UpsertSongRowSafeAsync(song);
+            var json = JsonSerializer.Serialize(song, _jsonOptions);
+            await File.WriteAllTextAsync(songJsonPath, json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"song.json backup write failed (DB save succeeded): {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -426,19 +500,44 @@ CREATE TABLE IF NOT EXISTS Setlists (
     {
         Songs.Remove(song);
 
+        // SQL is authoritative: delete the row so the song does not reappear on next load.
         if (!string.IsNullOrEmpty(song.FolderPath))
         {
+            await DeleteSongRowAsync(song.FolderPath);
+
+            // Keep the backup registry file in sync too (best-effort).
             await UnregisterSongPathAsync(song.FolderPath);
 
             if (deleteFiles && Directory.Exists(song.FolderPath))
             {
                 try { Directory.Delete(song.FolderPath, true); }
-                catch { /* best-effort; the list/registry removal already succeeded */ }
+                catch { /* best-effort; the DB/list/registry removal already succeeded */ }
             }
         }
+    }
 
-        // Keep the SQLite mirror in sync with the now-reduced loaded set (best-effort).
-        await ReconcileSongsSafeAsync(Songs);
+    /// <summary>
+    /// Delete a song's row from the authoritative <c>Songs</c> table, keyed by normalized folder
+    /// path. Best-effort reconcile fallback is no longer needed — this is the explicit, primary
+    /// removal. Swallows DB errors only so a locked/absent DB does not crash the UI remove action;
+    /// the in-memory list removal (done by the caller) still takes effect this session.
+    /// </summary>
+    private async Task DeleteSongRowAsync(string folderPath)
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            using var connection = _database.CreateConnection();
+            await connection.OpenAsync();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM Songs WHERE FolderPath = @FolderPath";
+            cmd.Parameters.AddWithValue("@FolderPath", SongPathResolver.Normalize(folderPath));
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to delete song row: {ex.Message}");
+        }
     }
 
     /// <summary>
