@@ -298,4 +298,122 @@ public class SlideServiceItemEditorModelTests : IDisposable
         Assert.Equal(AutoAdvanceGoTo.SpecificItem, mirroredItem.AutoAdvanceSettings!.AutoAdvanceGoTo);
         Assert.Equal("target-x", mirroredItem.AutoAdvanceSettings.GoToItemId);
     }
+
+    // ─── (f) FEAT-003: end-to-end host save path (JSON file round-trip) ──────
+
+    /// <summary>
+    /// FEAT-003 integration round-trip: a Slides item carrying all additive fields plus an
+    /// AutoAdvanceSettings with AutoAdvanceGoTo=SpecificItem + GoToItemId is saved through
+    /// ServiceOrderManager (the exact path the OperatorWindow host runs on Save-and-close), then
+    /// reloaded from the authoritative JSON file by a FRESH manager — the "restart" the UI depends
+    /// on. This verifies the host save path without any WPF dependency.
+    /// </summary>
+    [Fact]
+    public async Task HostSavePath_SlidesItem_RoundTripsThroughJsonFile()
+    {
+        var serviceOrdersFolder = Path.Combine(_tempFolder, "ServiceOrders");
+        Directory.CreateDirectory(serviceOrdersFolder);
+        var dbPath = Path.Combine(_tempFolder, "app.db");
+
+        var manager = new ServiceOrderManager(serviceOrdersFolder, dbPath);
+        var order = manager.CreateNew("Host Save Test", "2026-02-14");
+        var item = new ServiceItem
+        {
+            Id = "slides-item",
+            Type = ServiceItemType.Slides,
+            Title = "Linked Slides",
+            SlidePresentationId = "pres-1",
+            BackgroundType = BackgroundType.Video,
+            MediaPath = "C:\\media\\loop.mp4",
+            MediaType = MediaItemType.Video,
+            TransitionTimeMs = 1200,
+            AudioAttachments = new List<string> { "one.wav", "two.wav" },
+            AudioAttachmentPath = "one.wav",
+            StageTemplateId = "stage-42",
+            AutoAdvanceSettings = new ServiceItemSettings
+            {
+                AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.Timer,
+                AutoAdvanceGoTo = AutoAdvanceGoTo.SpecificItem,
+                GoToItemId = "target-item",
+                TransitionFadeTimeMs = 1200
+            }
+        };
+        manager.AddItem(item);
+
+        var filePath = manager.GetFilePathFor(order);
+        await manager.SaveAsync(filePath);
+
+        // Reload from the authoritative JSON file with a fresh manager (the UI "restart").
+        var reloadManager = new ServiceOrderManager(serviceOrdersFolder, dbPath);
+        var reloaded = await reloadManager.LoadAsync(filePath);
+
+        Assert.NotNull(reloaded);
+        var reloadedItem = Assert.Single(reloaded!.Items);
+        Assert.Equal(ServiceItemType.Slides, reloadedItem.Type);
+        Assert.Equal("pres-1", reloadedItem.SlidePresentationId);
+        Assert.Equal(BackgroundType.Video, reloadedItem.BackgroundType);
+        Assert.Equal("C:\\media\\loop.mp4", reloadedItem.MediaPath);
+        Assert.Equal(MediaItemType.Video, reloadedItem.MediaType);
+        Assert.Equal(1200, reloadedItem.TransitionTimeMs);
+        Assert.Equal(new[] { "one.wav", "two.wav" }, reloadedItem.AudioAttachments);
+        Assert.Equal("one.wav", reloadedItem.AudioAttachmentPath);
+        Assert.Equal("stage-42", reloadedItem.StageTemplateId);
+        Assert.NotNull(reloadedItem.AutoAdvanceSettings);
+        Assert.Equal(AutoAdvanceAfterCondition.Timer, reloadedItem.AutoAdvanceSettings!.AutoAdvanceAfterCondition);
+        Assert.Equal(AutoAdvanceGoTo.SpecificItem, reloadedItem.AutoAdvanceSettings.AutoAdvanceGoTo);
+        Assert.Equal("target-item", reloadedItem.AutoAdvanceSettings.GoToItemId);
+        Assert.Equal(1200, reloadedItem.AutoAdvanceSettings.TransitionFadeTimeMs);
+    }
+
+    // ─── (g) FEAT-003: the real service-order JSON files still load ──────────
+
+    /// <summary>
+    /// FEAT-003 regression guard: every real/demo service-order JSON shipped under the worktree's
+    /// ServiceOrders folder must still deserialize via ServiceOrderManager.LoadAsync after the
+    /// additive model fields were introduced. Each file copies into a temp ServiceOrders folder so
+    /// LoadAsync's SQLite mirror upsert hits a throwaway app.db (no runtime data is touched). If the
+    /// folder is not found (CI without the sample files), the test no-ops rather than failing.
+    /// </summary>
+    [Fact]
+    public async Task RealServiceOrderFiles_StillDeserializeWithoutError()
+    {
+        var sourceFolder = FindRepoServiceOrdersFolder();
+        if (sourceFolder == null) return; // sample files not present in this checkout — nothing to assert.
+
+        var realFiles = Directory.GetFiles(sourceFolder, "*.json");
+        if (realFiles.Length == 0) return;
+
+        var serviceOrdersFolder = Path.Combine(_tempFolder, "ServiceOrders");
+        Directory.CreateDirectory(serviceOrdersFolder);
+        var dbPath = Path.Combine(_tempFolder, "app.db");
+        var manager = new ServiceOrderManager(serviceOrdersFolder, dbPath);
+
+        foreach (var sourceFile in realFiles)
+        {
+            var copy = Path.Combine(serviceOrdersFolder, Path.GetFileName(sourceFile));
+            File.Copy(sourceFile, copy, overwrite: true);
+
+            var loaded = await manager.LoadAsync(copy);
+
+            Assert.NotNull(loaded);
+            Assert.NotNull(loaded!.Items);
+        }
+    }
+
+    /// <summary>
+    /// Walk up from the test assembly's base directory to the worktree root and return its
+    /// ServiceOrders folder, or null if not found.
+    /// </summary>
+    private static string? FindRepoServiceOrdersFolder()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "ServiceOrders");
+            if (Directory.Exists(candidate) && Directory.GetFiles(candidate, "*.json").Length > 0)
+                return candidate;
+            dir = dir.Parent;
+        }
+        return null;
+    }
 }

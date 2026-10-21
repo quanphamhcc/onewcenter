@@ -1532,6 +1532,69 @@ public partial class OperatorWindow : Window
         EditSelectedServiceItem();
     }
 
+    /// <summary>
+    /// FEAT-003: route a Slides service item to the dedicated <see cref="SlideServiceItemEditorWindow"/>.
+    /// Returns false (so the caller falls back to the generic AddServiceItemDialog) when the item is
+    /// not a Slides item, when no service order is loaded, or when any required service is unavailable.
+    /// On success it opens the editor modally, runs the remove/save/refresh flow, and returns true.
+    /// </summary>
+    private bool TryOpenSlideServiceItemEditor(ServiceItem item)
+    {
+        if (item.Type != ServiceItemType.Slides) return false;
+        if (_serviceOrderManager?.CurrentServiceOrder == null) return false;
+        if (_slidePresentationService == null || _mediaLibraryService == null || _templateService == null) return false;
+
+        var win = new SlideServiceItemEditorWindow(
+            item,
+            _serviceOrderManager.CurrentServiceOrder.Items,
+            _slidePresentationService,
+            _mediaLibraryService,
+            _templateService)
+        {
+            Owner = this
+        };
+
+        bool removed = false;
+        win.RemoveRequested += (_, __) =>
+        {
+            removed = true;
+            win.DialogResult = false;
+            win.Close();
+        };
+
+        bool saved = win.ShowDialog() == true;
+
+        // removed and saved are mutually exclusive. Run the persistence/refresh flow on the
+        // dispatcher so the awaited save/prime happens after ShowDialog returns.
+        _ = Dispatcher.InvokeAsync(async () =>
+        {
+            try
+            {
+                if (removed)
+                {
+                    int index = _serviceOrderManager.CurrentServiceOrder.Items.IndexOf(item);
+                    if (index >= 0) _serviceOrderManager.RemoveItem(index);
+                }
+                else if (!saved)
+                {
+                    return; // discarded: nothing was copied back.
+                }
+                // On save the window already copied the edited fields back onto the live item.
+
+                await SaveServiceOrderAsync();
+                await PrimeSlidePresentationCacheAsync();
+                RefreshServiceOrderList();
+                RefreshSlideSections();
+            }
+            catch (Exception ex)
+            {
+                ShowToolError("Edit Service Item", ex.Message);
+            }
+        });
+
+        return true;
+    }
+
     private void EditSelectedServiceItem()
     {
         try
@@ -1539,6 +1602,10 @@ public partial class OperatorWindow : Window
             if (_serviceOrderManager == null) return;
             if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display) return;
             if (display.Item == null) return; // C2: ignore group-header rows.
+
+            // FEAT-003: Slides items open the dedicated editor; every other type falls through
+            // to the generic AddServiceItemDialog below.
+            if (TryOpenSlideServiceItemEditor(display.Item)) return;
 
             var dialog = new AddServiceItemDialog
             {
@@ -2257,6 +2324,10 @@ public partial class OperatorWindow : Window
         try
         {
             if (_serviceOrderManager == null) return;
+
+            // FEAT-003: Slides items open the dedicated editor; every other type falls through
+            // to the generic AddServiceItemDialog below.
+            if (TryOpenSlideServiceItemEditor(item)) return;
 
             var dialog = new AddServiceItemDialog
             {
