@@ -695,6 +695,20 @@ public partial class OperatorWindow : Window
             {
                 await PrimeSlidePresentationCacheAsync();
                 RefreshSlideSections();
+
+                // This async rebuild clears + rebuilds SlideSectionsPanel and resets scroll to
+                // the top, clobbering any earlier selection scroll (and for Slides items the
+                // section height only settles after the cache is primed here). Re-issue the
+                // scroll to the engine's CURRENT item after this LAST rebuild, deferred to
+                // DispatcherPriority.Loaded so it runs post-layout against the final section
+                // height. Keying off _engine.CurrentItem (the live ServiceItem, same instance
+                // used as the _sectionByItem key) means the latest selection wins on rapid
+                // navigation. Type-agnostic: reuses the shared ScrollToSection/_sectionByItem.
+                var current = _engine?.CurrentItem;
+                if (current != null)
+                {
+                    Dispatcher.InvokeAsync(() => ScrollToSection(current), System.Windows.Threading.DispatcherPriority.Loaded);
+                }
             });
         });
     }
@@ -1497,9 +1511,14 @@ public partial class OperatorWindow : Window
 
             // All-sections pane: selection no longer REPLACES the center content. Every
             // section stays rendered; we just scroll the right pane to the matching section.
-            // The rebuild above has already run synchronously via ItemChanged, so the map
-            // holds this item's section element.
-            ScrollToSection(display.Item);
+            // The synchronous rebuild via ItemChanged has re-registered the section element,
+            // but WPF has not yet run a Measure/Arrange pass on the freshly built elements, so
+            // a BringIntoView issued now would target an un-arranged element and no-op / snap
+            // to top. Defer the scroll to DispatcherPriority.Loaded so it runs after layout.
+            // Capture the selected item in a local so a rapid second selection does not scroll
+            // to a stale item. Keyed by the ServiceItem (type-agnostic) via _sectionByItem.
+            var target = display.Item;
+            Dispatcher.InvokeAsync(() => ScrollToSection(target), System.Windows.Threading.DispatcherPriority.Loaded);
         }
     }
 
