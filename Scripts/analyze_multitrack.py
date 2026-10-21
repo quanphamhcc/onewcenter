@@ -960,12 +960,30 @@ def transcribe_with_whisper(classified: Dict, grid: Dict, time_sig: int = 4) -> 
     print("    Loading Whisper model (base)...")
     model = whisper.load_model("base")
 
+    def _transcribe(path: str):
+        """Transcribe an audio file with word timestamps.
+
+        Whisper normally shells out to ffmpeg to decode audio. On machines where
+        ffmpeg is not on PATH that raises WinError 2 and we lose ALL word
+        timestamps (which breaks vocal-aligned lyric placement). To stay robust,
+        decode the file ourselves with librosa (already a dependency) to the
+        16kHz mono float32 Whisper expects, and hand the array directly to the
+        model. Falls back to the normal file-path call if local decode fails.
+        """
+        try:
+            audio, _ = librosa.load(path, sr=16000, mono=True)
+            audio = np.asarray(audio, dtype=np.float32)
+            return model.transcribe(audio, word_timestamps=True)
+        except Exception as decode_err:
+            print(f"      (librosa decode failed: {decode_err}; trying ffmpeg path)")
+            return model.transcribe(path, word_timestamps=True)
+
     # Transcribe cue track first (highest value — may give us sections directly)
     cue_path = classified.get('cue')
     if cue_path and os.path.exists(cue_path):
         print(f"    Transcribing cue track: {Path(cue_path).name}")
         try:
-            cue_result = model.transcribe(cue_path, word_timestamps=True)
+            cue_result = _transcribe(cue_path)
 
             for segment in cue_result.get('segments', []):
                 seg_start = segment['start']
@@ -984,7 +1002,7 @@ def transcribe_with_whisper(classified: Dict, grid: Dict, time_sig: int = 4) -> 
     if vocal_path and os.path.exists(vocal_path):
         print(f"    Transcribing vocals: {Path(vocal_path).name}")
         try:
-            vocal_result = model.transcribe(vocal_path, word_timestamps=True)
+            vocal_result = _transcribe(vocal_path)
 
             for segment in vocal_result.get('segments', []):
                 seg_start = segment['start']
@@ -3141,6 +3159,191 @@ def _get_rms_at(audio_path: str, position_sec: float, duration_sec: float) -> fl
 # SNAP SECTIONS TO GRID
 # ═══════════════════════════════════════════════════════════════════════
 
+def sections_from_lyrics_timing(section_hints: List[str], section_lyrics: Dict[str, str],
+                                whisper_data: Dict, grid: Dict,
+                                vocal_data: Dict = None, time_sig: int = 4) -> Optional[List[Dict]]:
+    """Build section boundaries DIRECTLY from where the lyrics are actually sung.
+
+    This is the preferred path when the user provides BOTH the exact section list
+    (section_hints, in song order) AND the lyrics for each section, and Whisper has
+    produced word-level timestamps.
+
+    Instead of detecting sections independently and then trying to reconcile a
+    differently-ordered lyric list onto them (which misaligns lyrics vs. vocals),
+    we anchor each lyric block to the point in the vocal transcript where its
+    opening words are actually sung. The result:
+      - section count / names / order EXACTLY match the user's input
+      - each section's time range starts where that section's words are sung
+      - lyrics are aligned to the vocals by construction
+
+    Returns a list of {name, startBar, endBar, _assigned_text} sections, or None if
+    this path cannot be used (missing data) so the caller can fall back.
+    """
+    import re
+
+    word_timestamps = whisper_data.get('word_timestamps', [])
+    if not section_hints or not section_lyrics or not word_timestamps:
+        return None
+
+    print("  Building sections from lyric timing (vocal-aligned)...")
+
+    bar_duration_sec = grid['beat_interval_sec'] * time_sig
+    grid_anchor_sec = grid['grid_anchor_sec']
+    total_bars = max(1, int((grid['total_duration_sec'] - grid_anchor_sec) / bar_duration_sec))
+
+    def clean_words(text: str) -> List[str]:
+        """Extract clean lowercase words from lyrics (strip [chords], punctuation,
+        and non-lyric markers like 'Page 1/2')."""
+        text = re.sub(r'\[[^\]]*\]', '', text)
+        text = re.sub(r'(?i)\bpage\s*\d+\s*/\s*\d+\b', '', text)
+        text = re.sub(r'[^\w\s]', '', text.lower())
+        return [w for w in text.split() if len(w) > 1]
+
+    # Normalized Whisper word stream: [{word, start_sec}]
+    sung = []
+    for wt in word_timestamps:
+        w = re.sub(r'[^\w\s]', '', wt.get('word', '').lower().strip())
+        if len(w) > 1:
+            sung.append({'word': w, 'start_sec': float(wt.get('start_sec', 0))})
+    if not sung:
+        return None
+
+    def find_block_onset(block_words, search_from_idx):
+        """Find where a lyric block starts being sung, searching the Whisper word
+        stream forward from search_from_idx. Uses a short signature of the block's
+        leading words and finds the sung position with the best local word overlap.
+
+        Returns (onset_sec, sung_index_at_match) or (None, search_from_idx) if no
+        confident match.
+        """
+        signature = block_words[:6]
+        if not signature:
+            return None, search_from_idx
+
+        best_score = 0
+        best_idx = -1
+        window = len(signature) + 4  # allow for mis-transcribed / dropped words
+        for i in range(search_from_idx, len(sung)):
+            sw_window = [sung[j]['word'] for j in range(i, min(i + window, len(sung)))]
+            score = 0
+            for sig in signature:
+                for sw in sw_window:
+                    if sig == sw:
+                        score += 2
+                        break
+                    if len(sig) >= 3 and len(sw) >= 3 and (sig in sw or sw in sig):
+                        score += 1
+                        break
+            # Prefer the earliest strong match (respects song order)
+            if score > best_score:
+                best_score = score
+                best_idx = i
+                # Strong enough — stop early to keep boundaries in order
+                if score >= len(signature) * 2 * 0.67:
+                    break
+
+        # Require at least ~50% signature overlap to trust the onset
+        if best_idx >= 0 and best_score >= max(2, len(signature)):
+            return sung[best_idx]['start_sec'], best_idx + 1
+        return None, search_from_idx
+
+    # Build ordered blocks from the hint list
+    blocks = []
+    for name in section_hints:
+        text = None
+        for key, val in section_lyrics.items():
+            if key.upper().strip() == name.upper().strip():
+                text = val
+                break
+        if text is None:
+            for key, val in section_lyrics.items():
+                if key.upper().strip() in name.upper().strip() or \
+                   name.upper().strip() in key.upper().strip():
+                    text = val
+                    break
+        blocks.append({'name': name, 'text': text or '', 'words': clean_words(text or '')})
+
+    # Vocal onset (bar) as a floor for the first SUNG section
+    vocal_onset_bar = (vocal_data or {}).get('vocal_onset_bar') or 1
+
+    # Resolve an onset time for each block in order
+    search_idx = 0
+    onsets = []  # onset_sec per block (None = instrumental / unresolved)
+    for b in blocks:
+        if not b['words']:
+            onsets.append(None)  # instrumental section (e.g. INTRO with only chords)
+            continue
+        onset_sec, search_idx = find_block_onset(b['words'], search_idx)
+        onsets.append(onset_sec)
+
+    # Convert onsets to start bars; fill gaps by even spacing between known anchors.
+    def sec_to_bar(sec: float) -> int:
+        return max(1, min(total_bars, int(round((sec - grid_anchor_sec) / bar_duration_sec)) + 1))
+
+    start_bars: List[Optional[int]] = [None] * len(blocks)
+    for i, onset in enumerate(onsets):
+        if onset is not None:
+            start_bars[i] = sec_to_bar(onset)
+
+    # First section always starts at bar 1 (covers the lead-in / intro)
+    start_bars[0] = 1
+
+    # If the first SUNG block resolved before the measured vocal onset, clamp it.
+    for i, b in enumerate(blocks):
+        if b['words'] and start_bars[i] is not None:
+            if i > 0 and start_bars[i] < vocal_onset_bar:
+                start_bars[i] = vocal_onset_bar
+            break
+
+    # Fill unresolved (None) start bars by interpolating between known neighbours.
+    def next_known(idx: int) -> Optional[int]:
+        for j in range(idx + 1, len(start_bars)):
+            if start_bars[j] is not None:
+                return j
+        return None
+
+    i = 1
+    while i < len(start_bars):
+        if start_bars[i] is None:
+            prev_bar = start_bars[i - 1] or 1
+            nk = next_known(i)
+            if nk is None:
+                # No further anchor: evenly space remaining sections to the end
+                remaining = len(start_bars) - i
+                span = max(1, (total_bars + 1) - prev_bar)
+                step = max(1, span // (remaining + 1))
+                start_bars[i] = min(total_bars, prev_bar + step)
+            else:
+                gap_sections = nk - (i - 1)
+                span = max(1, start_bars[nk] - prev_bar)
+                step = max(1, span // gap_sections)
+                start_bars[i] = min(start_bars[nk] - 1, prev_bar + step) if start_bars[nk] > prev_bar + 1 else prev_bar + 1
+        i += 1
+
+    # Enforce strictly increasing, in-range start bars
+    for i in range(1, len(start_bars)):
+        if start_bars[i] <= start_bars[i - 1]:
+            start_bars[i] = min(total_bars, start_bars[i - 1] + 1)
+
+    # Build sections with end bar = next section start - 1 (last ends at total_bars)
+    sections = []
+    for i, b in enumerate(blocks):
+        start_bar = start_bars[i]
+        end_bar = (start_bars[i + 1] - 1) if i + 1 < len(blocks) else total_bars
+        end_bar = max(start_bar, end_bar)
+        sections.append({
+            'name': b['name'],
+            'startBar': start_bar,
+            'endBar': end_bar,
+            '_assigned_text': b['text'],
+        })
+
+    print(f"    ✓ Built {len(sections)} vocal-aligned sections from lyrics")
+    for s in sections:
+        print(f"      {s['name']}: bar {s['startBar']}-{s['endBar']}")
+    return sections
+
+
 def snap_sections_to_grid(sections: List[Dict], grid: Dict, time_sig: int = 4) -> List[Dict]:
     """Snap all section boundaries to exact bar downbeats using the click track grid."""
     bar_duration_sec = grid['beat_interval_sec'] * time_sig
@@ -3626,27 +3829,57 @@ def analyze_multitrack(folder_path: str, llm_mode: str = "openai",
             print(f"  ! Could not load section hints: {e}")
             section_hints = None
 
+    # Step 3d: Load section lyrics (user-provided text per section)
+    section_lyrics = None
+    lyrics_path = os.path.join(folder_path, '_section_lyrics.json')
+    if os.path.exists(lyrics_path):
+        try:
+            with open(lyrics_path, 'r', encoding='utf-8') as f:
+                section_lyrics = json.loads(f.read())
+        except Exception as e:
+            print(f"  ! Could not load section lyrics: {e}")
+            section_lyrics = None
+
     # Step 4: DETERMINE SECTION DETECTION PATH
     sections = None
+    lyrics_already_assigned = False
+
+    # PATH 0: LYRIC-DRIVEN (preferred when user gave exact sections + lyrics and
+    # Whisper produced word timestamps). Anchors each section to where its words
+    # are actually sung, so lyrics align to the vocals by construction.
+    if section_hints and section_lyrics and whisper_data.get('word_timestamps'):
+        print("\n  *** User sections + lyrics + Whisper words — using vocal-aligned pipeline ***")
+        vocal_data = analyze_vocals(classified, grid, time_sig)
+        lyric_sections = sections_from_lyrics_timing(
+            section_hints, section_lyrics, whisper_data, grid, vocal_data, time_sig
+        )
+        if lyric_sections and len(lyric_sections) >= 2:
+            sections = lyric_sections
+            lyrics_already_assigned = True
+            has_cue_track = False
 
     # PATH A: Cue track onset detection (timing-based, most reliable)
-    cue_onsets = detect_cue_onsets(classified, grid, time_sig)
-    if cue_onsets and len(cue_onsets) >= 3:
-        print("\n  *** CUE TRACK ONSETS DETECTED — using timing-based pipeline ***")
-        vocal_data = analyze_vocals(classified, grid, time_sig)
-        sections = sections_from_cue_onsets(
-            cue_onsets, grid, features, vocal_data, time_sig, llm_mode
-        )
-        has_cue_track = True
-    elif whisper_data.get('cue_labels'):
-        # PATH A2: Whisper transcribed cue labels (fallback)
-        print("\n  *** CUE LABELS FROM WHISPER — using text-based pipeline ***")
-        sections = sections_from_cue_track(
-            whisper_data['cue_labels'], grid, time_sig, llm_mode
-        )
-        has_cue_track = True
-    else:
+    # Skipped entirely if the lyric-driven path (PATH 0) already produced sections.
+    if sections:
         has_cue_track = False
+    else:
+        cue_onsets = detect_cue_onsets(classified, grid, time_sig)
+        if cue_onsets and len(cue_onsets) >= 3:
+            print("\n  *** CUE TRACK ONSETS DETECTED — using timing-based pipeline ***")
+            vocal_data = analyze_vocals(classified, grid, time_sig)
+            sections = sections_from_cue_onsets(
+                cue_onsets, grid, features, vocal_data, time_sig, llm_mode
+            )
+            has_cue_track = True
+        elif whisper_data.get('cue_labels'):
+            # PATH A2: Whisper transcribed cue labels (fallback)
+            print("\n  *** CUE LABELS FROM WHISPER — using text-based pipeline ***")
+            sections = sections_from_cue_track(
+                whisper_data['cue_labels'], grid, time_sig, llm_mode
+            )
+            has_cue_track = True
+        else:
+            has_cue_track = False
 
     if not sections:
         # PATH B: NO CUE TRACK → Vocal-first + supporting signals
@@ -3696,23 +3929,23 @@ def analyze_multitrack(folder_path: str, llm_mode: str = "openai",
     # at each section to the correct lyrics block from user-provided text.
     #
     # This ensures: boundaries are musically accurate (loops) AND lyrics match content.
-    lyrics_path = os.path.join(folder_path, '_section_lyrics.json')
-    if os.path.exists(lyrics_path):
+    # If the lyric-driven pipeline (PATH 0) already built vocal-aligned sections with
+    # text attached, skip this step — the lyrics are already correctly placed.
+    if lyrics_already_assigned:
+        print("  Lyrics already aligned by the vocal-aligned pipeline — skipping reassignment")
+    elif section_lyrics and section_hints:
         try:
-            with open(lyrics_path, 'r', encoding='utf-8') as f:
-                section_lyrics = json.loads(f.read())
-            if section_lyrics and section_hints:
-                print("__PROGRESS__|82|Assigning lyrics to sections...")
-                has_whisper_words = bool(whisper_data.get('word_timestamps'))
-                if has_whisper_words:
-                    # Best path: content matching using Whisper word timestamps
-                    sections = assign_lyrics_by_content(
-                        sections, section_hints, section_lyrics, whisper_data, grid, time_sig
-                    )
-                else:
-                    # Fallback: assign by name matching (no Whisper available)
-                    print("    (No Whisper timestamps — using name-based assignment)")
-                    sections = _assign_lyrics_by_order(sections, section_hints, section_lyrics)
+            print("__PROGRESS__|82|Assigning lyrics to sections...")
+            has_whisper_words = bool(whisper_data.get('word_timestamps'))
+            if has_whisper_words:
+                # Best path: content matching using Whisper word timestamps
+                sections = assign_lyrics_by_content(
+                    sections, section_hints, section_lyrics, whisper_data, grid, time_sig
+                )
+            else:
+                # Fallback: assign by name matching (no Whisper available)
+                print("    (No Whisper timestamps — using name-based assignment)")
+                sections = _assign_lyrics_by_order(sections, section_hints, section_lyrics)
         except Exception as e:
             print(f"  ! Lyrics assignment failed: {e}")
 
@@ -3734,7 +3967,9 @@ def analyze_multitrack(folder_path: str, llm_mode: str = "openai",
     print(f"  Key: {key}")
 
     # Step 8: Chord detection (for chord chart)
-    chords_for_chart = detect_chords_per_bar(classified, grid, time_sig) if has_cue_track else chords
+    # Reuse chords computed in the vocal-first path if available; otherwise detect
+    # now. (The lyric-driven and cue-track paths don't populate `chords`.)
+    chords_for_chart = chords if ('chords' in locals() and chords) else detect_chords_per_bar(classified, grid, time_sig)
 
     # Step 9: Build chord chart data (honors configured lines-per-slide + read-ahead lead)
     chord_chart = build_chord_chart(grid, sections, chords_for_chart, whisper_data, time_sig,

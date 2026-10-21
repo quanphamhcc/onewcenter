@@ -106,6 +106,99 @@
                 <Setter Property="Width" Value="30" />
                 <Setter Property="TickFrequency" Value="10" />
             </Style>
+
+            <!-- ═══ GLOBAL IMPLICIT COMBOBOX THEME ═══════════════════════════════════════════
+                 Applies to EVERY ComboBox app-wide (no x:Key) so dropdowns match the dark TextBox
+                 theme: dark box with light text, and a readable dark dropdown (default WPF renders
+                 the closed box text dim and the popup items white-on-white). The explicit template
+                 avoids the OS chrome that caused the unreadable Key/Time-Signature fields. -->
+
+            <!-- Readable items inside the dropdown popup (dark row, light text, highlight on hover/select). -->
+            <Style x:Key="OwcComboBoxItem" TargetType="ComboBoxItem">
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                <Setter Property="Background" Value="{StaticResource SecondaryDarkBrush}" />
+                <Setter Property="Padding" Value="8,5" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ComboBoxItem">
+                            <Border x:Name="ItemBorder"
+                                    Background="{TemplateBinding Background}"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsHighlighted" Value="True">
+                                    <Setter TargetName="ItemBorder" Property="Background"
+                                            Value="{StaticResource AccentBlueBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="ItemBorder" Property="Background"
+                                            Value="{StaticResource SurfaceDarkBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- The ComboBox itself: dark box, light text, custom toggle + dark popup. -->
+            <Style TargetType="ComboBox">
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                <Setter Property="Background" Value="{StaticResource SecondaryDarkBrush}" />
+                <Setter Property="BorderBrush" Value="#4A4A60" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="ItemContainerStyle" Value="{StaticResource OwcComboBoxItem}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ComboBox">
+                            <Grid>
+                                <ToggleButton x:Name="ToggleButton" Focusable="False"
+                                              IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                              ClickMode="Press">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="{StaticResource SecondaryDarkBrush}"
+                                                    BorderBrush="#4A4A60" BorderThickness="1"
+                                                    CornerRadius="3">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="20" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Path Grid.Column="1" HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"
+                                                          Data="M 0 0 L 4 4 L 8 0 Z"
+                                                          Fill="{StaticResource TextSecondaryBrush}" />
+                                                </Grid>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                </ToggleButton>
+                                <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  Margin="8,0,24,0"
+                                                  VerticalAlignment="Center" HorizontalAlignment="Left"
+                                                  TextElement.Foreground="{StaticResource TextPrimaryBrush}" />
+                                <Popup x:Name="Popup" Placement="Bottom"
+                                       IsOpen="{TemplateBinding IsDropDownOpen}"
+                                       AllowsTransparency="True" Focusable="False"
+                                       PopupAnimation="Slide">
+                                    <Border MinWidth="{TemplateBinding ActualWidth}"
+                                            MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                            Background="{StaticResource SecondaryDarkBrush}"
+                                            BorderBrush="#4A4A60" BorderThickness="1" CornerRadius="3">
+                                        <ScrollViewer>
+                                            <ItemsPresenter />
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

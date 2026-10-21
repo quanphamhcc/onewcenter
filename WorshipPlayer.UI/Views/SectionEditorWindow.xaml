@@ -257,11 +257,11 @@
                                           BorderBrush="#4A4A60"
                                           SelectionChanged="CountIn_SelectionChanged"
                                           ToolTip="Number of count-in (lead-in) beats before Beat 1 — the classic 1-2-3-4 count">
-                                    <ComboBoxItem Content="0 beats (off)" Tag="0" Foreground="Black" />
-                                    <ComboBoxItem Content="1 beat" Tag="1" Foreground="Black" />
-                                    <ComboBoxItem Content="2 beats" Tag="2" Foreground="Black" />
-                                    <ComboBoxItem Content="3 beats" Tag="3" Foreground="Black" />
-                                    <ComboBoxItem Content="4 beats" Tag="4" Foreground="Black" />
+                                    <ComboBoxItem Content="0 beats (off)" Tag="0" />
+                                    <ComboBoxItem Content="1 beat" Tag="1" />
+                                    <ComboBoxItem Content="2 beats" Tag="2" />
+                                    <ComboBoxItem Content="3 beats" Tag="3" />
+                                    <ComboBoxItem Content="4 beats" Tag="4" />
                                 </ComboBox>
                             </StackPanel>
                             <TextBlock x:Name="ManualBeat1Display" Text="" FontSize="10"

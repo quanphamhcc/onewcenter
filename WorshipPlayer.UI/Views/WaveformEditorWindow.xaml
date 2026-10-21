@@ -94,10 +94,10 @@
                               Background="#2B2B3D" Foreground="White" BorderBrush="#4A4A60"
                               SelectionChanged="SectionLinesPerSlide_Changed"
                               ToolTip="Lines per slide for THIS section (Global = use the Presenter default)">
-                        <ComboBoxItem Content="Global" Tag="" Foreground="Black" IsSelected="True" />
-                        <ComboBoxItem Content="2 lines" Tag="2" Foreground="Black" />
-                        <ComboBoxItem Content="3 lines" Tag="3" Foreground="Black" />
-                        <ComboBoxItem Content="4 lines" Tag="4" Foreground="Black" />
+                        <ComboBoxItem Content="Global" Tag="" IsSelected="True" />
+                        <ComboBoxItem Content="2 lines" Tag="2" />
+                        <ComboBoxItem Content="3 lines" Tag="3" />
+                        <ComboBoxItem Content="4 lines" Tag="4" />
                     </ComboBox>
                 </StackPanel>
                 <TextBox x:Name="LyricsTextBox" AcceptsReturn="True" TextWrapping="NoWrap"
