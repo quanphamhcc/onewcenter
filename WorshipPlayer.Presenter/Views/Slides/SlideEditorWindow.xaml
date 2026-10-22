@@ -24,11 +24,11 @@
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                         HorizontalAlignment="Right" VerticalAlignment="Center">
-                <Button Content="Close" Style="{StaticResource OwcButtonBase}"
-                        Click="Close_Click" MinWidth="80" Margin="0,0,8,0"/>
+                <Button Content="Close" Style="{StaticResource OwcTouchButton}"
+                        Click="Close_Click" MinWidth="80" MinHeight="36" Margin="0,0,8,0"/>
                 <Button x:Name="SaveButton" Content="Save and close"
                         Style="{StaticResource OwcBlueButton}"
-                        Click="SaveAndClose_Click" MinWidth="120"/>
+                        Click="SaveAndClose_Click" MinWidth="120" MinHeight="36"/>
             </StackPanel>
 
             <StackPanel VerticalAlignment="Center">
@@ -55,7 +55,7 @@
                         <Button DockPanel.Dock="Right" Content="+"
                                 Style="{StaticResource OwcBlueButton}"
                                 FontSize="16" FontWeight="Bold"
-                                Width="32" Height="28" Padding="0"
+                                Width="32" Height="32" Padding="0"
                                 Click="AddSlide_Click"
                                 ToolTip="Add slide"/>
                         <TextBlock Text="SLIDES" Foreground="{StaticResource OwcTextSecondaryBrush}"

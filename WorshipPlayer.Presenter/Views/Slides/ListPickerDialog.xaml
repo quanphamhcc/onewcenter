@@ -26,10 +26,10 @@
 
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
                     HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button Content="Cancel" Style="{StaticResource OwcButtonBase}"
-                    Click="Cancel_Click" MinWidth="80" Margin="0,0,8,0"/>
+            <Button Content="Cancel" Style="{StaticResource OwcTouchButton}"
+                    Click="Cancel_Click" MinWidth="80" MinHeight="36" Margin="0,0,8,0"/>
             <Button Content="Select" Style="{StaticResource OwcBlueButton}"
-                    Click="Select_Click" MinWidth="80"/>
+                    Click="Select_Click" MinWidth="80" MinHeight="36"/>
         </StackPanel>
 
         <Border Style="{StaticResource OwcPanelBorder}" Padding="8">

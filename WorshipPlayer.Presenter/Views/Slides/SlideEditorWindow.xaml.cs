@@ -36,6 +36,14 @@ public partial class SlideEditorWindow : Window
         _presentation = presentation;
         _service = service;
 
+        // The audience/output window (OutputWindow) runs Topmost=true while live and would
+        // otherwise sit ABOVE this modal and swallow the operator's clicks/taps (symptom:
+        // "Close is very hard to press"). Make this dialog Topmost + active so it always sits
+        // above the output window and receives input on the first try, matching the
+        // SlideServiceItemEditorWindow fix. Activate on load to take foreground.
+        Topmost = true;
+        Loaded += (_, _) => { Activate(); };
+
         // Keep Order dense/0-based before binding (handles legacy/sparse rows).
         SlideOperations.Normalize(_presentation.Slides);
 
