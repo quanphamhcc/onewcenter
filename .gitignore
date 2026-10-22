@@ -20,10 +20,10 @@ packages/
 Thumbs.db
 
 # Audio files (large - don't commit stems to git)
-# Uncomment below if you don't want audio in repo:
-# *.mp3
-# *.wav
-# *.flac
+# Enabled: audio stems are kept on disk but not tracked by git (untracked via git rm --cached in task T5).
+*.mp3
+*.wav
+*.flac
 
 # Redundant archive (stems are already extracted alongside it; too large for GitHub)
 Songs/TheBlessing.zip
