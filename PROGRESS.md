@@ -2,9 +2,10 @@
 
 ## Trạng thái hiện tại
 - Spec đang làm: `.kiro/specs/dot-1-khoa-bang-chung` (đợt 1 — "Khóa bằng chứng & nối mắt xích cuối của Slides")
-- Task đang làm: **T1** — Nộp BAO-CAO.md + bằng chứng build/test tại HEAD. ĐÃ nộp BAO-CAO.md; build/test KHÔNG hoàn tất được trên môi trường Linux (chi tiết ở nhật ký + CÂU HỎI CHỜ MUSE). Dừng chờ Muse theo đúng quy tắc (không sửa code tính năng để ép build).
-- Commit đã build: `b245e07` (nhánh kiro-current, HEAD khi chạy lệnh build/test).
-- Lần cập nhật cuối: 2026-10-22 17:36
+- Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật).
+- NETSDK1100 đã được giải: **mọi lệnh build/test trên sandbox Linux luôn thêm cờ `-p:EnableWindowsTargeting=true`** (theo Issue #2). Việc 0 đã build sạch + 854/854 test PASS trên Linux (xem nhật ký Việc 0).
+- Commit đã build mới nhất: `b86df8b` (nhánh kiro-current, HEAD khi chạy Việc 0 — code đồng nhất b245e07, chỉ thêm BAO-CAO.md).
+- Lần cập nhật cuối: 2026-10-23
 
 ## Nhật ký theo task
 <!-- Mẫu mỗi mục:
@@ -15,6 +16,26 @@
 - Tiêu chí nghiệm thu: đạt ... / chưa đạt ...
 - Commit: <hash + thông điệp>
 -->
+
+### [Việc 0] Chạy lại build + test bằng lệnh chuẩn có cờ EnableWindowsTargeting — 2026-10-23
+- Commit chạy lệnh (nhánh kiro-current): `b86df8b` (code đồng nhất b245e07 — chỉ thêm BAO-CAO.md so với b245e07).
+- Môi trường: **Linux sandbox**, .NET SDK `8.0.318`/`9.0.318` + `8.0.425`. Giải pháp NETSDK1100: thêm cờ `-p:EnableWindowsTargeting=true` (theo Issue #2).
+- **Lệnh build chuẩn đã chạy:**
+  `dotnet build WorshipBacktrackPlayer.sln -c Debug --nologo -p:EnableWindowsTargeting=true`
+- **Kết quả build (NGUYÊN VĂN, dòng tổng kết):**
+  ```
+  Build succeeded.
+      8 Warning(s)
+      0 Error(s)
+  ```
+  → **0 Error / 8 Warning** (8 cảnh báo nhỏ có sẵn: CS4014/CS1998/CS0414 ở OperatorWindow + MediaLibraryPanel; CS8604/CS0414 ở ChordChartWindow + WaveformEditorWindow). Khớp baseline Muse tại b245e07.
+- **Lệnh test chuẩn đã chạy:**
+  `dotnet test WorshipPlayer.Tests --nologo -p:EnableWindowsTargeting=true`
+- **Kết quả test (NGUYÊN VĂN):**
+  ```
+  Passed!  - Failed:     0, Passed:   854, Skipped:     0, Total:   854, Duration: 1 s - WorshipPlayer.Tests.dll (net8.0)
+  ```
+  → **854/854 PASS, 0 fail, 0 skip.** Khớp đúng baseline độc lập của Muse (854/854 tại b245e07). Câu hỏi NETSDK1100 của T1 coi như ĐÃ GIẢI.
 
 ### [task T1] Nộp BAO-CAO.md + bằng chứng build/test tại HEAD — 2026-10-22
 - Commit đã build (nhánh kiro-current): `b245e0759eac8b1cd39f3afcfbaff9da361f4b82` (ngắn: `b245e07`).
@@ -66,7 +87,8 @@
 ## CÂU HỎI CHỜ MUSE
 <!-- Yêu cầu nào mơ hồ/mâu thuẫn thì ghi ở đây, dừng việc liên quan, chờ Muse trả lời qua GitHub. -->
 
-### [task T1] Không build/test được trên môi trường Linux (lỗi NETSDK1100) — 2026-10-22
+### [ĐÃ GIẢI — task T1] Không build/test được trên môi trường Linux (lỗi NETSDK1100) — 2026-10-22
+> **ĐÃ GIẢI (Issue #2):** Muse trả lời — từ nay mọi lệnh build/test trên sandbox Linux phải thêm cờ `-p:EnableWindowsTargeting=true`. Việc 0 đã xác nhận: build sạch 0 Error / 8 Warning, test 854/854 PASS trên Linux. Câu hỏi bên dưới giữ lại để lưu vết.
 - Môi trường chạy lệnh là **Linux**, chỉ có .NET SDK (`8.0.425` + `9.0.318`) nhưng **không có targeting pack Windows desktop/WPF**. Ba project `WorshipPlayer.UI`, `WorshipPlayer.Presenter`, `WorshipPlayer.Audio` target `net8.0-windows`.
 - `dotnet build` toàn solution và `dotnet test` đều dừng ngay ở `WorshipPlayer.UI` với lỗi:
   `error NETSDK1100: To build a project targeting Windows on this operating system, set the EnableWindowsTargeting property to true.`
