@@ -40,15 +40,15 @@
     - [x] Build sạch + toàn bộ test pass.
   - Bằng chứng phải nộp: commit + mô tả kiểm chứng trong PROGRESS.md (giá trị trước/sau, kết quả build/test nguyên văn).
 
-- [ ] **T4 — Bảng trạng thái thật cho 7 panel/dialog đang mồ côi**
+- [x] **T4 — Bảng trạng thái thật cho 7 panel/dialog đang mồ côi** (bảng 7/7 trong PROGRESS.md mục ĐỀ XUẤT; 3/7 đã dùng, 4/7 mồ côi; chỉ phân tích, chưa nối/xóa)
   - Mục tiêu: Chấm dứt trạng thái mập mờ "có file tưởng đã xong" cho: `ServiceGroupPanel`, `BulkEditPanel`, `ItemSettingsPanel`, `PrintExportDialog`, `ImportMediaDialog`, `MediaMetadataPanel`, `ScriptureSlidePreview`.
   - Phạm vi LÀM:
     - Với từng mục: kiểm tra tại HEAD xem đã có cửa sổ/panel tương đương đang được dùng thật hay chưa (ví dụ BulkEditWindow/ItemSettingsWindow), rồi ghi vào `PROGRESS.md` (mục đề xuất) một bảng 7 dòng: tên — trạng thái thật — đề xuất một trong ba: (a) nối dây vào điểm vào cụ thể nào, (b) xóa vì đã có bản thay thế, (c) để lại có chủ đích kèm lý do.
     - Dừng ở bảng đề xuất — CHƯA nối/xóa gì trong task này; Muse duyệt bảng rồi mới ra task thực thi ở đợt sau.
   - Phạm vi KHÔNG làm: không tự nối dây, không tự xóa file trong task này.
   - Tiêu chí nghiệm thu:
-    - [ ] Bảng đủ 7/7 mục, mỗi mục có căn cứ file:line hoặc kết quả grep.
-    - [ ] Không mục nào ghi chung chung kiểu "đang phát triển".
+    - [x] Bảng đủ 7/7 mục, mỗi mục có căn cứ file:line hoặc kết quả grep.
+    - [x] Không mục nào ghi chung chung kiểu "đang phát triển".
   - Bằng chứng phải nộp: bảng trong PROGRESS.md (commit + push).
 
 - [ ] **T5 — Vệ sinh repo: gỡ file nhạc khỏi git tracking + dọn file patch ở thư mục gốc**

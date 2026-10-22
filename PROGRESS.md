@@ -2,7 +2,7 @@
 
 ## Trạng thái hiện tại
 - Spec đang làm: `.kiro/specs/dot-1-khoa-bang-chung` (đợt 1 — "Khóa bằng chứng & nối mắt xích cuối của Slides")
-- Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật). **T3 XONG** (commit `0ddff03`, build sạch + 856/856 test PASS). Đang làm tiếp T4 → T5.
+- Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật). **T3 XONG** (commit `0ddff03`, build sạch + 856/856 test PASS). **T4 XONG** (bảng 7 panel/dialog ở mục ĐỀ XUẤT; chỉ phân tích, không code). Đang làm tiếp T5.
 - NETSDK1100 đã được giải: **mọi lệnh build/test trên sandbox Linux luôn thêm cờ `-p:EnableWindowsTargeting=true`** (theo Issue #2). Việc 0 đã build sạch + 854/854 test PASS trên Linux (xem nhật ký Việc 0).
 - Commit đã build mới nhất: `b86df8b` (nhánh kiro-current, HEAD khi chạy Việc 0 — code đồng nhất b245e07, chỉ thêm BAO-CAO.md).
 - Lần cập nhật cuối: 2026-10-23
@@ -16,6 +16,15 @@
 - Tiêu chí nghiệm thu: đạt ... / chưa đạt ...
 - Commit: <hash + thông điệp>
 -->
+
+### [task T4] Bảng trạng thái thật cho 7 panel/dialog mồ côi — 2026-10-23
+- **Loại việc:** CHỈ phân tích (theo spec T4: dừng ở bảng đề xuất, KHÔNG nối/xóa trong task này). Không chạm code → không có rủi ro hồi quy; build/test giữ nguyên baseline của Việc 0/T3 (0 error / 8 warning, 856/856 PASS).
+- **Đã làm:** Rà 7 panel/dialog tại HEAD `0ddff03` bằng grep `new <X>` + host trong XAML (loại bỏ file `obj/*.g.cs`). Ghi bảng 7 dòng đầy đủ (tên — trạng thái thật có file:line — đề xuất a/b/c) vào mục **ĐỀ XUẤT** phía dưới.
+- **Phát hiện chính:** Báo cáo nghiệm thu (N-4) liệt kê cả 7 là "mồ côi", nhưng rà lại tại HEAD thì **3/7 đã được dùng thật** (BulkEditPanel, ItemSettingsPanel, PrintExportDialog) — không còn mồ côi; **4/7 thật sự mồ côi**: ImportMediaDialog + ScriptureSlidePreview đã có bản thay thế đang chạy (đề xuất xóa), ServiceGroupPanel + MediaMetadataPanel là khung chưa nối và CHƯA có bản thay thế (đề xuất giữ).
+- **Tiêu chí nghiệm thu T4:**
+  - [x] Bảng đủ 7/7 mục, mỗi mục có căn cứ file:line/grep.
+  - [x] Không mục nào ghi chung chung kiểu "đang phát triển".
+- Commit: commit PROGRESS/tasks.md này (nhánh `main`). Không có commit code (đúng phạm vi).
 
 ### [task T3] Nối PresenterSettings.LinesPerSlide/SlideLeadMs vào SectionEditorWindow — 2026-10-23
 - Commit code (nhánh kiro-current): `0ddff03` — "[task T3] Noi PresenterSettings.LinesPerSlide/SlideLeadMs vao SectionEditorWindow". 2 file đổi, +41 dòng.
@@ -132,6 +141,21 @@
 
 ## ĐỀ XUẤT (việc ngoài phạm vi Kiro thấy cần — chỉ đề xuất, không tự làm)
 <!-- ... -->
+
+### [task T4] Bảng trạng thái thật cho 7 panel/dialog đang "mồ côi" — 2026-10-23 (CHỈ phân tích, CHƯA nối/xóa)
+Rà tại HEAD nhánh `kiro-current` (commit `0ddff03`). Căn cứ grep `new <X>` + host trong XAML (bỏ qua các file `obj/*.g.cs` sinh tự động). **3/7 thực ra ĐÃ được dùng**, không còn mồ côi; **4/7 thật sự mồ côi** và đều đã có bản thay thế đang chạy.
+
+| # | Panel/Dialog | Trạng thái thật (bằng chứng file:line) | Đề xuất |
+|---|---|---|---|
+| 1 | `ServiceGroupPanel` | **MỒ CÔI.** Chỉ xuất hiện trong chính `ServiceGroupPanel.xaml`/`.xaml.cs` (`class ServiceGroupPanel` tại `WorshipPlayer.Presenter/Views/ServiceBuilder/ServiceGroupPanel.xaml.cs:11`). Không có `new ServiceGroupPanel` và không XAML nào host nó. Tính năng "nhóm thứ tự thờ phượng" (ServiceGroupItem/GroupAdded ở `:13,:15`) chưa được nối vào ServiceBuilder. | **(c) Để lại có chủ đích** — là khung tính năng "service groups" chưa tới lượt nối theo roadmap. Giữ, chờ Muse ra task nối vào OperatorWindow ServiceBuilder khi ưu tiên. Không xóa (chưa có bản thay thế). |
+| 2 | `BulkEditPanel` | **ĐANG DÙNG — không còn mồ côi.** Được host bởi `BulkEditWindow.xaml:14` (`<local:BulkEditPanel x:Name="BulkEditPanelControl"/>`); `BulkEditWindow` được khởi tạo thật tại `OperatorWindow.xaml.cs:1759` (`new BulkEditWindow(selectedItems.Count){ Owner = this }`). | **(a) Đã nối rồi** qua BulkEditWindow → OperatorWindow bulk-edit. Không cần làm gì. |
+| 3 | `ItemSettingsPanel` | **ĐANG DÙNG — không còn mồ côi.** Host bởi `ItemSettingsWindow.xaml:14` (`<local:ItemSettingsPanel x:Name="SettingsPanelControl"/>`); `ItemSettingsWindow` khởi tạo thật tại `OperatorWindow.xaml.cs:1686` (`new ItemSettingsWindow(display.Item, ...Items)`). | **(a) Đã nối rồi** qua ItemSettingsWindow → OperatorWindow item-settings. Không cần làm gì. |
+| 4 | `PrintExportDialog` | **ĐANG DÙNG — không còn mồ côi.** Khởi tạo trực tiếp tại `OperatorWindow.xaml.cs:1877` trong handler `OnPrintService` (`:1861`), handler này bind vào menu `MenuPrintService` "Print service" tại `OperatorWindow.xaml:263`. | **(a) Đã nối rồi** vào menu "Print service" của OperatorWindow. Không cần làm gì. |
+| 5 | `ImportMediaDialog` | **MỒ CÔI.** Chỉ có trong file của chính nó (`class ImportMediaDialog : Window` tại `ImportMediaDialog.xaml.cs`, không có `new ImportMediaDialog` ở đâu). Luồng import media THẬT dùng `Microsoft.Win32.OpenFileDialog` trong `OnMediaImportRequested` (`OperatorWindow.xaml.cs:3267-3277`) → `ImportMediaFilesAsync`. | **(b) Xóa vì đã có bản thay thế** — OpenFileDialog + ImportMediaFilesAsync đang làm đúng việc import. `ImportMediaDialog` là bản cũ không ai gọi. Đề xuất Muse ra task xóa ở đợt sau (đợt này CHƯA xóa). |
+| 6 | `MediaMetadataPanel` | **MỒ CÔI.** Chỉ có trong file của chính nó (`class MediaMetadataPanel : UserControl` tại `MediaMetadataPanel.xaml.cs`). Không `new MediaMetadataPanel`, không XAML host; `MediaLibraryPanel` không tham chiếu metadata panel nào (grep "metadata" trong thư mục MediaLibrary = 0). | **(c) Để lại có chủ đích** — chưa có UI sửa metadata media thay thế (khác với các mục có bản thay thế). Là khung tính năng "sửa metadata media" chưa nối; giữ chờ Muse quyết nối vào MediaLibrary ở đợt sau. Không xóa vì KHÔNG có bản thay thế đang chạy. |
+| 7 | `ScriptureSlidePreview` | **MỒ CÔI.** Chỉ có trong file của chính nó (`class ScriptureSlidePreview : UserControl` tại `ScriptureSlidePreview.xaml.cs:11`, `GetLinesPerSlide` cục bộ). Không `new ScriptureSlidePreview`, không XAML host. Luồng Kinh Thánh THẬT dùng `ScriptureBrowserPanel` (khởi tạo tại `OperatorWindow.xaml.cs:2978`), panel này dùng Core `ScriptureSlideGenerator` + preview trong panel (`ScriptureBrowserPanel.xaml.cs:14,:22,:116`). | **(b) Xóa vì đã có bản thay thế** — ScriptureBrowserPanel (dùng Core ScriptureSlideGenerator, "the single splitting implementation") là bản đang chạy; ScriptureSlidePreview là bản preview cũ tự tách dòng, không ai gọi, dễ gây lệch logic tách slide. Đề xuất Muse ra task xóa ở đợt sau (đợt này CHƯA xóa). |
+
+**Tóm tắt cho Muse:** Nối sẵn (không cần làm): #2 BulkEditPanel, #3 ItemSettingsPanel, #4 PrintExportDialog. Đề xuất XÓA (có bản thay thế đang chạy): #5 ImportMediaDialog, #7 ScriptureSlidePreview. Đề xuất GIỮ (khung chưa nối, CHƯA có bản thay thế): #1 ServiceGroupPanel, #6 MediaMetadataPanel. Đúng phạm vi T4: dừng ở bảng, CHƯA nối/xóa gì — chờ Muse duyệt rồi ra task thực thi ở đợt sau.
 
 
 ### [Issue #1] Mo kenh lam viec - push kiro-current - 2026-10-22 12:54
