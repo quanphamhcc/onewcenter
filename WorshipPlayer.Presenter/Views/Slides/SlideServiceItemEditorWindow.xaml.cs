@@ -96,6 +96,13 @@ public partial class SlideServiceItemEditorWindow : Window
         TargetComboBox.ItemsSource = _targets;
 
         Loaded += OnLoaded;
+
+        // The audience/output window (OutputWindow) runs Topmost=true while live, which otherwise
+        // sits ABOVE this modal and swallows the operator's clicks (symptom: "Close is very hard to
+        // click — takes many tries"). Make this dialog Topmost + active so it always sits above the
+        // output window and receives clicks on the first try. Activate on load to take foreground.
+        Topmost = true;
+        Loaded += (_, _) => { Activate(); };
     }
 
     // ─── Population (all awaited work under _suppressDirty) ─────────────────────────────────────
@@ -821,6 +828,10 @@ public partial class SlideServiceItemEditorWindow : Window
         public string Label { get; }
         public MediaLibraryItem? Media { get; }
 
+        // The OwcDarkComboBox selection box can fall back to ToString() instead of honoring
+        // DisplayMemberPath, which showed the raw type name ("...SourceRow"). Return the label.
+        public override string ToString() => Label;
+
         public static SourceRow None() => new(SourceKind.None, "None", null);
         public static SourceRow Sentinel(string label) => new(SourceKind.Sentinel, label, null);
         public static SourceRow Library(MediaLibraryItem media) =>
@@ -837,6 +848,8 @@ public partial class SlideServiceItemEditorWindow : Window
 
         public string Id { get; }
         public string Label { get; }
+
+        public override string ToString() => Label;
     }
 
     private sealed class AudioRow
