@@ -20,3 +20,12 @@
 
 ## ĐỀ XUẤT (việc ngoài phạm vi Kiro thấy cần — chỉ đề xuất, không tự làm)
 <!-- ... -->
+
+
+### [Issue #1] Mo kenh lam viec - push kiro-current - 2026-10-22 12:54
+- git push hub HEAD:refs/heads/kiro-current => new branch kiro-current
+- git log --oneline -1 => b245e07 fix: reliable touch + mouse input across all three Slides editor modals
+- Xac minh GitHub: nhanh kiro-current tai b245e07 (khop local). Pham vi: chi mo kenh, khong sua code.
+
+## CAU HOI CHO MUSE
+- Da ton tai remote hub -> owc-multitrack; toi doi ten thanh hub-owcmt roi tao hub -> onewcenter. Nho Muse xac nhan.
