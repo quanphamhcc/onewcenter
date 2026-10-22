@@ -2962,6 +2962,10 @@ public partial class OperatorWindow : Window
                         // raises these and the host shows a "coming soon" notice.
                         _slidesLibraryPanel.EditPresentationRequested += OnEditPresentationRequested;
                         _slidesLibraryPanel.AddPresentationToServiceRequested += OnAddPresentationToServiceRequested;
+                        // Delete is routed through the host so it can warn about and remove the
+                        // CURRENT-service items that live-link the deleted presentation (otherwise
+                        // they would dangle). See OnDeletePresentationRequested.
+                        _slidesLibraryPanel.DeletePresentationRequested += OnDeletePresentationRequested;
                     }
                     SlidesPanelContent.Content = _slidesLibraryPanel;
                     SlidesPanel.Visibility = Visibility.Visible;
@@ -3557,6 +3561,75 @@ public partial class OperatorWindow : Window
         }
     }
 
+    // Host-owned delete of a Slides-library presentation. A Slides service item is a LIVE LINK by
+    // SlidePresentationId, so deleting the presentation would leave every current-service item that
+    // points at it dangling (resolves to nothing → sidebar/center keep the stale stored Title
+    // forever). This handler warns when N ≥ 1 current-service items link the presentation, deletes
+    // the presentation, removes those now-dangling items from the open service, then re-primes the
+    // cache and refreshes the sidebar/center + the library grid. Mirrors
+    // OnAddPresentationToServiceRequested's guard/try-catch + manager → SaveServiceOrderAsync →
+    // prime → refresh pattern. On "No" (or no service loaded and the user cancels) nothing changes.
+    private async void OnDeletePresentationRequested(object? sender, SlidePresentationListItem item)
+    {
+        try
+        {
+            if (_slidePresentationService == null) return;
+
+            var order = _serviceOrderManager?.CurrentServiceOrder;
+            int linkedCount = SlideLinkReconciler.CountItemsLinkingPresentation(order, item.Id);
+
+            var message = linkedCount > 0
+                ? $"Delete the presentation \"{item.Name}\"? This presentation is used by {linkedCount} item(s) " +
+                  "in the current service. Deleting it will also remove those item(s) from the service. " +
+                  "This cannot be undone."
+                : $"Delete the presentation \"{item.Name}\"? This cannot be undone.";
+
+            var result = MessageBox.Show(
+                this,
+                message,
+                "Delete Slides",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            await _slidePresentationService.DeleteAsync(item.Id);
+
+            // Remove the now-dangling current-service items (Type == Slides &&
+            // SlidePresentationId == deleted id). Remove by DESCENDING index so earlier removals do
+            // not shift the indices of later ones. RemoveItem also purges the id from its group and
+            // reorders (see ServiceOrderManager.RemoveItem).
+            if (order != null && _serviceOrderManager != null)
+            {
+                var indices = new List<int>();
+                for (int i = 0; i < order.Items.Count; i++)
+                {
+                    var si = order.Items[i];
+                    if (si.Type == ServiceItemType.Slides && si.SlidePresentationId == item.Id)
+                        indices.Add(i);
+                }
+
+                if (indices.Count > 0)
+                {
+                    for (int i = indices.Count - 1; i >= 0; i--)
+                        _serviceOrderManager.RemoveItem(indices[i]);
+                    await SaveServiceOrderAsync();
+                }
+            }
+
+            // Re-resolve linked presentations and rebuild the sidebar + center so the removed rows
+            // disappear immediately, then refresh the library grid so the deleted card is gone.
+            await PrimeSlidePresentationCacheAsync();
+            RefreshServiceOrderList();
+            RefreshSlideSections();
+            _slidesLibraryPanel?.RefreshGrid();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Delete Slides", ex.Message);
+        }
+    }
+
     /// <summary>
     /// Resolve (into <see cref="_slidePresentationCache"/>) the current library presentation for
     /// every live-linked Slides item in the open service, so the synchronous
@@ -3592,6 +3665,29 @@ public partial class OperatorWindow : Window
                 // DISPLAY name (sidebar row + center section header) is resolved at render time from
                 // this cache via ServiceItemDisplayName.ResolveDisplayName, so a rename shows live
                 // without mutating stored data.
+            }
+
+            // LOAD-TIME reconciliation: the cache now maps every live link to its presentation (or
+            // null when it was deleted elsewhere). A non-null entry means the presentation still
+            // exists; the set of those ids is exactly the "still exists" set. Any Slides item whose
+            // non-empty link id is NOT in that set is an ORPHAN (dangling live link) — drop it from
+            // the open service and persist the cleaned order so already-orphaned items (e.g. from a
+            // prior out-of-app delete) disappear on the next service open. The pure
+            // SlideLinkReconciler guarantees unlinked Slides items, resolvable Slides items, and all
+            // non-Slides items are never touched. This removal is terminal for this pass — it does
+            // NOT re-prime, so there is no recursion.
+            if (_serviceOrderManager != null)
+            {
+                var existingIds = new HashSet<string>(
+                    _slidePresentationCache.Where(kvp => kvp.Value != null).Select(kvp => kvp.Key));
+
+                var orphanIndices = SlideLinkReconciler.FindOrphanedSlideItemIndices(order, existingIds);
+                if (orphanIndices.Count > 0)
+                {
+                    for (int i = orphanIndices.Count - 1; i >= 0; i--)
+                        _serviceOrderManager.RemoveItem(orphanIndices[i]);
+                    await _serviceOrderManager.SaveAsync();
+                }
             }
         }
         catch (Exception ex)

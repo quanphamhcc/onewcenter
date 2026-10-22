@@ -47,6 +47,16 @@ public partial class SlidesLibraryPanel : UserControl
     /// </summary>
     public event EventHandler<SlidePresentationListItem>? AddPresentationToServiceRequested;
 
+    /// <summary>
+    /// Raised when the user picks ⋮ → "Delete" AND a host handler is subscribed. The host owns the
+    /// whole delete flow: it computes how many CURRENT-service items live-link this presentation,
+    /// shows a richer confirm when N ≥ 1 (deleting also removes those dangling items), deletes via
+    /// the service, cleans the service order, and refreshes the sidebar/center + this grid. When no
+    /// host handler is subscribed, <see cref="DeleteMenu_Click"/> keeps its original standalone
+    /// behavior (plain confirm → service delete → grid refresh).
+    /// </summary>
+    public event EventHandler<SlidePresentationListItem>? DeletePresentationRequested;
+
     public SlidesLibraryPanel()
     {
         InitializeComponent();
@@ -66,6 +76,12 @@ public partial class SlidesLibraryPanel : UserControl
 
         _ = LoadAsync();
     }
+
+    /// <summary>
+    /// Reload the library grid from the service. Intention-revealing alias of <see cref="Refresh"/>
+    /// for the host to call after it performs a delete so the removed card disappears.
+    /// </summary>
+    public void RefreshGrid() => Refresh();
 
     private async Task LoadAsync()
     {
@@ -153,11 +169,22 @@ public partial class SlidesLibraryPanel : UserControl
         }
     }
 
-    /// <summary>⋮ → Delete: confirm, then delete via the service and refresh. Functional in Stage 1.</summary>
+    /// <summary>
+    /// ⋮ → Delete. When a host handler is subscribed to <see cref="DeletePresentationRequested"/>,
+    /// raise it and return — the host owns confirm + delete + service-order cleanup + refresh (it
+    /// knows how many current-service items live-link this presentation). Otherwise fall back to the
+    /// original standalone behavior: plain confirm, delete via the service, refresh the grid.
+    /// </summary>
     private async void DeleteMenu_Click(object sender, RoutedEventArgs e)
     {
         if (_slidePresentationService == null) return;
         if (((FrameworkElement)sender).Tag is not SlidePresentationListItem item) return;
+
+        if (DeletePresentationRequested != null)
+        {
+            DeletePresentationRequested.Invoke(this, item);
+            return;
+        }
 
         var result = MessageBox.Show(
             Window.GetWindow(this),
