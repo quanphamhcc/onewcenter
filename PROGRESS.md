@@ -2,7 +2,7 @@
 
 ## Trạng thái hiện tại
 - Spec đang làm: `.kiro/specs/dot-1-khoa-bang-chung` (đợt 1 — "Khóa bằng chứng & nối mắt xích cuối của Slides")
-- Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật). **T3 XONG** (commit `0ddff03`, build sạch + 856/856 test PASS). **T4 XONG** (bảng 7 panel/dialog ở mục ĐỀ XUẤT; chỉ phân tích, không code). Đang làm tiếp T5.
+- Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật). **T3 XONG** (commit `0ddff03`, build sạch + 856/856 test PASS). **T4 XONG** (bảng 7 panel/dialog ở mục ĐỀ XUẤT; chỉ phân tích, không code). **T5 XONG** (commit `375b532`: gỡ track 25 mp3 + bật .gitignore + xóa latest-changes.patch; build sạch + 856/856 test PASS). **HẾT hàng đợi T3–T5** — không còn task nào trong chế độ liên tục (T2 hoãn).
 - NETSDK1100 đã được giải: **mọi lệnh build/test trên sandbox Linux luôn thêm cờ `-p:EnableWindowsTargeting=true`** (theo Issue #2). Việc 0 đã build sạch + 854/854 test PASS trên Linux (xem nhật ký Việc 0).
 - Commit đã build mới nhất: `b86df8b` (nhánh kiro-current, HEAD khi chạy Việc 0 — code đồng nhất b245e07, chỉ thêm BAO-CAO.md).
 - Lần cập nhật cuối: 2026-10-23
@@ -16,6 +16,36 @@
 - Tiêu chí nghiệm thu: đạt ... / chưa đạt ...
 - Commit: <hash + thông điệp>
 -->
+
+### [task T5] Vệ sinh repo: gỡ track file nhạc + dọn file patch ở gốc — 2026-10-23
+- Commit code (nhánh kiro-current): `375b532` — "[task T5] Ve sinh repo: go track 25 file .mp3 (giu tren dia), bat *.mp3/*.wav/*.flac trong .gitignore, xoa latest-changes.patch (noi dung da nam trong code)".
+- **Lựa chọn đã ghi rõ:** Dùng `git rm --cached` (gỡ track, GIỮ file trên đĩa) + bật dòng audio trong `.gitignore` — KHÔNG dùng Git LFS. Lý do: spec T5 cấm viết lại lịch sử git (không filter-repo/force-push); LFS cho file đã có trong lịch sử cũng cần rewrite history để thực sự nhẹ repo → ngoài phạm vi. Mục tiêu đạt được trong phạm vi: ngừng track nhạc từ nay, chặn commit nhạc tương lai.
+- **Đã làm:**
+  1. `git rm --cached` cho toàn bộ **25 file .mp3** (`$(git ls-files "*.mp3")`) — 8 ở gốc + 17 trong `Songs/TheBlessing/`. File vẫn còn nguyên trên đĩa (xác minh: `ls *.mp3 Songs/TheBlessing/*.mp3` = 25 file).
+  2. Sửa `.gitignore`: bỏ comment 3 dòng audio → bật `*.mp3`, `*.wav`, `*.flac`. Xác minh `git check-ignore 01_Click.mp3 Songs/TheBlessing/17_LeadVocal.mp3` → bị ignore (không bị add lại nhầm).
+  3. `latest-changes.patch` ở gốc (~12KB, là bản export commit `8ac095a` ngày 2026-07-21 "separate timestamps from lyrics"): **nội dung ĐÃ nằm trong code hiện tại** nên xóa khỏi repo theo spec. Bằng chứng: method `RecalculateSlideTimings()` (phần ADDED của patch) có mặt tại `WorshipPlayer.UI/Views/WaveformEditorWindow.xaml.cs:184`; các symbol patch gỡ bỏ (`Strip {timestamp} brackets`, `SlideTimestampRegex`, `RecalculateSlideTimingFromText`, `ExtractSlideBlocks`, `SetSlideTimestamps`) grep toàn `WorshipPlayer.UI/` = KHÔNG còn → patch đã áp dụng xong, file thừa.
+- **Dung lượng repo `.git` trước/sau:**
+  - Trước: **97M** (`du -sh .git`).
+  - Sau: **97M** (`du -sh .git`). KHÔNG đổi — đúng như kỳ vọng: `git rm --cached` chỉ gỡ khỏi index/commit mới, blob nhạc vẫn nằm trong lịch sử. Muốn `.git` nhẹ thật phải rewrite history (filter-repo) — việc đó spec CẤM ở T5. Lợi ích đạt được: các commit từ nay không kéo thêm nhạc; clone mới sau khi history được dọn (đợt khác, nếu Muse duyệt) mới nhẹ.
+- **Lệnh build chuẩn:** `dotnet build WorshipBacktrackPlayer.sln -c Debug --nologo -p:EnableWindowsTargeting=true`
+- **Kết quả build (NGUYÊN VĂN):**
+  ```
+  Build succeeded.
+      8 Warning(s)
+      0 Error(s)
+  ```
+- **Lệnh test chuẩn:** `dotnet test WorshipPlayer.Tests --nologo -p:EnableWindowsTargeting=true`
+- **Kết quả test (NGUYÊN VĂN):**
+  ```
+  Passed!  - Failed:     0, Passed:   856, Skipped:     0, Total:   856, Duration: 1 s - WorshipPlayer.Tests.dll (net8.0)
+  ```
+  → App vẫn build/test như trước (0 error / 8 warning, 856/856 PASS — gỡ track nhạc không ảnh hưởng build/test).
+- **Tiêu chí nghiệm thu T5:**
+  - [x] `git ls-files "*.mp3"` trả về **0** (xác minh sau commit). File nhạc vẫn còn trên đĩa (25 file).
+  - [x] Thư mục gốc không còn `latest-changes.patch` (đã xóa; nội dung đã trong code).
+  - [x] App vẫn build/test như trước (kết quả nguyên văn ở trên).
+  - [x] Không viết lại lịch sử git, không xóa file nhạc trên đĩa, không đụng code.
+- Commit: `375b532` (kiro-current) + commit PROGRESS/tasks.md này (main).
 
 ### [task T4] Bảng trạng thái thật cho 7 panel/dialog mồ côi — 2026-10-23
 - **Loại việc:** CHỈ phân tích (theo spec T4: dừng ở bảng đề xuất, KHÔNG nối/xóa trong task này). Không chạm code → không có rủi ro hồi quy; build/test giữ nguyên baseline của Việc 0/T3 (0 error / 8 warning, 856/856 PASS).

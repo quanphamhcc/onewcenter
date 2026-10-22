@@ -51,7 +51,7 @@
     - [x] Không mục nào ghi chung chung kiểu "đang phát triển".
   - Bằng chứng phải nộp: bảng trong PROGRESS.md (commit + push).
 
-- [ ] **T5 — Vệ sinh repo: gỡ file nhạc khỏi git tracking + dọn file patch ở thư mục gốc**
+- [x] **T5 — Vệ sinh repo: gỡ file nhạc khỏi git tracking + dọn file patch ở thư mục gốc** (commit kiro-current `375b532`: git rm --cached 25 mp3 + bật .gitignore + xóa latest-changes.patch; git ls-files "*.mp3"=0; build sạch + 856/856 test PASS)
   - Mục tiêu: Repo nhẹ lại và không còn file rác ở gốc, mà không mất bất kỳ file nào trên máy.
   - Phạm vi LÀM:
     - Bỏ track (giữ nguyên file trên đĩa) 25 file .mp3 ở thư mục gốc và trong `Songs/` (`git rm --cached`), bật các dòng loại audio trong `.gitignore` (đang bị comment) — hoặc đề xuất Git LFS trong PROGRESS.md nếu thấy cần giữ lịch sử file nhạc, ghi rõ lựa chọn.
@@ -59,7 +59,7 @@
     - Ghi lại dung lượng repo (.git) trước/sau vào PROGRESS.md.
   - Phạm vi KHÔNG làm: không viết lại lịch sử git (không filter-repo/force-push); không xóa file trên đĩa; không đụng code.
   - Tiêu chí nghiệm thu:
-    - [ ] `git ls-files "*.mp3"` trả về 0 (hoặc toàn bộ đã qua LFS theo lựa chọn đã ghi).
-    - [ ] Thư mục gốc không còn latest-changes.patch.
-    - [ ] App vẫn build/test như trước (kèm kết quả lệnh).
+    - [x] `git ls-files "*.mp3"` trả về 0 (chọn git rm --cached + .gitignore, KHÔNG dùng LFS — lý do ghi ở PROGRESS).
+    - [x] Thư mục gốc không còn latest-changes.patch.
+    - [x] App vẫn build/test như trước (0 error / 8 warning, 856/856 PASS — kết quả nguyên văn ở PROGRESS).
   - Bằng chứng phải nộp: PROGRESS.md (số liệu trước/sau + kết quả build/test) + commit.
