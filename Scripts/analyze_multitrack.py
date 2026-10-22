@@ -3208,6 +3208,14 @@ def sections_from_lyrics_timing(section_hints: List[str], section_lyrics: Dict[s
     if not sung:
         return None
 
+    # Each sung word also has an end time; keep it so we can find where a
+    # section's LAST word finishes (so a boundary never clips a held final word).
+    sung_end = []
+    for wt in word_timestamps:
+        w = re.sub(r'[^\w\s]', '', wt.get('word', '').lower().strip())
+        if len(w) > 1:
+            sung_end.append(float(wt.get('end_sec', wt.get('start_sec', 0))))
+
     def find_block_onset(block_words, search_from_idx):
         """Find where a lyric block starts being sung, searching the Whisper word
         stream forward from search_from_idx. Uses a short signature of the block's
@@ -3266,17 +3274,40 @@ def sections_from_lyrics_timing(section_hints: List[str], section_lyrics: Dict[s
     # Vocal onset (bar) as a floor for the first SUNG section
     vocal_onset_bar = (vocal_data or {}).get('vocal_onset_bar') or 1
 
-    # Resolve an onset time for each block in order
+    # Resolve an onset time for each block in order. Track the matched word index
+    # so we can also find where each section's LAST word ends.
     search_idx = 0
-    onsets = []  # onset_sec per block (None = instrumental / unresolved)
+    onsets = []        # onset_sec per block (None = instrumental / unresolved)
+    match_idx = []     # sung-stream index where each block's words begin (or None)
     for b in blocks:
         if not b['words']:
             onsets.append(None)  # instrumental section (e.g. INTRO with only chords)
+            match_idx.append(None)
             continue
+        prev_search = search_idx
         onset_sec, search_idx = find_block_onset(b['words'], search_idx)
         onsets.append(onset_sec)
+        # search_idx now points just past the matched onset word
+        match_idx.append((search_idx - 1) if onset_sec is not None else None)
 
-    # Convert onsets to start bars; fill gaps by even spacing between known anchors.
+    # The last sung word that belongs to block i ends just before block (i+1)'s
+    # first word begins. Use that to compute a vocal "gap" end time per section.
+    def block_vocal_end(i: int):
+        """End time (sec) of the last sung word belonging to block i, or None."""
+        start = match_idx[i]
+        if start is None:
+            return None
+        # Find the next block that actually matched a sung word
+        nxt_start = None
+        for j in range(i + 1, len(blocks)):
+            if match_idx[j] is not None:
+                nxt_start = match_idx[j]
+                break
+        last_word = (nxt_start - 1) if nxt_start is not None else (len(sung_end) - 1)
+        last_word = max(start, min(last_word, len(sung_end) - 1))
+        return sung_end[last_word] if last_word >= 0 else None
+
+    # Convert a time to the nearest bar boundary.
     def sec_to_bar(sec: float) -> int:
         return max(1, min(total_bars, int(round((sec - grid_anchor_sec) / bar_duration_sec)) + 1))
 
@@ -3325,11 +3356,55 @@ def sections_from_lyrics_timing(section_hints: List[str], section_lyrics: Dict[s
         if start_bars[i] <= start_bars[i - 1]:
             start_bars[i] = min(total_bars, start_bars[i - 1] + 1)
 
-    # Build sections with end bar = next section start - 1 (last ends at total_bars)
+    # Build sections. The boundary between section i and i+1 must sit AFTER
+    # section i's last sung word finishes, so a held final line (e.g. the tail of
+    # "I've been set free") is never clipped. Each boundary is snapped to the bar
+    # line nearest that section's last-word end (plus a release buffer), stepping
+    # to the next bar rather than clipping a word that is still ringing.
+    boundary_start = list(start_bars)  # start bar for each section (may be nudged)
+
+    # A held final word (e.g. the tail of "I've been set free") must not be cut.
+    # Whisper's word-end time is slightly short of the actual sung release, so add
+    # a small release buffer before deciding which bar the boundary belongs to.
+    RELEASE_BUFFER_SEC = 0.35
+
+    def bar_of_sec(sec: float) -> float:
+        """Fractional bar position of a time (1-based: bar 1 starts at anchor)."""
+        return (sec - grid_anchor_sec) / bar_duration_sec + 1.0
+
+    for i in range(len(blocks) - 1):
+        next_start = start_bars[i + 1]
+        v_end = block_vocal_end(i)
+        next_onset = onsets[i + 1]
+        if v_end is None:
+            continue
+
+        # Which bar line should the boundary sit on?
+        #  - It must be at or after the bar that still contains section i's last
+        #    sung word (plus a release buffer), so the word is never clipped.
+        #  - Prefer the bar line nearest the word-end so we don't over-extend.
+        word_end_bar_frac = bar_of_sec(v_end + RELEASE_BUFFER_SEC)
+        # Round to nearest bar line, but if that bar line falls BEFORE the buffered
+        # word end, step to the next bar (never clip the held word).
+        nearest_bar = int(round(word_end_bar_frac))
+        if nearest_bar < word_end_bar_frac - 1e-6:
+            nearest_bar += 1
+        needed_start = max(1, min(total_bars, nearest_bar))
+
+        # Keep boundaries in order and strictly increasing.
+        new_start = max(needed_start, boundary_start[i] + 1)
+        new_start = min(new_start, total_bars)
+        boundary_start[i + 1] = new_start
+
+    # Re-enforce strictly increasing after adjustment
+    for i in range(1, len(boundary_start)):
+        if boundary_start[i] <= boundary_start[i - 1]:
+            boundary_start[i] = min(total_bars, boundary_start[i - 1] + 1)
+
     sections = []
     for i, b in enumerate(blocks):
-        start_bar = start_bars[i]
-        end_bar = (start_bars[i + 1] - 1) if i + 1 < len(blocks) else total_bars
+        start_bar = boundary_start[i]
+        end_bar = (boundary_start[i + 1] - 1) if i + 1 < len(blocks) else total_bars
         end_bar = max(start_bar, end_bar)
         sections.append({
             'name': b['name'],
