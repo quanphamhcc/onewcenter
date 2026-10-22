@@ -59,6 +59,14 @@ public partial class SlideServiceItemEditorWindow : Window
     /// <summary>Raised ONLY by the Remove button. The host owns closing (sets DialogResult=false).</summary>
     public event EventHandler? RemoveRequested;
 
+    /// <summary>
+    /// Raised after the inner slide CONTENT editor (<see cref="SlideEditorWindow"/>) persists edits
+    /// to the linked presentation. Lets the host re-prime its cache / refresh the center grid so
+    /// newly-added slides show immediately, even if the user later Closes (discards) this editor.
+    /// This is NOT a service-item edit — it must never arm the dirty flag.
+    /// </summary>
+    public event EventHandler? LinkedPresentationSlidesEdited;
+
     /// <summary>The live item after a successful save; null if discarded or removed.</summary>
     public ServiceItem? Result { get; private set; }
 
@@ -123,6 +131,7 @@ public partial class SlideServiceItemEditorWindow : Window
             // Non-linked (legacy snapshot) item: header/display driven by Title; rename allowed.
             NameTextBlock.Text = _working.Title;
             LinkedPresentationText.Text = "(no presentation linked)";
+            UpdateEditSlidesButtonState(null);
             return;
         }
 
@@ -147,6 +156,32 @@ public partial class SlideServiceItemEditorWindow : Window
             LinkedPresentationText.Text = linked.Name;
             NameTextBlock.Text = ServiceItemDisplayName.ResolveDisplayName(_working, linked);
         }
+
+        UpdateEditSlidesButtonState(linked);
+    }
+
+    /// <summary>
+    /// Keeps the "Edit slides" / "+ Add slides" button consistent with the current link state.
+    /// Enabled only when a presentation is linked; label becomes "+ Add slides" when the linked
+    /// presentation currently has zero slides (the exact situation users got lost in), else
+    /// "Edit slides". This NEVER touches the dirty flag — it only reflects state.
+    /// </summary>
+    private void UpdateEditSlidesButtonState(SlidePresentation? linked)
+    {
+        bool hasLink = !string.IsNullOrEmpty(_working.SlidePresentationId);
+        EditSlidesButton.IsEnabled = hasLink;
+
+        if (!hasLink)
+        {
+            EditSlidesButton.Content = "Edit slides";
+            EditSlidesButton.ToolTip = "Link a presentation with Select first";
+            return;
+        }
+
+        EditSlidesButton.ToolTip = null;
+        EditSlidesButton.Content = (linked != null && linked.Slides.Count == 0)
+            ? "+ Add slides"
+            : "Edit slides";
     }
 
     private async System.Threading.Tasks.Task PopulateSourcesAsync()
@@ -422,7 +457,80 @@ public partial class SlideServiceItemEditorWindow : Window
             NameTextBlock.Text = ServiceItemDisplayName.ResolveDisplayName(_working, chosen);
         }
 
+        UpdateEditSlidesButtonState(chosen);
         MarkDirty();
+    }
+
+    /// <summary>
+    /// Opens the slide CONTENT editor (<see cref="SlideEditorWindow"/>) for the CURRENTLY-LINKED
+    /// presentation (resolved by id). This edits the presentation BY ID — it never snapshots slides
+    /// onto the service item and never changes <see cref="ServiceItem.SlidePresentationId"/> (that
+    /// is Select's job). On a successful inner save it refreshes the Slides-card display WITHOUT
+    /// arming this editor's dirty flag (the inner window already persisted via UpdateAsync), then
+    /// raises <see cref="LinkedPresentationSlidesEdited"/> so the host can re-prime/refresh.
+    /// </summary>
+    private async void EditSlides_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_working.SlidePresentationId)) return;
+
+        SlidePresentation? presentation;
+        try
+        {
+            presentation = await _slidePresentationService.GetByIdAsync(_working.SlidePresentationId);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[SlideServiceItemEditor] edit-slides load failed: {ex.Message}");
+            presentation = null;
+        }
+
+        if (presentation == null)
+        {
+            MessageBox.Show(this,
+                "This presentation could not be found. It may have been deleted. Use Select to link another presentation.",
+                "Edit Slides",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        var editor = new SlideEditorWindow(presentation, _slidePresentationService) { Owner = this };
+        if (editor.ShowDialog() != true) return;
+
+        // The inner window persisted the slide content itself. Refresh our display WITHOUT marking
+        // the service item dirty: re-fetch and update the Slides-card label + button, under the
+        // existing _suppressDirty discipline (save/restore the prior value).
+        var prevSuppress = _suppressDirty;
+        _suppressDirty = true;
+        try
+        {
+            SlidePresentation? refetched = null;
+            try
+            {
+                refetched = await _slidePresentationService.GetByIdAsync(_working.SlidePresentationId);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SlideServiceItemEditor] edit-slides re-fetch failed: {ex.Message}");
+            }
+
+            if (refetched != null)
+            {
+                if (_pendingPresentationName == null)
+                {
+                    LinkedPresentationText.Text = refetched.Name;
+                    NameTextBlock.Text = ServiceItemDisplayName.ResolveDisplayName(_working, refetched);
+                }
+                UpdateEditSlidesButtonState(refetched);
+            }
+        }
+        finally
+        {
+            _suppressDirty = prevSuppress;
+        }
+
+        // Let the host re-prime its cache / refresh the center grid so added slides show now.
+        LinkedPresentationSlidesEdited?.Invoke(this, EventArgs.Empty);
     }
 
     // ─── Background source ───────────────────────────────────────────────────────────────────────

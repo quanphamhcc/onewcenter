@@ -1580,6 +1580,26 @@ public partial class OperatorWindow : Window
             win.Close();
         };
 
+        // When the user edits slide CONTENT via the inner SlideEditorWindow, re-prime the host cache
+        // and refresh the sidebar/center grid through the EXISTING flow so added slides show now,
+        // even if the user later Closes (discards) the service-item editor.
+        win.LinkedPresentationSlidesEdited += (_, __) =>
+        {
+            _ = Dispatcher.InvokeAsync(async () =>
+            {
+                try
+                {
+                    await PrimeSlidePresentationCacheAsync();
+                    RefreshServiceOrderList();
+                    RefreshSlideSections();
+                }
+                catch (Exception ex)
+                {
+                    ShowToolError("Edit Service Item", ex.Message);
+                }
+            });
+        };
+
         bool saved = win.ShowDialog() == true;
 
         // removed and saved are mutually exclusive. Run the persistence/refresh flow on the
@@ -2185,9 +2205,20 @@ public partial class OperatorWindow : Window
                     // No slides to render. For a Song this almost always means the song has
                     // no lyrics yet (its sections carry no text) rather than a real load
                     // failure, so say so clearly instead of the misleading "could not load".
-                    var note = item.Type == ServiceItemType.Song
-                        ? "This song has no lyrics yet. Add lyrics in the song editor to see slides here."
-                        : "No slides to show for this item.";
+                    string note;
+                    if (item.Type == ServiceItemType.Song)
+                    {
+                        note = "This song has no lyrics yet. Add lyrics in the song editor to see slides here.";
+                    }
+                    else if (item.Type == ServiceItemType.Slides && !string.IsNullOrEmpty(item.SlidePresentationId))
+                    {
+                        // Linked Slides item with zero slides: point the user at where to add them.
+                        note = "This presentation has no slides yet. Open Edit and click + Add slides to create one.";
+                    }
+                    else
+                    {
+                        note = "No slides to show for this item.";
+                    }
                     grid.Children.Add(new TextBlock
                     {
                         Text = note,
