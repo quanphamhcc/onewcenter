@@ -2,16 +2,16 @@
 
 *Do Muse soạn, dựa trên Báo cáo nghiệm thu đợt 1 (nhánh kiro-current @ b245e07). Đợt này KHÔNG làm tính năng mới: mục tiêu là biến mọi "đã xong" hiện có thành "đã xong có bằng chứng", và nối nốt mắt xích còn hở của auto-timed slides. Làm đúng thứ tự T1 → T5; không bắt đầu task sau khi task trước chưa nộp bằng chứng.*
 
-- [ ] **T1 — Nộp BAO-CAO.md và bằng chứng build/test tại HEAD hiện tại**
+- [x] **T1 — Nộp BAO-CAO.md và bằng chứng build/test tại HEAD hiện tại** (Muse nghiệm thu ĐẠT tại b245e07: build sạch + 854/854 test PASS; Việc 0 xác nhận lại trên Linux với cờ EnableWindowsTargeting)
   - Mục tiêu: Repo có đủ hồ sơ để bất kỳ ai cũng build/chạy/test lại được, và trạng thái HEAD có bằng chứng lệnh thật.
   - Phạm vi LÀM:
     - Viết `BAO-CAO.md` ở thư mục gốc: tính năng đã xong / chưa xong (theo đúng trạng thái thật), cách chạy app từ source (lệnh, thư mục), môi trường cần có (.NET 8 SDK, Windows), ghi chú dữ liệu chạy thật nằm ở đâu (cảnh báo không xóa bin/obj).
     - Chạy tại commit HEAD của nhánh đang làm: `dotnet build WorshipPlayer.UI/WorshipPlayer.UI.csproj -c Debug --nologo` và `dotnet test --nologo`; dán nguyên văn dòng kết quả (số error/warning, số test pass/fail) vào `PROGRESS.md` trên nhánh `main` (theo mẫu có sẵn) và cập nhật luôn mục Trạng thái hiện tại.
   - Phạm vi KHÔNG làm: không sửa code tính năng; không dọn bin/obj; không đổi cấu trúc thư mục.
   - Tiêu chí nghiệm thu:
-    - [ ] `BAO-CAO.md` tồn tại ở thư mục gốc, đủ 4 phần: đã xong / chưa xong / cách chạy / môi trường.
-    - [ ] PROGRESS.md ghi đúng hash commit đã build, lệnh đã chạy, kết quả nguyên văn.
-    - [ ] Số test trong PROGRESS khớp số test khi Muse đối chiếu (khi có điều kiện chạy lại).
+    - [x] `BAO-CAO.md` tồn tại ở thư mục gốc, đủ 4 phần: đã xong / chưa xong / cách chạy / môi trường.
+    - [x] PROGRESS.md ghi đúng hash commit đã build, lệnh đã chạy, kết quả nguyên văn.
+    - [x] Số test trong PROGRESS khớp số test khi Muse đối chiếu (Muse: 854; Việc 0 trên Linux: 854).
   - Bằng chứng phải nộp: nội dung BAO-CAO.md + mục PROGRESS.md đã cập nhật (commit + push).
 
 - [ ] **T2 — Kiểm chứng tay cảm ứng + chuột cho 3 modal Slides (theo checklist có sẵn)**
@@ -27,7 +27,7 @@
     - [ ] Chuột vẫn hoạt động như trước (không hồi quy bản sửa a0baaed).
   - Bằng chứng phải nộp: verification.md đã bổ sung kết quả chạy tay + PROGRESS.md.
 
-- [ ] **T3 — Nối PresenterSettings.LinesPerSlide/SlideLeadMs vào SectionEditorWindow**
+- [x] **T3 — Nối PresenterSettings.LinesPerSlide/SlideLeadMs vào SectionEditorWindow** (commit kiro-current `0ddff03`; build 0 error/8 warning + 856/856 test PASS)
   - Mục tiêu: Cấu hình toàn cục (số dòng/slide + lead ms) trong Settings thật sự đến được pipeline tạo slide, thay vì luôn dùng mặc định 4/500.
   - Phạm vi LÀM:
     - Tại điểm mở `MainWindow.EditSections_Click` (MainWindow.xaml.cs:611): set `LinesPerSlide` và `SlideLeadMs` cho `SectionEditorWindow` từ `PresenterSettings` hiện hành (đọc qua service/settings hiện có, không tạo cơ chế cấu hình mới).
@@ -35,9 +35,9 @@
     - Thêm/cập nhật test cho phần ánh xạ giá trị nếu chạm vào code thuần; tối thiểu ghi verification thủ công: đổi Settings → mở editor → số dòng hiệu dụng thay đổi theo.
   - Phạm vi KHÔNG làm: không đổi mặc định 4/500; không sửa UI của Settings; không đụng logic SlideGroupingService/SlideAutoTimingService.
   - Tiêu chí nghiệm thu:
-    - [ ] Đổi LinesPerSlide trong Settings rồi mở Section Editor: pipeline dùng đúng giá trị mới (có ghi lại cách kiểm chứng).
-    - [ ] Không set gì trong Settings thì hành vi như cũ (mặc định 4/500).
-    - [ ] Build sạch + toàn bộ test pass.
+    - [x] Đổi LinesPerSlide trong Settings rồi mở Section Editor: pipeline dùng đúng giá trị mới (có ghi lại cách kiểm chứng).
+    - [x] Không set gì trong Settings thì hành vi như cũ (mặc định 4/500).
+    - [x] Build sạch + toàn bộ test pass.
   - Bằng chứng phải nộp: commit + mô tả kiểm chứng trong PROGRESS.md (giá trị trước/sau, kết quả build/test nguyên văn).
 
 - [ ] **T4 — Bảng trạng thái thật cho 7 panel/dialog đang mồ côi**

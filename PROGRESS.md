@@ -2,7 +2,7 @@
 
 ## Trạng thái hiện tại
 - Spec đang làm: `.kiro/specs/dot-1-khoa-bang-chung` (đợt 1 — "Khóa bằng chứng & nối mắt xích cuối của Slides")
-- Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật).
+- Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật). **T3 XONG** (commit `0ddff03`, build sạch + 856/856 test PASS). Đang làm tiếp T4 → T5.
 - NETSDK1100 đã được giải: **mọi lệnh build/test trên sandbox Linux luôn thêm cờ `-p:EnableWindowsTargeting=true`** (theo Issue #2). Việc 0 đã build sạch + 854/854 test PASS trên Linux (xem nhật ký Việc 0).
 - Commit đã build mới nhất: `b86df8b` (nhánh kiro-current, HEAD khi chạy Việc 0 — code đồng nhất b245e07, chỉ thêm BAO-CAO.md).
 - Lần cập nhật cuối: 2026-10-23
@@ -16,6 +16,38 @@
 - Tiêu chí nghiệm thu: đạt ... / chưa đạt ...
 - Commit: <hash + thông điệp>
 -->
+
+### [task T3] Nối PresenterSettings.LinesPerSlide/SlideLeadMs vào SectionEditorWindow — 2026-10-23
+- Commit code (nhánh kiro-current): `0ddff03` — "[task T3] Noi PresenterSettings.LinesPerSlide/SlideLeadMs vao SectionEditorWindow". 2 file đổi, +41 dòng.
+- **Đã làm:**
+  1. Trong `WorshipPlayer.UI/Views/MainWindow.xaml.cs`, handler `EditSections_Click` (dòng 608): sau khi tạo `var editor = new SectionEditorWindow(...)` và TRƯỚC `editor.ShowDialog()`, thêm 2 dòng:
+     - `editor.LinesPerSlide = _presenterSettingsService.Settings.LinesPerSlide;`
+     - `editor.SlideLeadMs = _presenterSettingsService.Settings.SlideLeadMs;`
+     Dùng đúng field có sẵn `_presenterSettingsService` (khai báo dòng 23, nạp dòng 163). **Không** tạo cơ chế cấu hình mới, không thêm field/service.
+  2. Đường đi đã xác minh: 2 property này sẵn chảy vào `AnalyzeSongAsync(linesPerSlide:, slideLeadMs:)` tại `SectionEditorWindow.xaml.cs:1179-1180` → pipeline Python `--lines-per-slide`/`--slide-lead-ms`. **Không** sửa SectionEditorWindow, SlideGroupingService, SlideAutoTimingService, không đổi mặc định 4/500, không sửa UI Settings.
+  3. Thêm 2 test ở `WorshipPlayer.Tests/PresenterSettingsServiceTests.cs` ghim đúng hợp đồng mà phần nối dây dựa vào (SectionEditorWindow là WPF, không khởi tạo được trong test host net8.0 nên test tại Core — đúng mắt xích):
+     - `FreshPresenterSettings_DefaultsAutoSlideConfig_To4And500`: PresenterSettings mới mặc định 4/500 (fallback khi người dùng không đổi gì).
+     - `SaveThenReload_PreservesAutoSlideConfig_NonDefaultValues`: giá trị khác mặc định (2/1200) round-trip qua service. Cả hai FAIL nếu mặc định hoặc round-trip hỏng.
+- **Lệnh build chuẩn:** `dotnet build WorshipBacktrackPlayer.sln -c Debug --nologo -p:EnableWindowsTargeting=true`
+- **Kết quả build (NGUYÊN VĂN):**
+  ```
+  Build succeeded.
+      8 Warning(s)
+      0 Error(s)
+  ```
+  → 0 Error / 8 Warning (không có cảnh báo mới so với baseline — vẫn đúng 8 cảnh báo cũ).
+- **Lệnh test chuẩn:** `dotnet test WorshipPlayer.Tests --nologo -p:EnableWindowsTargeting=true`
+- **Kết quả test (NGUYÊN VĂN):**
+  ```
+  Passed!  - Failed:     0, Passed:   856, Skipped:     0, Total:   856, Duration: 1 s - WorshipPlayer.Tests.dll (net8.0)
+  ```
+  → 856/856 PASS (854 baseline + 2 test mới), 0 fail.
+- **Kiểm chứng thủ công (cách kiểm):** Đổi `LinesPerSlide`/`SlideLeadMs` trong Presenter Settings (vd 2 / 1200) → mở Section Editor → `editor.LinesPerSlide`/`SlideLeadMs` lấy từ `_presenterSettingsService.Settings` → chảy xuống `AnalyzeSongAsync` → pipeline Python nhận đúng `--lines-per-slide 2 --slide-lead-ms 1200`. Không đổi Settings → PresenterSettings mặc định 4/500 → hành vi y như trước.
+- **Tiêu chí nghiệm thu T3:**
+  - [x] Đổi LinesPerSlide trong Settings rồi mở Section Editor: pipeline dùng đúng giá trị mới (nguồn `_presenterSettingsService.Settings`, chảy tới `--lines-per-slide`/`--slide-lead-ms`).
+  - [x] Không set gì trong Settings thì hành vi như cũ (mặc định 4/500 — ghim bằng test).
+  - [x] Build sạch (0 error / 8 warning cũ) + toàn bộ test pass (856/856).
+- Commit: `0ddff03` (kiro-current) + commit PROGRESS/tasks.md này (main).
 
 ### [Việc 0] Chạy lại build + test bằng lệnh chuẩn có cờ EnableWindowsTargeting — 2026-10-23
 - Commit chạy lệnh (nhánh kiro-current): `b86df8b` (code đồng nhất b245e07 — chỉ thêm BAO-CAO.md so với b245e07).
