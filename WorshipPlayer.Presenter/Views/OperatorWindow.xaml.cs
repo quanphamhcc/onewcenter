@@ -649,7 +649,14 @@ public partial class OperatorWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            CurrentItemTitle.Text = e.NewItem?.Title ?? "";
+            // Show the LIVE display name for the current item: for a live-linked Slides item this
+            // resolves the linked presentation's current name from the primed cache (so a rename is
+            // reflected), falling back to the stored Title for every other item. Mirrors the sidebar
+            // row (MakeItemRow) and section header (BuildSectionHeader). The cache may not be primed
+            // yet on first load; the deferred prime below re-applies this via RefreshCurrentItemTitle.
+            CurrentItemTitle.Text = e.NewItem != null
+                ? ServiceItemDisplayName.ResolveDisplayName(e.NewItem, ResolveLinkedPresentation(e.NewItem))
+                : "";
             CurrentItemSubtitle.Text = e.NewItem?.Type.ToString() ?? "";
 
             // 7.2: route a Video service item to full-screen playback on the output. The pure
@@ -694,7 +701,18 @@ public partial class OperatorWindow : Window
             _ = Dispatcher.InvokeAsync(async () =>
             {
                 await PrimeSlidePresentationCacheAsync();
+
+                // The cache is now populated, so a live-linked Slides item's renamed name can
+                // resolve. Rebuild the SIDEBAR (RefreshServiceOrderList) and the center grid
+                // (RefreshSlideSections), and re-apply the current-item header — on first load /
+                // navigation the sidebar + header were built before the cache was primed and would
+                // otherwise keep showing the stale stored Title.
+                RefreshServiceOrderList();
                 RefreshSlideSections();
+                var headerItem = _engine?.CurrentItem;
+                if (headerItem != null)
+                    CurrentItemTitle.Text = ServiceItemDisplayName.ResolveDisplayName(
+                        headerItem, ResolveLinkedPresentation(headerItem));
 
                 // This async rebuild clears + rebuilds SlideSectionsPanel and resets scroll to
                 // the top, clobbering any earlier selection scroll (and for Slides items the
