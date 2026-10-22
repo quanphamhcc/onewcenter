@@ -615,6 +615,14 @@ public partial class MainWindow : Window
                 _settings.PythonExecutablePath = value;
                 await _settingsService.SaveAsync();
             });
+
+        // Feed the global auto-slide config (lines/slide + lead ms) from the current
+        // PresenterSettings into the editor so the slide-creation pipeline uses the
+        // user's configured values instead of always defaulting to 4/500. Settings is
+        // always non-null and defaults to 4/500, so an untouched config behaves as before.
+        editor.LinesPerSlide = _presenterSettingsService.Settings.LinesPerSlide;
+        editor.SlideLeadMs = _presenterSettingsService.Settings.SlideLeadMs;
+
         if (editor.ShowDialog() == true)
         {
             try

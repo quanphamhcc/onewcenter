@@ -190,6 +190,39 @@ public class PresenterSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void FreshPresenterSettings_DefaultsAutoSlideConfig_To4And500()
+    {
+        // The EditSections wiring (MainWindow.EditSections_Click) copies
+        // _presenterSettingsService.Settings.LinesPerSlide/SlideLeadMs into the editor.
+        // When the user never changed Settings, the fallback MUST stay 4/500 so the
+        // slide-creation pipeline behaves exactly as before. This pins that contract.
+        var fresh = new PresenterSettings();
+
+        Assert.Equal(4, fresh.LinesPerSlide);
+        Assert.Equal(500, fresh.SlideLeadMs);
+    }
+
+    [Fact]
+    public async Task SaveThenReload_PreservesAutoSlideConfig_NonDefaultValues()
+    {
+        // Non-default LinesPerSlide/SlideLeadMs must survive the service save+reload so the
+        // values the EditSections wiring reads from _presenterSettingsService.Settings are the
+        // user's configured values (e.g. 2 / 1200), not the 4/500 defaults.
+        var writer = new PresenterSettingsService(_dbPath);
+        await writer.LoadAsync();
+
+        writer.Settings.LinesPerSlide = 2;
+        writer.Settings.SlideLeadMs = 1200;
+        await writer.SaveAsync();
+
+        var reader = new PresenterSettingsService(_dbPath);
+        await reader.LoadAsync();
+
+        Assert.Equal(2, reader.Settings.LinesPerSlide);
+        Assert.Equal(1200, reader.Settings.SlideLeadMs);
+    }
+
+    [Fact]
     public async Task Import_MalformedLegacyJson_DoesNotThrow_AndYieldsDefaults()
     {
         var legacyPath = Path.Combine(_tempFolder, "presenter-settings.json");
