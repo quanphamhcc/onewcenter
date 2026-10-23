@@ -1819,6 +1819,16 @@ public partial class OperatorWindow : Window
             if (window.ShowDialog() == true && window.Result != null)
             {
                 display.Item.AutoAdvanceSettings = window.Result;
+                // Đợt 2 T17 (R9): apply the edited audio list + loop flag only when
+                // the user actually touched the audio controls; an empty list is
+                // stored as null (same nullable convention as AudioAttachments).
+                if (window.AudioEdited)
+                {
+                    display.Item.AudioAttachments = window.AudioFilesEdited.Count > 0
+                        ? new List<string>(window.AudioFilesEdited)
+                        : null;
+                    display.Item.Loop = window.LoopAudioEdited;
+                }
                 await SaveServiceOrderAsync();
                 RefreshServiceOrderList();
             }

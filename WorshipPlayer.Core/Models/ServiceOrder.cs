@@ -230,6 +230,15 @@ public class ServiceItem
     public List<string>? AudioAttachments { get; set; }
 
     /// <summary>
+    /// Loop the item's attached audio: when the resolved audio list finishes, start
+    /// again from the first file instead of stopping (đợt 2 T17 / R9). Plain bool —
+    /// JSON files written before T17 have no such key, and System.Text.Json leaves a
+    /// missing bool at its default (false), so old files load unchanged.
+    /// </summary>
+    [JsonPropertyName("loop")]
+    public bool Loop { get; set; } = false;
+
+    /// <summary>
     /// Id of the stage-display template this item uses, or null to inherit the service default.
     /// Plain nullable with only [JsonPropertyName] — the manager's global WhenWritingNull
     /// serialization condition omits it from JSON when null (older files have no such key).

@@ -43,6 +43,12 @@ public class PresenterEngine : IDisposable
     // becomes current and only when that item is configured with the Timer condition.
     private System.Timers.Timer? _autoAdvanceTimer;
 
+    // Đợt 2 T17 (R9): per-item attached audio. Exactly one stream at a time —
+    // switching items stops the old item's audio before the new item's starts.
+    // Settable so tests can inject a fake-player service on Linux (NAudio is
+    // Windows-only).
+    public ItemAudioPlaybackService ItemAudio { get; set; } = new();
+
     // Đợt 2 T5 (R3.4): countdown reporting for the armed Timer auto-advance, so the
     // operator UI can show the remaining time at the top of the service list. The
     // ticker only REPORTS — the one-shot timer above still performs the advance.
@@ -434,6 +440,11 @@ public class PresenterEngine : IDisposable
     /// </summary>
     public void LoadScriptureSlides(List<Slide> slides)
     {
+        // Đợt 2 T17 (R9): quick present takes the output away from the current
+        // service item, so the item's attached audio stops. Re-selecting the item
+        // later re-fires ItemChanged and restarts its audio from the top.
+        ItemAudio.Stop();
+
         Slide? firstSlide;
         lock (_stateLock)
         {
@@ -761,6 +772,19 @@ public class PresenterEngine : IDisposable
 
     private void OnServiceItemChanged(object? sender, ServiceItemChangedEventArgs e)
     {
+        // Đợt 2 T17 (R9): item audio — stop the previous item's audio immediately,
+        // then start the new item's attached audio. R9.4: a Song item with
+        // UseBacktrack = true never plays its attached audio (no overlap with the
+        // backtrack). This is the single choke point for every current-item change
+        // (manual click, auto-advance, service reload), so no path can leak audio.
+        ItemAudio.Stop();
+        if (e.NewItem != null && ServiceItemAudio.ShouldPlayAttachedAudio(e.NewItem))
+        {
+            var audio = ServiceItemAudio.ResolvePlayback(e.NewItem);
+            if (audio.Files.Count > 0)
+                ItemAudio.PlayForItem(audio);
+        }
+
         // Per-item auto-advance: cancel any pending timer from the previous item, then
         // re-arm only if the NEW item opts in via the Timer condition. Items with no
         // settings or Manual/AudioEnd/VideoEnd never start a timer, so they behave
@@ -996,6 +1020,9 @@ public class PresenterEngine : IDisposable
             _autoAdvanceCountdownTicker = null;
         }
         _autoAdvanceCountdownItemId = null;
+
+        // Đợt 2 T17 (R9): release the item-audio stream with the engine.
+        ItemAudio.Dispose();
     }
 }
 
