@@ -1,4 +1,5 @@
 using WorshipPlayer.Core.Models;
+using WorshipPlayer.Core.Services;
 
 namespace WorshipPlayer.Presenter.Services;
 
@@ -42,11 +43,28 @@ public class LyricSlideGenerator
             slides.Add(CreateTitleSlide(song, order++));
         }
 
-        // Generate lyrics slides from sections
+        // Generate lyrics slides from sections, walking the shared slide-order
+        // resolver (đợt 2 T9 / R6.1): no custom order → the original section order;
+        // with one, sections repeat/skip per the order and Blank units become one
+        // blank slide each — the same units PresenterEngine.GenerateSlidesForSong uses.
         if (song.Sections.Count > 0)
         {
-            foreach (var section in song.Sections)
+            foreach (var unit in SongSlideOrderResolver.ResolveUnits(song))
             {
+                if (unit.IsBlank)
+                {
+                    slides.Add(new Slide
+                    {
+                        Type = SlideType.Blank,
+                        Content = new SlideContent(),
+                        Order = order++,
+                        Transition = SlideTransition.Fade,
+                        TransitionDurationMs = 500
+                    });
+                    continue;
+                }
+
+                var section = unit.Section!;
                 string sectionLyrics = section.Text;
                 if (string.IsNullOrWhiteSpace(sectionLyrics))
                     continue;

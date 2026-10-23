@@ -109,6 +109,138 @@ public partial class SectionEditorWindow : Window
         }
     }
 
+    // ─── CUSTOM SLIDE ORDER (đợt 2 T9 / R6.1) ────────────────────────────
+    // Minimal song-level order editor: a list of entries (section names — repeats
+    // allowed — plus Blank entries) with add/remove/up/down; no drag-and-drop.
+    // Seeded from the song's saved CustomSlideOrder when one exists; otherwise it
+    // starts as the original section order so enabling the checkbox changes
+    // nothing until the user edits the list. Written back in ApplySectionsToSong:
+    // checkbox ON → Song.CustomSlideOrder = the list; OFF → null (= original
+    // order). Entries carry section NAMES (how the model persists them), picked
+    // from the section VMs current when added; an entry whose section is later
+    // renamed/deleted is skipped by SongSlideOrderResolver at generation time.
+    private sealed class SlideOrderEntryViewModel
+    {
+        public string? SectionName { get; set; }
+        public bool IsBlank { get; set; }
+        public string Display => IsBlank ? "— Blank slide —" : SectionName ?? "";
+    }
+
+    private readonly ObservableCollection<SlideOrderEntryViewModel> _slideOrder = new();
+
+    private void InitializeSlideOrderEditor()
+    {
+        _slideOrder.Clear();
+        if (_song.CustomSlideOrder != null)
+        {
+            foreach (var entry in _song.CustomSlideOrder)
+            {
+                if (entry == null) continue;
+                _slideOrder.Add(new SlideOrderEntryViewModel
+                {
+                    SectionName = entry.SectionName,
+                    IsBlank = entry.IsBlank
+                });
+            }
+            CustomOrderCheckBox.IsChecked = true;
+        }
+        else
+        {
+            foreach (var vm in _sections)
+                _slideOrder.Add(new SlideOrderEntryViewModel { SectionName = vm.Name });
+            CustomOrderCheckBox.IsChecked = false;
+        }
+
+        SlideOrderList.ItemsSource = _slideOrder;
+        RefreshSlideOrderSectionChoices();
+        RefreshSlideOrderPanelState();
+    }
+
+    private void RefreshSlideOrderSectionChoices()
+    {
+        if (SlideOrderSectionCombo == null) return;
+        var selected = SlideOrderSectionCombo.SelectedItem as string;
+        SlideOrderSectionCombo.ItemsSource = _sections.Select(s => s.Name).ToList();
+        if (selected != null && _sections.Any(s => s.Name == selected))
+            SlideOrderSectionCombo.SelectedItem = selected;
+        else if (SlideOrderSectionCombo.Items.Count > 0)
+            SlideOrderSectionCombo.SelectedIndex = 0;
+    }
+
+    private void RefreshSlideOrderPanelState()
+    {
+        if (SlideOrderEditorPanel == null || CustomOrderCheckBox == null) return;
+        SlideOrderEditorPanel.IsEnabled = CustomOrderCheckBox.IsChecked == true;
+    }
+
+    private void CustomOrderCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        RefreshSlideOrderSectionChoices();
+        RefreshSlideOrderPanelState();
+    }
+
+    private void SlideOrderAddSection_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshSlideOrderSectionChoices();
+        if (SlideOrderSectionCombo.SelectedItem is not string name || string.IsNullOrWhiteSpace(name))
+            return;
+        var entry = new SlideOrderEntryViewModel { SectionName = name };
+        _slideOrder.Add(entry);
+        SlideOrderList.SelectedItem = entry;
+    }
+
+    private void SlideOrderAddBlank_Click(object sender, RoutedEventArgs e)
+    {
+        var entry = new SlideOrderEntryViewModel { IsBlank = true };
+        _slideOrder.Add(entry);
+        SlideOrderList.SelectedItem = entry;
+    }
+
+    private void SlideOrderRemove_Click(object sender, RoutedEventArgs e)
+    {
+        if (SlideOrderList.SelectedItem is SlideOrderEntryViewModel entry)
+            _slideOrder.Remove(entry);
+    }
+
+    private void SlideOrderMoveUp_Click(object sender, RoutedEventArgs e)
+    {
+        if (SlideOrderList.SelectedItem is not SlideOrderEntryViewModel entry) return;
+        int i = _slideOrder.IndexOf(entry);
+        if (i > 0)
+        {
+            _slideOrder.Move(i, i - 1);
+            SlideOrderList.SelectedItem = entry;
+        }
+    }
+
+    private void SlideOrderMoveDown_Click(object sender, RoutedEventArgs e)
+    {
+        if (SlideOrderList.SelectedItem is not SlideOrderEntryViewModel entry) return;
+        int i = _slideOrder.IndexOf(entry);
+        if (i >= 0 && i < _slideOrder.Count - 1)
+        {
+            _slideOrder.Move(i, i + 1);
+            SlideOrderList.SelectedItem = entry;
+        }
+    }
+
+    /// <summary>Write the order list back to the song (called from ApplySectionsToSong).</summary>
+    private void ApplySlideOrderToSong()
+    {
+        if (CustomOrderCheckBox.IsChecked == true)
+        {
+            _song.CustomSlideOrder = _slideOrder
+                .Select(vm => vm.IsBlank
+                    ? SongSlideOrderEntry.BlankSlide()
+                    : SongSlideOrderEntry.ForSection(vm.SectionName ?? ""))
+                .ToList();
+        }
+        else
+        {
+            _song.CustomSlideOrder = null;
+        }
+    }
+
     public SectionEditorWindow(Song song, AudioEngine? audioEngine = null,
         string? configuredPythonPath = null, Action<string>? onPythonPathSaved = null)
     {
@@ -154,6 +286,7 @@ public partial class SectionEditorWindow : Window
 
         SectionsGrid.ItemsSource = _sections;
         RefreshLabelChoices();
+        InitializeSlideOrderEditor();
 
         // Initialize downbeat display
         DownbeatTimecodeBox.Text = MsToTimecode(song.GridAnchorMs);
@@ -2474,6 +2607,9 @@ public partial class SectionEditorWindow : Window
                 LabelId = vm.LabelId
             });
         }
+
+        // Custom slide order rides the same apply path (đợt 2 T9 / R6.1).
+        ApplySlideOrderToSong();
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)

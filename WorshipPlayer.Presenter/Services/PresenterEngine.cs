@@ -485,7 +485,7 @@ public class PresenterEngine : IDisposable
     {
         var generated = new List<Slide>();
 
-        if (song.Sections == null || song.Sections.Count == 0)
+        if (song.Sections == null)
         {
             return generated;
         }
@@ -495,8 +495,26 @@ public class PresenterEngine : IDisposable
         // Use ChordChartData slide timing if available
         var chartSlides = song.ChordChart?.Slides;
 
-        foreach (var section in song.Sections)
+        // Walk the song's slide-generation units (đợt 2 T9 / R6.1): without a custom
+        // slide order this is exactly the original section order; with one, sections
+        // repeat/skip per the order and Blank units become one blank slide each.
+        foreach (var unit in SongSlideOrderResolver.ResolveUnits(song))
         {
+            if (unit.IsBlank)
+            {
+                generated.Add(new Slide
+                {
+                    Type = SlideType.Blank,
+                    Content = new SlideContent(),
+                    SectionName = "",
+                    Order = order++,
+                    Transition = SlideTransition.Fade,
+                    TransitionDurationMs = 500
+                });
+                continue;
+            }
+
+            var section = unit.Section!;
             string sectionText = section.Text;
             if (string.IsNullOrWhiteSpace(sectionText)) continue;
 
