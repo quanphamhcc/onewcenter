@@ -1,0 +1,225 @@
+# TASKS — Spec đợt 2: "Trình chiếu chuẩn WorshipTools"
+
+*Thư mục spec khi phát hành: `.kiro/specs/dot-2-trinh-chieu-chuan-worshiptools/`. Yêu cầu đầy đủ: `requirements.md` cùng spec (R1–R9). Căn cứ khoảng trống: `phan-tich-khoang-trong.md`. Làm đúng thứ tự T1 → T17; task nền (model/service thuần ở Core) đứng trước task UI phụ thuộc nó. Quy ước chung cho MỌI task (không lặp lại từng task): build toàn solution bằng `dotnet build WorshipBacktrackPlayer.sln -c Debug --nologo -p:EnableWindowsTargeting=true` phải 0 error; toàn bộ test cũ phải pass (đường cơ sở khi viết spec: **856 test** — ghi lại số test chính xác tại HEAD khi bắt đầu đợt vào PROGRESS.md); bằng chứng (lệnh + kết quả nguyên văn + hash commit) ghi vào PROGRESS.md như đợt 1.*
+
+---
+
+- [ ] **T1 — Nền riêng theo item (R1): model + resolver ở Core**
+  - Mục tiêu: `ServiceItem` mang được cấu hình nền của riêng nó (kiểu + giá trị cụ thể) và có một hàm thuần duy nhất quyết định "nền hiệu dụng" của item để mọi nơi render dùng chung.
+  - Phạm vi LÀM:
+    - Trong `WorshipPlayer.Core/Models/ServiceOrder.cs` (class `ServiceItem`): thêm trường nền theo item — kiểu nền tường minh gồm tối thiểu {Theme (mặc định), None, Color, Image, Video} + mã màu + đường dẫn file nền. Giữ trường `BackgroundType?` cũ: định nghĩa ánh xạ tương thích (file cũ chỉ có `BackgroundType` thì suy ra kiểu mới tương ứng; không ghi đè dữ liệu cũ khi nạp).
+    - Tạo `WorshipPlayer.Core/Services/ItemBackgroundResolver.cs` (thuần): đầu vào = item + theme hiệu dụng; đầu ra = mô tả nền đã resolve (loại nền cuối cùng + màu/đường dẫn + nguồn gốc: item hay theme). Đây là nơi DUY NHẤT tính nền hiệu dụng ở mức item (chưa gồm inherit — T2).
+    - Nối resolver vào đường render hiện tại của `WorshipPlayer.Presenter/Views/OutputWindow.xaml.cs` (đoạn `switch (theme.BackgroundType)` ~dòng 201): khi item có nền riêng khác Theme thì dùng nền đã resolve; nền Video dùng lại `VideoBackgroundService`/`BackgroundVideoView` hiện có; file nền lỗi/thiếu → nền đen + log, foreground vẫn render.
+  - Phạm vi KHÔNG làm: không thêm trường nền vào `Song`; không đổi `SlideTheme`; không làm UI chọn nền (chỉ model + resolver + render); không làm inherit (T2).
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới `ItemBackgroundResolverTests`: đủ các trường hợp — item không đặt gì → nền theme; None → không nền; Color kèm mã màu; Image/Video kèm đường dẫn; file cũ chỉ có `BackgroundType` → ánh xạ đúng.
+    - [ ] Test tương thích ngược: JSON service cũ (không có trường nền mới) deserialize xong cho nền hiệu dụng bằng theme.
+    - [ ] Build 0 error; toàn bộ test (cũ + mới) pass.
+  - Bằng chứng phải nộp: commit + kết quả build/test nguyên văn trong PROGRESS.md.
+
+- [ ] **T2 — Inherit Background (R2): chuỗi kế thừa + bulk apply**
+  - Mục tiêu: Item đặt được chế độ nền "Inherit" — dùng nền của item ngay phía trên — và đặt hàng loạt được qua Bulk Editor hiện có.
+  - Phạm vi LÀM:
+    - Bổ sung kiểu nền `Inherit` vào model của T1. Mở rộng `ItemBackgroundResolver` (hoặc thêm `WorshipPlayer.Core/Services/InheritBackgroundResolver.cs`): resolve cho cả service — đi ngược từ item lên các item phía trên tới item đầu tiên có nền thật (không phải Inherit), không có thì về theme; item đầu danh sách đặt Inherit → theme. Resolve theo thứ tự list tại thời điểm gọi, KHÔNG ghi kết quả resolve vào item con.
+    - Mở rộng `WorshipPlayer.Core/Services/BulkEditService.cs` (`BulkEditOptions` + `Apply`): thêm tuỳ chọn áp kiểu nền Inherit cho danh sách item; nối vào `BulkEditWindow`/`BulkEditPanel` hiện có (checkbox "Set Background" → lựa chọn Inherit Background → Apply).
+    - Hiển thị trực quan: trong danh sách service của `OperatorWindow`, item ở chế độ Inherit có icon/dấu hiệu riêng cạnh tên (theo tiền lệ hiển thị item hiện có trong cùng danh sách).
+  - Phạm vi KHÔNG làm: không cho inherit từ item không liên tục (chỉ "ngay phía trên" theo chuỗi); không thêm cơ chế chọn nguồn inherit tuỳ ý.
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới cho resolve chuỗi: chuỗi 1 item; chuỗi 3 item cùng kế thừa 1 nền; item đầu chuỗi bị đổi nền → cả chuỗi đổi theo khi resolve lại; item đầu danh sách Inherit → theme; item nguồn bị xoá khỏi list → chuỗi resolve lại đúng; dữ liệu list rỗng → không lỗi.
+    - [ ] `BulkEditService` test: áp Inherit cho N item chỉ đổi đúng các item được chọn, trường khác (transition/auto-advance) không đổi.
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + kết quả build/test nguyên văn trong PROGRESS.md.
+
+- [ ] **T3 — Auto Advance: chốt điều kiện hợp lệ Lyrics/Scripture (R3, phần 1)**
+  - Mục tiêu: Item có foreground Lyrics hoặc Scripture không bao giờ bị auto-advance, bất kể dữ liệu cấu hình thế nào.
+  - Phạm vi LÀM:
+    - Tạo hàm thuần trong Core (đặt tại `WorshipPlayer.Core/Services/AutoAdvanceResolver.cs` hoặc file cạnh nó): `IsEligible(ServiceItem)` — false khi `ForegroundType` là Lyrics hoặc Scripture; true cho Text/Media/Blank và item Type=Slides. `AutoAdvanceResolver.Resolve` phải dùng eligibility này: item không hợp lệ → `Decision.None` dù `AutoAdvanceAfterCondition = Timer`.
+    - `WorshipPlayer.Presenter/Services/PresenterEngine.cs` (`RestartAutoAdvanceTimer` ~dòng 780): không khởi động timer cho item không hợp lệ.
+    - UI `ItemSettingsPanel` (hiện đã có mục auto-advance): khi item không hợp lệ, vô hiệu hoá/hiển thị ghi chú không đặt được auto-advance (tối thiểu: ghi chú rõ lý do; không bắt buộc chặn cứng nếu engine + resolver đã guard — nhưng phải nhất quán: guard ở Core là bắt buộc, UI là hỗ trợ).
+  - Phạm vi KHÔNG làm: không đổi hành vi Manual mặc định; không đụng trigger VideoEnd (T4); không sửa `SlideAutoAdvanceMap` (auto-advance theo slide/timestamp là cơ chế khác, giữ nguyên).
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới/mở rộng `AutoAdvanceResolverTests`: item Lyrics + Timer + NextItem → None; item Scripture + Timer → None; item Text/Media/Blank + Timer → NextItem như cũ; Slides item + Timer → hoạt động; toàn bộ test AutoAdvance cũ vẫn pass (không hồi quy).
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + kết quả build/test nguyên văn trong PROGRESS.md.
+
+- [ ] **T4 — Auto Advance: trigger khi video nền chạy hết (R3, phần 2)**
+  - Mục tiêu: Điều kiện `VideoEnd` hoạt động thật: item dùng nền Video, khi video kết thúc thì tự chuyển theo đích đã cấu hình.
+  - Phạm vi LÀM:
+    - `AutoAdvanceResolver.Resolve`: bỏ trạng thái "deferred" cho VideoEnd — khi trigger nguồn là video-ended và điều kiện của item là VideoEnd (+ item hợp lệ theo T3), trả quyết định theo `AutoAdvanceGoTo` như nhánh Timer. Thiết kế điểm mở rộng tối thiểu: resolver nhận thêm ngữ cảnh trigger (Timer hay VideoEnd) thay vì tự đoán; giữ nguyên chữ ký cũ cho đường Timer (bọc overload, không phá test cũ).
+    - `PresenterEngine` + `OutputWindow`: nối event `VideoPlaybackEnded` sẵn có của `OutputWindow` (và/hoặc tín hiệu kết thúc của `VideoBackgroundService` cho nền video theo item của T1) vào engine: khi video của item hiện tại kết thúc → gọi resolver với trigger VideoEnd → thực thi quyết định như `FireAutoAdvance` hiện tại.
+    - Item đặt VideoEnd nhưng không chạy video nào → không tự chuyển (không fallback về Timer).
+  - Phạm vi KHÔNG làm: không làm loop video (video nền lặp là chuyện của `VideoBackgroundService`, ngoài task này); không dùng `AudioEnd` (giữ deferred như hiện tại — audio-end thuộc R9/đợt sau).
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test resolver: VideoEnd + trigger VideoEnd → NextItem/SpecificItem đúng; VideoEnd + trigger Timer → None; Timer + trigger VideoEnd → None; item không hợp lệ (T3) + VideoEnd → None.
+    - [ ] Ghi kiểm chứng tay trong PROGRESS.md: dựng item nền video ngắn đặt VideoEnd → chiếu → tự chuyển khi video hết (mô tả bước + kết quả quan sát được).
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + kết quả build/test + ghi kiểm chứng tay trong PROGRESS.md.
+
+- [ ] **T5 — Auto Advance: đếm ngược trên khung service (R3, phần 3)**
+  - Mục tiêu: Khi item đang chạy đếm ngược auto-advance, Operator thấy thời gian còn lại ở đầu khung danh sách service, như chuẩn tham chiếu.
+  - Phạm vi LÀM:
+    - Tách phần tính thời gian còn lại thành logic thuần ở Core (vd `WorshipPlayer.Core/Services/AutoAdvanceCountdown.cs`): từ delay cấu hình + mốc bắt đầu → remaining ms, kẹp không âm; hết giờ → 0.
+    - `PresenterEngine`: khi khởi động timer auto-advance (đường Timer hiện có), phát sự kiện/thuộc tính cho UI biết item nào đang đếm ngược và remaining cập nhật; huỷ ngay khi item đổi (kể cả chuyển tay) hoặc item trở nên không hợp lệ.
+    - `OperatorWindow`: hiển thị đếm ngược (mm:ss hoặc giây) ở **đầu khung danh sách service** khi có đếm ngược đang chạy; item đang đếm ngược có icon đồng hồ cạnh tên (gộp cả yêu cầu dấu hiệu trực quan của R3.5 nếu chưa có).
+  - Phạm vi KHÔNG làm: không đổi `CountdownService` hiện có (đếm ngược giờ bắt đầu buổi lễ là tính năng khác, giữ nguyên); không hiển thị đếm ngược trên OutputWindow.
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới cho logic đếm ngược thuần: remaining giảm đúng theo thời gian trôi, kẹp 0, delay ≤ 0 → dùng mặc định như engine hiện hành (5000ms).
+    - [ ] Ghi kiểm chứng tay: đặt item Text với Timer 10s → chiếu → thấy đếm ngược ở đầu khung service, chuyển item bằng tay giữa chừng → đếm ngược biến mất ngay.
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + kết quả build/test + ghi kiểm chứng tay trong PROGRESS.md.
+
+- [ ] **T6 — Headers hoàn thiện trong Service Builder (R4)**
+  - Mục tiêu: Luồng tạo/đổi tên/xoá/sắp xếp header và gán item vào header dùng được trọn vẹn từ Service Builder, dữ liệu `ServiceOrder.Groups` luôn nhất quán.
+  - Phạm vi LÀM:
+    - Bước 1 (bắt buộc, ghi vào PROGRESS.md trước khi sửa): kiểm tra tại HEAD trạng thái thật của `ServiceGroupPanel` và luồng groups trong Service Builder/OperatorWindow (cái gì đã nối dây, cái gì chưa) — vì BAO-CAO viết trước đợt 1 T4 nên mô tả có thể đã cũ.
+    - Logic thuần ở Core (`WorshipPlayer.Core/Services/ServiceGroupAssignment.cs` hoặc mở rộng service hiện có): gán item vào group (tự gỡ khỏi group cũ — một item tối đa một group); gỡ item khi item bị xoá khỏi service (không id mồ côi); xoá group thì item bên trong thành không-nhóm, không mất item; chuẩn hoá `Order` sau mỗi thao tác.
+    - UI Service Builder (dùng `ServiceGroupPanel` nếu đã nối dây, hoặc điểm vào hiện có): tạo header, đổi tên, xoá header, thu gọn/mở rộng, chuyển item giữa các header; trạng thái collapse lưu vào `ServiceGroup.IsCollapsed`.
+  - Phạm vi KHÔNG làm: không đổi model `ServiceGroup` (đủ dùng); không biến header thành item trình chiếu; không đụng render output.
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới cho logic gán: gán item đã có group → chuyển đúng, group cũ mất id; xoá item → hết id mồ côi ở mọi group; xoá group → item còn nguyên và không-nhóm; collapse flag round-trip qua JSON.
+    - [ ] Kiểm chứng: header không xuất hiện trên output; Next/Previous qua vùng có header vẫn đi đúng item thật (ghi cách kiểm chứng trong PROGRESS.md).
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: báo cáo trạng thái thật (bước 1) + commit + kết quả build/test trong PROGRESS.md.
+
+- [ ] **T7 — Slide Labels ở Core: danh mục nhãn + gán cho section (R5, phần nền)**
+  - Mục tiêu: Có danh mục nhãn dùng chung (tên + màu + phím tắt) trong settings và section của bài hát tham chiếu được tới nhãn, kèm logic thuần để UI/test dùng chung.
+  - Phạm vi LÀM:
+    - Model trong Core (vd `WorshipPlayer.Core/Models/SlideLabelDefinition.cs`): { Id, Name, Color, Hotkey (chuỗi, có thể rỗng) }. `PresenterSettings` thêm danh sách nhãn; khi settings cũ không có → seed mặc định đúng 6 nhãn của chuẩn: Verse 1, Verse 2, Verse 3, Verse 4, Chorus, Bridge (màu phân biệt nhau, hotkey để trống).
+    - `Song.Section` (trong `WorshipPlayer.Core/Models/Song.cs`): thêm `LabelId` nullable (tương thích ngược, không đổi ý nghĩa các trường loop hiện có).
+    - Logic thuần (vd `WorshipPlayer.Core/Services/SlideLabelService.cs`): kiểm tra trùng hotkey trong danh mục (không phân biệt hoa/thường, bỏ qua hotkey rỗng); resolve nhãn hiệu dụng cho một section (theo LabelId; không có thì suy theo tên section khớp tên nhãn — phục vụ dữ liệu cũ); xoá nhãn → các section tham chiếu thành không-nhãn khi resolve (không sửa file hàng loạt).
+  - Phạm vi KHÔNG làm: không làm UI Settings (T8); không đổi hành vi backtrack/loop của section; không tự gán nhãn hàng loạt cho dữ liệu cũ ngoài cơ chế suy theo tên khi resolve.
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới: seed mặc định đúng 6 nhãn khi settings rỗng; trùng hotkey → validate báo trùng; hotkey rỗng không tính trùng; resolve theo LabelId đúng; resolve suy theo tên section ("Chorus" → nhãn Chorus) đúng; LabelId trỏ nhãn đã xoá → resolve thành không-nhãn, không exception.
+    - [ ] Test tương thích ngược: song.json/settings.json cũ nạp được, section cũ có LabelId = null.
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + kết quả build/test nguyên văn trong PROGRESS.md.
+
+- [ ] **T8 — Slide Labels ở UI: Settings + gán nhãn + hiển thị (R5, phần UI)**
+  - Mục tiêu: Người dùng quản trị được danh mục nhãn, gán nhãn cho section khi soạn bài, và thấy nhãn màu trong lúc vận hành.
+  - Phạm vi LÀM:
+    - Trang Settings → Slide Labels (theo mẫu các section Settings hiện có trong `WorshipPlayer.Presenter/Views/Settings/`): danh sách nhãn, sửa tên, thêm, xoá, đổi màu, gán phím tắt; khi lưu mà trùng hotkey → báo lỗi cụ thể, không lưu (dùng validate của T7).
+    - Trong trình soạn section/bài hát (nơi đang sửa `Song.Sections` — `SectionEditorWindow` ở `WorshipPlayer.UI`): thêm dropdown chọn nhãn cho section đang sửa, ghi vào `Section.LabelId`.
+    - Hiển thị khi vận hành: danh sách slide trong `OperatorWindow` hiện tên + màu nhãn cạnh các slide thuộc section có nhãn (qua `Slide.SectionName` + resolve của T7).
+    - Phím tắt: khi cửa sổ Operator đang focus và item hiện tại là bài hát, bấm hotkey của nhãn → nhảy tới slide đầu tiên của section mang nhãn đó trong item hiện tại (nếu có nhiều section cùng nhãn, tới section chưa chiếu gần nhất theo thứ tự — tối thiểu: tới section đầu tiên khớp; ghi rõ hành vi đã chọn trong PROGRESS.md).
+  - Phạm vi KHÔNG làm: không làm hotkey toàn cục (global hook) ngoài app; không đổi các phím tắt điều hướng hiện có.
+  - Tiêu chí nghiệm thu:
+    - [ ] Ghi kiểm chứng tay đủ 4 điểm trong PROGRESS.md: tạo/sửa/xoá nhãn ở Settings (kèm thử trùng hotkey bị chặn); gán nhãn cho section; mở Operator thấy màu nhãn đúng; bấm hotkey nhảy đúng section.
+    - [ ] Build 0 error; toàn bộ test pass (test logic đã ở T7; task này không giảm số test).
+  - Bằng chứng phải nộp: commit + ghi kiểm chứng tay + kết quả build/test trong PROGRESS.md.
+
+- [ ] **T9 — Custom Slide Order cấp bài hát (R6, phần 1)**
+  - Mục tiêu: Bài hát lưu được thứ tự section tuỳ biến (lặp được, chèn slide trống được) và mọi song item tạo mới đều sinh slides theo thứ tự đó.
+  - Phạm vi LÀM:
+    - `Song` (Core Models): thêm trường thứ tự tuỳ biến nullable — dãy mục thứ tự, mỗi mục là { tên section } hoặc { Blank }; null = không đặt (hành vi hiện tại). Tương thích ngược với song.json cũ.
+    - Logic thuần (vd `WorshipPlayer.Core/Services/SongSlideOrderResolver.cs`): từ bài hát + thứ tự tuỳ biến → dãy "đơn vị sinh slide" theo đúng thứ tự (section lặp xuất hiện nhiều lần; Blank thành một slide trống); section trong thứ tự nhưng không còn trong bài hát → bỏ qua. Nối vào pipeline sinh slides hiện có (`LyricSlideGenerator`/`SlidePresentationService` — điểm mà song item lấy slides) để song item mới dùng custom order; số dòng/slide vẫn lấy từ cấu hình hiện hành.
+  - Phạm vi KHÔNG làm: không làm UI kéo-thả thứ tự (đợt này chỉ cần model + pipeline + một UI tối thiểu dạng danh sách lên/xuống/thêm-xoá trong song editor — xem tiêu chí); không làm thứ tự cấp service item (T10).
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới: không custom order → thứ tự gốc; custom order có lặp Chorus → dãy sinh slide lặp đúng; có Blank → đúng vị trí có 1 slide trống (SlideType Blank/nội dung rỗng); mục trỏ section đã xoá → bị bỏ qua, không exception; JSON round-trip của trường mới.
+    - [ ] UI tối thiểu hoạt động: trong song editor, thêm/xoá/sắp xếp lại mục thứ tự và lưu được (ghi kiểm chứng tay trong PROGRESS.md).
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + kết quả build/test + ghi kiểm chứng tay trong PROGRESS.md.
+
+- [ ] **T10 — Service Item Order cấp service (R6, phần 2)**
+  - Mục tiêu: Một song item trong service lưu được thứ tự slide riêng của nó (kèm nhân đôi/thêm slide), không ảnh hưởng bài hát gốc hay item khác.
+  - Phạm vi LÀM:
+    - `ServiceItem` (Core Models): thêm trường thứ tự slide riêng nullable (dãy id slide theo thứ tự mong muốn của item); null = dùng độ phân giải mặc định (T9 → thứ tự gốc).
+    - Logic thuần (vd `WorshipPlayer.Core/Services/ServiceItemSlideOrder.cs`): áp thứ tự riêng lên danh sách slide đã sinh cho item: id có trong thứ tự → xếp theo thứ tự; slide mới không có trong thứ tự → cuối danh sách theo thứ tự gốc; id chết (slide không còn) → bỏ qua. Nối vào điểm item lấy slides để render (cùng pipeline với T9; ưu tiên: T10 > T9 > gốc — đúng R6.3).
+    - UI tối thiểu trong item editor/Operator cho item đang chọn: di chuyển slide lên/xuống, nhân đôi một slide (slide nhân đôi có id mới và nằm trong thứ tự riêng), lưu thứ tự vào item (không ghi gì vào `Song`).
+  - Phạm vi KHÔNG làm: không sửa custom order cấp bài hát từ trong service (muốn sửa mặc định phải vào song editor); không áp dụng thứ tự riêng cho Slides item dạng live-link (ngoài phạm vi — item đó theo presentation gốc).
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới: áp thứ tự riêng đảo đúng vị trí; slide mới xuất hiện ở cuối; id chết bị bỏ; nhân đôi → 2 slide cùng nội dung, id khác nhau, cả hai trong thứ tự; item không đặt thứ tự riêng → kết quả y hệt trước T10.
+    - [ ] Test cách ly: sửa thứ tự ở item A không đổi dữ liệu `Song` cũng không đổi item B của cùng bài hát (assert trên object sau thao tác).
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + kết quả build/test nguyên văn trong PROGRESS.md.
+
+- [ ] **T11 — Import bản dịch Kinh Thánh từ XML: parser Zefania ở Core (R7, phần 1)**
+  - Mục tiêu: Thay ruột `BibleDatabaseService.ImportTranslationAsync` bằng parser thật: đọc file Zefania XML → nạp đủ sách/chương/câu vào SQLite → tra cứu được ngay.
+  - Điều kiện tiên quyết: **Muse xác nhận lại trước khi code** — phải có 1 file Zefania XML mẫu thật làm fixture (Muse/chủ sản phẩm cung cấp, ghi đường dẫn vào PROGRESS.md khi bắt đầu task). Chưa có fixture → dừng, báo trong PROGRESS.md, không tự chế định dạng.
+  - Phạm vi LÀM:
+    - Parser thuần/tách được để test (vd `WorshipPlayer.Core/Services/Bible/ZefaniaBibleXmlParser.cs`): đọc cấu trúc Zefania (`<XMLBIBLE biblename=...><BIBLEBOOK bname/bsname/bnumber><CHAPTER cnumber><VERS vnumber>text</VERS>`); ánh xạ số sách → book id theo metadata 66 sách hiện có (`BibleSeedData.GetBookData`); trích mã/tên/ngôn ngữ bản dịch từ thuộc tính file nếu có, thiếu thì suy từ tên file (như hành vi cũ).
+    - `BibleDatabaseService.ImportTranslationAsync`: dùng parser trên; ghi translation + toàn bộ verses trong **một transaction** — lỗi giữa chừng thì rollback, không để lại bản dịch nửa vời (thay cho đoạn code hiện tại chỉ insert bản ghi từ tên file, `BibleDatabaseService.cs:308`). Import lại cùng mã bản dịch → thay dữ liệu cũ của bản dịch đó, không nhân đôi câu.
+    - File fixture kiểm chứng nhỏ (2 sách × 2 chương × vài câu, gồm 1 câu có ký tự đặc biệt/dấu tiếng Việt) để trong thư mục test.
+  - Phạm vi KHÔNG làm: không hỗ trợ định dạng XML ngoài Zefania (OSIS/USFX để đợt sau); không nạp sẵn dữ liệu 66 sách cho bản dịch nào; không đụng `ScriptureReferenceParser` trừ khi parser cần dùng chung bảng tên sách (nếu đụng, test cũ của parser phải pass nguyên vẹn).
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới: import fixture → `GetTranslationsAsync` có bản dịch mới; `GetVersesAsync` trả đúng số câu/nội dung của 1 đoạn cụ thể trong fixture; `SearchAsync` tìm thấy từ khoá trong câu vừa import.
+    - [ ] Test lỗi: file sai định dạng (XML hợp lệ nhưng không phải Zefania) → ném/trả lỗi rõ ràng VÀ không có bản ghi translation mới trong DB; file không tồn tại → FileNotFound như cũ.
+    - [ ] Test idempotent: import fixture 2 lần → số câu không đổi.
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + kết quả build/test nguyên văn + đường dẫn fixture đã dùng trong PROGRESS.md.
+
+- [ ] **T12 — Import XML ở UI Settings → Bibles (R7, phần 2)**
+  - Mục tiêu: Người dùng nạp được bản dịch mới từ giao diện, thay cho nút Import XML hiện chỉ hiện MessageBox (trạng thái theo BAO-CAO mục 2.5 — kiểm tra lại tại HEAD khi bắt đầu).
+  - Phạm vi LÀM:
+    - Trong section Bibles của Settings (`WorshipPlayer.Presenter/Views/Settings/`): nút Import Bible XML → hộp chọn file `.xml` → gọi `BibleDatabaseService.ImportTranslationAsync` (T11) → báo kết quả cụ thể (tên/mã bản dịch, số sách, số câu đã nạp) hoặc lỗi cụ thể từ parser; danh sách bản dịch trong Settings và trong panel Scripture được làm mới để thấy bản dịch mới ngay, không cần khởi động lại app (nếu kiến trúc hiện tại bắt buộc restart mới thấy, ghi rõ giới hạn đó trong PROGRESS.md thay vì giấu).
+  - Phạm vi KHÔNG làm: không làm tính năng tải bản dịch từ Internet; không làm gỡ bản dịch (uninstall) nếu chưa có.
+  - Tiêu chí nghiệm thu:
+    - [ ] Ghi kiểm chứng tay: import file fixture của T11 qua UI → thấy bản dịch mới trong danh sách; mở panel Scripture, chọn bản dịch mới, tra một đoạn có trong fixture → ra đúng câu.
+    - [ ] Ghi kiểm chứng tay: chọn file XML sai định dạng → thấy thông báo lỗi rõ ràng, danh sách bản dịch không thêm mục rỗng.
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + ghi kiểm chứng tay + kết quả build/test trong PROGRESS.md.
+
+- [ ] **T13 — Quick Scripture: gõ tham chiếu → chiếu ngay (R7, phần 3)**
+  - Mục tiêu: Từ panel Scripture, người vận hành chiếu ngay một đoạn Kinh Thánh lên output mà không phải tạo service item trước.
+  - Phạm vi LÀM:
+    - Bước 1 (bắt buộc, ghi PROGRESS.md): kiểm tra tại HEAD đường đi hiện tại của `ScriptureBrowserPanel.PresentSlidesRequested` — `OperatorWindow`/host của panel đã nối event này ra output chưa, và nút Add to Service hiện tạo item theo đường nào. Báo cáo ngắn gọn trước khi sửa.
+    - Hoàn thiện đường nối: chọn đoạn trong panel → thao tác "Present" (nút hoặc click vào kết quả, theo pattern sẵn có của panel) → slides của đoạn hiện ngay trên output qua `PresenterEngine` (như một item tạm thời, không chèn vào service order, không ghi file service). Nếu service đang có item đang chiếu, Quick Scripture thay nội dung output hiện tại và có đường quay lại item của service (tối thiểu: chọn lại item trong danh sách là chiếu lại item đó — ghi rõ hành vi trong PROGRESS.md).
+    - Tham chiếu không parse được / bản dịch chưa có dữ liệu → báo lỗi tại panel, output giữ nguyên (theo R7 — trường hợp biên).
+  - Phạm vi KHÔNG làm: không tạo service item ngầm khi Quick Scripture (tạo item là nút Add to Service hiện có, giữ nguyên); không làm lịch sử quick scripture.
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test (phần thuần): hàm dựng slides trình chiếu nhanh từ một `ScriptureReference` + bản dịch dùng lại `ScriptureSlideGenerator` — test đoạn hợp lệ cho đúng số slide/nội dung; đoạn thuộc bản dịch không dữ liệu → kết quả rỗng kèm trạng thái lỗi phân biệt được.
+    - [ ] Ghi kiểm chứng tay: đang chiếu một bài hát → Quick Scripture "John 3:16" (bản KJV có dữ liệu mẫu) → output đổi sang câu Kinh Thánh trong một thao tác; chọn lại item bài hát → quay lại bình thường.
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: báo cáo bước 1 + commit + ghi kiểm chứng tay + kết quả build/test trong PROGRESS.md.
+
+- [ ] **T14 — Scripture to Slides: đoạn Kinh Thánh thành Slides presentation lưu thư viện (R7, phần 4)**
+  - Mục tiêu: Từ panel Scripture, tạo/thêm-vào một Slides presentation trong thư viện từ đoạn Kinh Thánh, dùng lại được và chèn được vào service như Slides item.
+  - Phạm vi LÀM:
+    - Logic thuần (vd `WorshipPlayer.Core/Services/ScriptureToSlidesMapper.cs`): đoạn Kinh Thánh (reference + verses + mã bản dịch) → danh sách `Slide` theo `ScriptureSlideGenerator` hiện có, giữ reference làm subtitle/header nhất quán để presentation đọc được độc lập.
+    - Nối vào hạ tầng thư viện Slides hiện có (`SlidePresentationService`/`SlidePresentationMapper`): tạo presentation mới với tên người dùng đặt (mặc định = tham chiếu, vd "John 3 (KJV)"); hoặc **thêm vào presentation đang chọn** (đoạn mới nối ở cuối — hỗ trợ gộp nhiều đoạn không liên tục); lưu xong thì presentation dùng được như mọi Slides presentation khác, gồm chèn vào service thành Slides item (live-link) qua luồng có sẵn.
+    - UI trong `ScriptureBrowserPanel`: nút "Create Slides" (và lựa chọn thêm-vào-presentation-có-sẵn nếu panel đủ chỗ — tối thiểu: tạo mới + chọn từ danh sách presentation khi thêm).
+  - Phạm vi KHÔNG làm: không xây trình soạn slide mới (sửa sâu presentation thì dùng Slides editor hiện có); không tự chèn vào service nếu người dùng không chọn.
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới cho mapper: 1 đoạn → đúng số slide, slide đầu mang reference; 2 đoạn không liên tục thêm nối tiếp → thứ tự đúng, không trộn câu.
+    - [ ] Ghi kiểm chứng tay: tạo presentation từ 1 đoạn → mở trong Slides library thấy đúng nội dung → chèn vào service → chiếu được; thêm đoạn thứ hai vào cùng presentation → mở lại thấy cả hai.
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + ghi kiểm chứng tay + kết quả build/test trong PROGRESS.md.
+
+- [ ] **T15 — Nhiều outputs ở Core: danh sách output + resolve template theo output (R8, phần nền)** ⚠
+  - Điều kiện tiên quyết: **Muse xác nhận lại trước khi code** — chủ đề outputs có mức bằng chứng WorshipTools yếu (xem `phan-tich-khoang-trong.md` hàng 14–15); Muse đối chiếu lại trang sản phẩm chính thức và chốt phạm vi tối thiểu của R8 trước khi task này bắt đầu.
+  - Mục tiêu: Settings mang được danh sách output (thay cho hai chỉ số màn hình cứng) và có một hàm thuần duy nhất quyết định template foreground hiệu dụng cho từng (item, output).
+  - Phạm vi LÀM:
+    - Model trong Core (vd `WorshipPlayer.Core/Models/OutputConfig.cs`): { Id, Name, DisplayIndex, Purpose (Audience/Stage — dùng lại `ScreenPurpose` nếu phù hợp), ForegroundTemplateIdOverride (nullable) }. `PresenterSettings` thêm `Outputs: List<OutputConfig>`; **migration khi nạp**: settings cũ chỉ có `OutputDisplay`/`StageDisplay` → tự sinh danh sách tương đương (1 Audience "Main Audience" + 1 Stage nếu có), các trường cũ giữ lại để tương thích (không xoá).
+    - Logic thuần (vd `WorshipPlayer.Core/Services/OutputTemplateResolver.cs`): template hiệu dụng = override của output → template của item (theo cơ chế `TemplateService.ApplyToItemAsync`/trường template trên item hiện hành) → template mặc định; output Stage → theo `StageTemplateId` của item nếu có (không phá hành vi stage hiện tại).
+  - Phạm vi KHÔNG làm: không mở thêm cửa sổ output nào (T16); không đụng NDI; không làm layout riêng theo output ngoài template foreground.
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới: migration settings cũ → danh sách output tương đương (đúng DisplayIndex, đúng Purpose); resolver đủ 3 tầng ưu tiên; override null → rơi đúng tầng dưới; output Stage có StageTemplateId → dùng nó.
+    - [ ] Test tương thích ngược: settings.json hiện hữu trong repo (`settings.json` ở thư mục gốc clone) nạp được bằng model mới.
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + kết quả build/test nguyên văn trong PROGRESS.md.
+
+- [ ] **T16 — Nhiều outputs ở engine/UI: mở nhiều cửa sổ output + áp template ghi đè (R8, phần thực thi)** ⚠
+  - Điều kiện tiên quyết: T15 đạt nghiệm thu + Muse đã xác nhận phạm vi R8 (như T15).
+  - Mục tiêu: Hai output audience chạy đồng thời trên hai màn hình, cùng nội dung đang chiếu, foreground trình bày theo template ghi đè riêng của từng output (ví dụ bắt buộc trong R8.3: Default vs Lower Third).
+  - Phạm vi LÀM:
+    - `DisplayManager` + `PresenterEngine` + luồng mở `OutputWindow` (qua `PresenterIntegration`/`OperatorWindow` hiện có): thay vì một output window duy nhất, mở một cửa sổ cho mỗi `OutputConfig` Audience đang bật, đặt đúng display theo DisplayIndex (giữ `ClampDisplayIndex` cho màn hình đã rút); mọi cửa sổ nhận cùng sự kiện đổi slide/item từ engine; mỗi cửa sổ render foreground bằng template đã resolve cho output của nó (dùng resolver của T15 + `TemplateService`).
+    - Settings UI (Display Settings hiện có): liệt kê outputs từ danh sách T15, bật/tắt từng output, chọn display, chọn template ghi đè (dropdown từ `TemplateService`, có lựa chọn "Không ghi đè").
+    - Output bị tắt → đóng cửa sổ tương ứng; bật lại → mở lại đúng cấu hình. Stage display giữ hành vi hiện tại.
+  - Phạm vi KHÔNG làm: không làm NDI thật; không cho hai output chiếu hai item khác nhau (đồng bộ nội dung là yêu cầu cứng); không làm layout kéo-thả.
+  - Tiêu chí nghiệm thu:
+    - [ ] Ghi kiểm chứng tay trên máy 2 màn hình (hoặc 1 màn hình + cửa sổ output thứ hai không toàn màn hình nếu môi trường hạn chế — ghi rõ điều kiện): cấu hình Main Audience (không ghi đè) + Livestream (ghi đè Lower Third) → chiếu một song item → hai cửa sổ cùng slide, trình bày foreground khác nhau đúng template; tắt Livestream → cửa sổ đóng, Main vẫn chiếu tiếp.
+    - [ ] Build 0 error; toàn bộ test pass (logic đã test ở T15; task này không giảm số test).
+  - Bằng chứng phải nộp: commit + ghi kiểm chứng tay + kết quả build/test trong PROGRESS.md.
+
+- [ ] **T17 — Audio gắn vào item: phát khi kích hoạt + loop + UI (R9)**
+  - Mục tiêu: Item có audio đính kèm thì audio tự phát khi item được chiếu và dừng khi rời item; cấu hình được nhiều file + loop từ UI của item.
+  - Phạm vi LÀM:
+    - Model: `ServiceItem` thêm trường loop cho audio đính kèm (bool, mặc định false, tương thích ngược); `ServiceItemAudio` (Core) mở rộng hàm Resolve để trả kèm cờ loop — giữ nguyên chữ ký/hành vi `Resolve` cũ cho nơi đang dùng (thêm overload hoặc record kết quả, không phá test cũ nếu có).
+    - Phát nhạc trong `WorshipPlayer.Presenter`: một dịch vụ phát audio đính kèm riêng (vd `Services/ItemAudioPlaybackService.cs`) dùng NAudio (đã là dependency của solution): phát tuần tự danh sách file đã resolve của item; hết danh sách → lặp lại từ đầu nếu loop bật, không thì dừng; file lỗi/thiếu → bỏ qua sang file kế, ghi log.
+    - Nối vào `PresenterEngine`: khi item hiện tại thay đổi (mọi đường: bấm tay, auto-advance, quick present) → dừng audio của item cũ, bắt đầu audio của item mới (nếu có). Ngoại lệ R9.4: item Song có `UseBacktrack = true` → không phát audio đính kèm.
+    - UI trong `ItemSettingsPanel`/`ItemSettingsWindow`: thêm mục Audio — danh sách file hiện tại của item, thêm file (từ Media Library qua `MediaLibraryService` hoặc hộp chọn file), xoá, lên/xuống đổi thứ tự, checkbox Loop; lưu vào `AudioAttachments` + trường loop mới.
+  - Phạm vi KHÔNG làm: không phát đồng thời nhiều track chồng nhau (chỉ tuần tự); không fade/mix với backtrack; không dùng audio đính kèm làm nguồn trigger auto-advance (AudioEnd giữ deferred).
+  - Tiêu chí nghiệm thu:
+    - [ ] Unit test mới (phần thuần): Resolve trả đủ danh sách + cờ loop từ cả hai dạng dữ liệu (list mới; legacy `AudioAttachmentPath` đơn → danh sách 1 phần tử, loop = false); JSON round-trip của trường loop.
+    - [ ] Ghi kiểm chứng tay đủ 4 điểm: item thông báo gắn 2 file, loop tắt → chiếu item thì phát lần lượt 2 file rồi dừng; bật loop → phát lại từ đầu; chuyển sang item khác giữa chừng → audio dừng ngay; song item bật UseBacktrack gắn audio → không phát chồng.
+    - [ ] Build 0 error; toàn bộ test pass.
+  - Bằng chứng phải nộp: commit + ghi kiểm chứng tay + kết quả build/test trong PROGRESS.md.
