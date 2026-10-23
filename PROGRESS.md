@@ -3,7 +3,8 @@
 ## Trạng thái hiện tại
 - **ĐỢT 2 ĐANG CHẠY — CHẾ ĐỘ CLAUDE-TỰ-CODE (từ 2026-10-23 09:51 ICT):** phiên Kiro Web hết hạn đăng nhập, chủ sản phẩm ra lệnh trực tiếp không chờ thêm → Muse tự code đợt 2 từ T1 (thông báo tại Issue #4, comment 6356247276). Kiro có phiên/credit trở lại thì bàn giao tiếp từ task đang dở — ĐỌC mục này + nhật ký đợt 2 bên dưới để biết điểm tiếp quản, KHÔNG làm trùng task Muse đã bắt đầu.
 - Spec đợt 2: `.kiro/specs/dot-2-trinh-chieu-chuan-worshiptools` (requirements R1–R9, tasks T1–T17, chế độ liên tục). Đường cơ sở đầu đợt 2: 856 test PASS, build 0 error (tại `375b532`). Chuẩn SQLite bắt buộc: comment 6355687580 trên Issue #4.
-- **[dot2-T1] XONG** (commit `3ca3275` trên kiro-current, Muse tự code): nền riêng theo item + ItemBackgroundResolver + nối render OutputWindow. Build 0 error / 8 warning, test **871/871 PASS** (856 cũ + 15 mới). Task tiếp theo: **T2** (Inherit Background).
+- **[dot2-T1] XONG** (commit `3ca3275` trên kiro-current, Muse tự code): nền riêng theo item + ItemBackgroundResolver + nối render OutputWindow. Build 0 error / 8 warning, test **871/871 PASS** (856 cũ + 15 mới). Nghiệm thu ĐẠT tại Issue #4 (comment 6356585028).
+- **[dot2-T2] XONG** (commit `876b8e5` trên kiro-current, Muse tự code): Inherit Background — chuỗi kế thừa + bulk apply + nối render OutputWindow + icon ↩ trong danh sách service. Build 0 error / 8 warning, test **887/887 PASS** (871 cũ + 16 mới). Task tiếp theo: **T3** (Auto Advance: chốt điều kiện hợp lệ Lyrics/Scripture).
 - Spec đợt 1: `.kiro/specs/dot-1-khoa-bang-chung` (đợt 1 — "Khóa bằng chứng & nối mắt xích cuối của Slides")
 - Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật). **T3 XONG** (commit `0ddff03`, build sạch + 856/856 test PASS). **T4 XONG** (bảng 7 panel/dialog ở mục ĐỀ XUẤT; chỉ phân tích, không code). **T5 XONG** (commit `375b532`: gỡ track 25 mp3 + bật .gitignore + xóa latest-changes.patch; build sạch + 856/856 test PASS). **HẾT hàng đợi T3–T5** — không còn task nào trong chế độ liên tục (T2 hoãn).
 - NETSDK1100 đã được giải: **mọi lệnh build/test trên sandbox Linux luôn thêm cờ `-p:EnableWindowsTargeting=true`** (theo Issue #2). Việc 0 đã build sạch + 854/854 test PASS trên Linux (xem nhật ký Việc 0).
@@ -48,6 +49,37 @@
   - [x] Test tương thích ngược `ItemBackgroundPersistenceTests` (2 test): JSON service cũ (không trường nền mới) nạp qua `ServiceOrderManager` → các trường mới null, resolve cho nền = theme (item thường) / đúng ánh xạ legacy (item legacy); trường mới round-trip qua save/load nguyên vẹn.
   - [x] Build 0 error; toàn bộ test (cũ + mới) pass: 871/871.
 - Commit: `3ca3275` (kiro-current) + commit PROGRESS này (main).
+
+### [dot2-T2] Inherit Background (R2): chuỗi kế thừa + bulk apply — 2026-10-23
+- **Người làm: Muse tự code (Kiro không làm việc được)** — chế độ CLAUDE-TỰ-CODE (Issue #4, comment 6356247276).
+- Commit code (nhánh kiro-current): `876b8e5` — "[dot2-T2] Inherit Background (R2)...". 9 file: 7 sửa + 2 mới.
+- **Đã làm:**
+  1. `WorshipPlayer.Core/Models/ServiceOrder.cs`: bổ sung `Inherit` vào `ItemBackgroundKind` (thêm cuối enum; file cũ không bao giờ có giá trị này).
+  2. `WorshipPlayer.Core/Services/InheritBackgroundResolver.cs` (MỚI, thuần): `IsInherit(item)` (chỉ kind tường minh Inherit; legacy BackgroundType không bao giờ là Inherit) + `ResolveItem(items, index, theme)` (đi ngược từ index lên, bỏ qua các item Inherit khác, tới item đầu tiên có nền thật → render nền đã resolve của item đó; không có → theme; item đầu danh sách Inherit → theme) + `ResolveService(items, theme)` (toàn list theo thứ tự tại thời điểm gọi; list rỗng → rỗng, không lỗi). KHÔNG ghi kết quả resolve vào item con — sắp xếp/xoá/đổi nguồn được nhận ở lần resolve sau.
+  3. Nối render: `OutputWindow.xaml.cs` — thêm `SetCurrentItem(item, serviceItems)` + `ResolveCurrentBackground()` (có list và tìm được item → resolve qua chuỗi Inherit, khớp theo tham chiếu rồi theo Id; không tìm được → resolve cấp item như T1); `ApplyBackground` dùng hàm này. `OperatorWindow.OnItemChanged` giờ gọi `SetCurrentItem(e.NewItem, _engine?.CurrentServiceOrder?.Items)`.
+  4. Bulk edit: `BulkEditService` — thêm `BulkEditOptions.ApplyBackgroundInherit` (thắng lựa chọn legacy BackgroundType trong cùng lần apply; legacy BackgroundType được giữ nguyên để khôi phục khi item rời Inherit); `BulkEditPanel.xaml` thêm lựa chọn "Inherit Background" vào combo Set Background; code-behind ánh xạ lựa chọn này thành `ApplyBackgroundInherit = true`.
+  5. Hiển thị trực quan: `ServiceItemDisplay.InheritBadgeVisibility` + TextBlock "↩" (tooltip "Inherits background from the item above") cạnh tên item trong danh sách service của OperatorWindow.
+  6. Ngoài phạm vi (đúng spec): KHÔNG inherit từ item không liên tục (chỉ chuỗi "ngay phía trên"); KHÔNG cơ chế chọn nguồn inherit tuỳ ý.
+- **Lệnh build:** `dotnet build WorshipBacktrackPlayer.sln -c Debug --nologo -p:EnableWindowsTargeting=true`
+- **Kết quả build (NGUYÊN VĂN):**
+  ```
+  Build succeeded.
+      8 Warning(s)
+      0 Error(s)
+  ```
+  (8 warning đã có sẵn ở WorshipPlayer.UI từ trước đợt 2, không thuộc file T2.)
+- **Lệnh test:** build WorshipPlayer.Tests rồi chạy xUnit console runner (xunit.runner.console 2.9.2, `DOTNET_ROLL_FORWARD=LatestMajor`, `LD_LIBRARY_PATH` tới `runtimes/linux-x64/native` để SQLite native nạp được — xem AGENTS.md).
+- **Kết quả test (NGUYÊN VĂN):**
+  ```
+  === TEST EXECUTION SUMMARY ===
+     WorshipPlayer.Tests  Total: 887, Errors: 0, Failed: 0, Skipped: 0
+  ```
+  → 871 test cũ + **16 test mới** đều PASS.
+- **Tiêu chí nghiệm thu T2:**
+  - [x] `InheritBackgroundResolverTests` (12 test): chuỗi 1 item; chuỗi 3 item cùng kế thừa 1 nền; đổi nền item nguồn → chuỗi đổi theo khi resolve lại (và không ghi vào item con); item đầu danh sách Inherit → theme; xoá item nguồn → chuỗi resolve lại đúng; list rỗng → không lỗi; item không Inherit cắt chuỗi đúng; kế thừa nguồn None; bỏ qua nhiều item Inherit tới nguồn thật gần nhất; index ngoài phạm vi → ném ArgumentOutOfRangeException; `IsInherit` chỉ true với kind tường minh Inherit.
+  - [x] `BulkEditInheritBackgroundTests` (4 test): áp Inherit chỉ đổi đúng item được chọn; các trường khác (transition, auto-advance, legacy BackgroundType, title) không đổi; Inherit thắng lựa chọn legacy trong cùng lần apply; không opt-in → BackgroundKind không đụng.
+  - [x] Build 0 error; toàn bộ test (cũ + mới) pass: 887/887.
+- Commit: `876b8e5` (kiro-current) + commit PROGRESS này (main).
 
 ### [task T5] Vệ sinh repo: gỡ track file nhạc + dọn file patch ở gốc — 2026-10-23
 - Commit code (nhánh kiro-current): `375b532` — "[task T5] Ve sinh repo: go track 25 file .mp3 (giu tren dia), bat *.mp3/*.wav/*.flac trong .gitignore, xoa latest-changes.patch (noi dung da nam trong code)".
