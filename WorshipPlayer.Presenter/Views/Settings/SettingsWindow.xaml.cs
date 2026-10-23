@@ -39,6 +39,13 @@ public partial class SettingsWindow : Window
     /// </summary>
     public IBibleProvider? BibleProvider { get; set; }
 
+    /// <summary>
+    /// The shared template service, forwarded to the Screen Config section so its
+    /// per-output template-override dropdown lists the real templates (dot2-T16).
+    /// Set this before showing the window.
+    /// </summary>
+    public ITemplateService? TemplateService { get; set; }
+
     public SettingsWindow()
     {
         InitializeComponent();
@@ -104,7 +111,16 @@ public partial class SettingsWindow : Window
             // Read values from ScreenConfigSection if it's been loaded
             if (_screenConfigSection != null && PresenterSettings != null)
             {
-                PresenterSettings.OutputDisplay = _screenConfigSection.AudienceDisplayIndex;
+                // Đợt 2 T16 / R8: persist the edited outputs list; keep the legacy
+                // OutputDisplay field in sync (first enabled audience output's display,
+                // or -1) so legacy readers (single-monitor Go-Live, DisplayManager)
+                // keep working.
+                var outputs = _screenConfigSection.GetOutputs();
+                PresenterSettings.Outputs = outputs;
+                PresenterSettings.OutputDisplay = outputs
+                    .Where(o => o.Purpose == WorshipPlayer.Core.Models.ScreenPurpose.Audience && o.IsEnabled)
+                    .Select(o => (int?)o.DisplayIndex)
+                    .FirstOrDefault() ?? -1;
                 PresenterSettings.StageDisplay = _screenConfigSection.StageDisplayIndex;
             }
 
@@ -220,11 +236,18 @@ public partial class SettingsWindow : Window
         if (_screenConfigSection == null)
         {
             _screenConfigSection = new ScreenConfigSection();
+            if (TemplateService != null)
+            {
+                _screenConfigSection.TemplateService = TemplateService;
+            }
             if (PresenterSettings != null)
             {
+                // Đợt 2 T16 / R8: the outputs list (T15, migrated at LoadAsync) is the
+                // source of truth for audience windows; the legacy OutputDisplay field
+                // is re-derived on Save.
                 _screenConfigSection.SetCurrentConfig(
-                    PresenterSettings.OutputDisplay,
-                    PresenterSettings.StageDisplay);
+                    PresenterSettings.StageDisplay,
+                    PresenterSettings.Outputs ?? new List<WorshipPlayer.Core.Models.OutputConfig>());
             }
         }
         return _screenConfigSection;

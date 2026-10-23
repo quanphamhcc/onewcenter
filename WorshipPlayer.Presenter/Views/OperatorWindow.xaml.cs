@@ -36,7 +36,10 @@ namespace WorshipPlayer.Presenter.Views;
 public partial class OperatorWindow : Window
 {
     private PresenterEngine? _engine;
-    private OutputWindow? _outputWindow;
+    // Đợt 2 T16 / R8 — nhiều outputs: every audience output gets its own window.
+    // All windows show the SAME content (hard requirement); each renders its own
+    // foreground template (see OutputWindow.SetOutputConfig).
+    private readonly List<OutputWindow> _outputWindows = new();
     private ThemeManager? _themeManager;
     private NdiOutputService? _ndiOutputService;
     private OutputCaptureService? _outputCaptureService;
@@ -224,7 +227,8 @@ public partial class OperatorWindow : Window
         DisplayManager? displayManager, Action<PresenterSettings>? onSaveSettings)
     {
         _engine = engine;
-        _outputWindow = outputWindow;
+        _outputWindows.Clear();
+        if (outputWindow != null) _outputWindows.Add(outputWindow);
         _themeManager = themeManager;
         _displayManager = displayManager;
         _onSaveSettings = onSaveSettings;
@@ -532,12 +536,52 @@ public partial class OperatorWindow : Window
     }
 
     /// <summary>
-    /// Update the OutputWindow reference (called when Display Settings creates/moves the output window).
-    /// Ensures slides are forwarded to the correct output.
+    /// Replace the output window list (đợt 2 T16 / R8 — nhiều outputs). Called when
+    /// Display Settings creates/moves/closes output windows. Ensures slides are
+    /// forwarded to every audience output.
     /// </summary>
-    public void SetOutputWindow(OutputWindow? outputWindow)
+    public void SetOutputWindows(IEnumerable<OutputWindow> windows)
     {
-        _outputWindow = outputWindow;
+        _outputWindows.Clear();
+        if (windows != null) _outputWindows.AddRange(windows);
+    }
+
+    /// <summary>
+    /// Đợt 2 T16 / R8: fan-out an action to every audience output window. A failure on
+    /// one window never breaks the others.
+    /// </summary>
+    private void ForEachOutputWindow(Action<OutputWindow> action)
+    {
+        foreach (var w in _outputWindows.ToList())
+        {
+            try { action(w); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[OperatorWindow] output fan-out failed: {ex.Message}"); }
+        }
+    }
+
+    /// <summary>
+    /// Forward a slide to every output window, stamping each window with the template
+    /// id of the song section being shown (the middle layer of the T15
+    /// OutputTemplateResolver). Sections without a template fall back through the
+    /// resolver to the theme, exactly as before T16.
+    /// </summary>
+    private void ShowSlideOnOutputs(Slide slide, SlideTransition transition, int durationMs)
+    {
+        var song = _engine?.CurrentSong;
+        var itemTemplateId = song?.Sections
+            .FirstOrDefault(s => string.Equals(s.Name, slide.SectionName, StringComparison.OrdinalIgnoreCase))
+            ?.TemplateId;
+        ForEachOutputWindow(w => { w.SetItemTemplateId(itemTemplateId); w.ShowSlide(slide, transition, durationMs); });
+    }
+
+    /// <summary>
+    /// Forward the current item to every output window (per-item background, T1/T2),
+    /// clearing the per-section item template stamp — the next ShowSlide sets it
+    /// for the section being shown.
+    /// </summary>
+    private void SetCurrentItemOnOutputs(ServiceItem? item, IList<ServiceItem>? serviceItems)
+    {
+        ForEachOutputWindow(w => { w.SetItemTemplateId(null); w.SetCurrentItem(item, serviceItems); });
     }
 
     /// <summary>
@@ -597,7 +641,7 @@ public partial class OperatorWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            _outputWindow?.ShowAlert(template, 5000);
+            ForEachOutputWindow(w => w.ShowAlert(template, 5000));
         });
     }
 
@@ -605,7 +649,7 @@ public partial class OperatorWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            _outputWindow?.HideAlert();
+            ForEachOutputWindow(w => w.HideAlert());
         });
     }
 
@@ -617,7 +661,7 @@ public partial class OperatorWindow : Window
             var timeText = ts.TotalHours >= 1
                 ? $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}"
                 : $"{ts.Minutes:D2}:{ts.Seconds:D2}";
-            _outputWindow?.ShowCountdown(timeText);
+            ForEachOutputWindow(w => w.ShowCountdown(timeText));
         });
     }
 
@@ -625,7 +669,7 @@ public partial class OperatorWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            _outputWindow?.HideCountdown();
+            ForEachOutputWindow(w => w.HideCountdown());
         });
     }
 
@@ -640,9 +684,9 @@ public partial class OperatorWindow : Window
             UpdateLiveSectionHighlights();
 
             // Forward to output window
-            if (e.NewSlide != null && _outputWindow != null)
+            if (e.NewSlide != null)
             {
-                _outputWindow.ShowSlide(e.NewSlide, e.Transition, e.TransitionDurationMs);
+                ShowSlideOnOutputs(e.NewSlide, e.Transition, e.TransitionDurationMs);
             }
         });
     }
@@ -695,11 +739,11 @@ public partial class OperatorWindow : Window
             var videoRoute = VideoRouteResolver.Resolve(e.NewItem);
             if (videoRoute.PlayVideo)
             {
-                _outputWindow?.ShowVideo(videoRoute.VideoPath);
+                ForEachOutputWindow(w => w.ShowVideo(videoRoute.VideoPath));
             }
-            else if (_outputWindow?.IsVideoMode == true)
+            else if (_outputWindows.Any(w => w.IsVideoMode))
             {
-                _outputWindow.StopVideo();
+                ForEachOutputWindow(w => w.StopVideo());
             }
 
             // Đợt 2 T1 (R1) + T2 (R2): hand the new current item to the output window
@@ -707,7 +751,7 @@ public partial class OperatorWindow : Window
             // (including Inherit chains, resolved at render time) is applied under
             // the item's foreground; Theme-kind items are a no-op visually (the
             // theme background is re-applied as before).
-            _outputWindow?.SetCurrentItem(e.NewItem, _engine?.CurrentServiceOrder?.Items);
+            SetCurrentItemOnOutputs(e.NewItem, _engine?.CurrentServiceOrder?.Items);
 
             // BUG A: ensure the sidebar reflects the loaded service. On startup the service order
             // is auto-loaded asynchronously (ServiceOrderManager.LoadAsync) AFTER the operator
@@ -777,7 +821,7 @@ public partial class OperatorWindow : Window
                 LiveButton.Background = new SolidColorBrush(LivePink);
                 LiveBadge.Visibility = Visibility.Collapsed;
                 AudiencePreviewBorder.BorderBrush = new SolidColorBrush(BorderColor);
-                _outputWindow?.ShowBlack();
+                ForEachOutputWindow(w => w.ShowBlack());
                 UpdateLiveTabDot(false);
             }
             else if (e.IsLive)
@@ -799,11 +843,11 @@ public partial class OperatorWindow : Window
 
             // F5: push the new pitch offset to the congregation output and re-render the current
             // slide so shown chords transpose live.
-            _outputWindow?.SetPitchShift(e.Semitones);
+            ForEachOutputWindow(w => w.SetPitchShift(e.Semitones));
             var current = _engine?.CurrentSlide;
             if (current != null)
             {
-                _outputWindow?.ShowSlide(current, SlideTransition.Cut, 0);
+                ShowSlideOnOutputs(current, SlideTransition.Cut, 0);
             }
         });
     }
@@ -829,7 +873,7 @@ public partial class OperatorWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            _outputWindow?.ApplyTheme(theme);
+            ForEachOutputWindow(w => w.ApplyTheme(theme));
         });
     }
 
@@ -846,7 +890,7 @@ public partial class OperatorWindow : Window
 
         // Always (re)create/re-show the single-monitor output first. The hook is a no-op on a
         // dual-monitor rig and when the window already exists & is loaded; it recreates/reshows the
-        // window and refreshes this window's _outputWindow reference via SetOutputWindow. Running it
+        // window and refreshes this window's output window list via SetOutputWindows. Running it
         // unconditionally is what fixes "GO LIVE does nothing after the output was closed while LIVE"
         // (IsLive stays true, so the old IsBlacked||!IsLive guard never reached the hook).
         _onGoLive?.Invoke();
@@ -855,7 +899,7 @@ public partial class OperatorWindow : Window
         {
             _engine.GoLive();
         }
-        _outputWindow?.Unblack();
+        ForEachOutputWindow(w => w.Unblack());
     }
 
     private void GoBlack_Click(object sender, RoutedEventArgs e)
@@ -866,7 +910,7 @@ public partial class OperatorWindow : Window
     private void ShowLogo_Click(object sender, RoutedEventArgs e)
     {
         _engine?.ShowLogo();
-        _outputWindow?.ShowLogo();
+        ForEachOutputWindow(w => w.ShowLogo());
     }
 
     private void ToggleChords_Click(object sender, RoutedEventArgs e)
@@ -877,7 +921,7 @@ public partial class OperatorWindow : Window
         settings.CongregationShowChords = !settings.CongregationShowChords;
 
         // Apply to output window if it exists
-        _outputWindow?.SetChordDisplay(settings.CongregationShowChords);
+        ForEachOutputWindow(w => w.SetChordDisplay(settings.CongregationShowChords));
 
         if (settings.CongregationShowChords)
         {
@@ -895,9 +939,9 @@ public partial class OperatorWindow : Window
 
         // Re-render output if window exists
         var currentSlide = _engine.CurrentSlide;
-        if (currentSlide != null && _outputWindow != null)
+        if (currentSlide != null)
         {
-            _outputWindow.ShowSlide(currentSlide, SlideTransition.Cut, 0);
+            ShowSlideOnOutputs(currentSlide, SlideTransition.Cut, 0);
         }
 
         // Update the audience preview to reflect the chord toggle immediately
@@ -990,6 +1034,9 @@ public partial class OperatorWindow : Window
             // dot2-T12: the Bibles section lists/imports translations against
             // the same shared Bible database the Scripture panel reads.
             settingsWindow.BibleProvider = _bibleProvider;
+            // dot2-T16: the Screen Config section lists per-output template overrides
+            // from the real template catalog.
+            settingsWindow.TemplateService = _templateService;
             settingsWindow.OnSaveRequested = () =>
             {
                 // Save presenter settings to disk and apply display changes
@@ -1018,7 +1065,8 @@ public partial class OperatorWindow : Window
 
     private void StartNdiOutput()
     {
-        if (_outputWindow == null) return;
+        var primaryOutput = _outputWindows.FirstOrDefault();
+        if (primaryOutput == null) return;
 
         if (_ndiOutputService == null)
         {
@@ -1039,7 +1087,7 @@ public partial class OperatorWindow : Window
         _ndiOutputService.Initialize();
         _ndiOutputService.Start();
 
-        var target = _outputWindow.Content as FrameworkElement;
+        var target = primaryOutput.Content as FrameworkElement;
         if (target != null)
         {
             _outputCaptureService.Start(
@@ -1093,7 +1141,7 @@ public partial class OperatorWindow : Window
     private void ChordToggle_Changed(object sender, RoutedEventArgs e)
     {
         var isChecked = ChordToggleCheckBox.IsChecked == true;
-        _outputWindow?.SetChordDisplay(isChecked);
+        ForEachOutputWindow(w => w.SetChordDisplay(isChecked));
     }
 
     private void ThemeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1245,7 +1293,7 @@ public partial class OperatorWindow : Window
 
             case Key.F1:
                 _engine?.ShowLogo();
-                _outputWindow?.ShowLogo();
+                ForEachOutputWindow(w => w.ShowLogo());
                 e.Handled = true;
                 break;
 
@@ -1253,9 +1301,9 @@ public partial class OperatorWindow : Window
                 // F6: on a single-monitor full-screen output, Esc reclaims the screen by exiting
                 // full-screen (restores window chrome) rather than only content-blacking. On a
                 // dual-monitor rig Esc keeps its current content-black meaning.
-                if (_isSingleMonitorOutput?.Invoke() == true && _outputWindow != null)
+                if (_isSingleMonitorOutput?.Invoke() == true)
                 {
-                    _outputWindow.ExitFullScreen();
+                    _outputWindows.FirstOrDefault()?.ExitFullScreen();
                 }
                 else if (_engine?.IsBlacked == false)
                 {
@@ -1269,13 +1317,13 @@ public partial class OperatorWindow : Window
                 {
                     // Always (re)create/re-show the single-monitor output first (same as the GO LIVE
                     // button); the hook recreates/reshows a closed-while-live output and refreshes
-                    // the _outputWindow reference. Keep GoLive() behind the state guard.
+                    // the output window list. Keep GoLive() behind the state guard.
                     _onGoLive?.Invoke();
                     if (_engine.IsBlacked || !_engine.IsLive)
                     {
                         _engine.GoLive();
                     }
-                    _outputWindow?.Unblack();
+                    ForEachOutputWindow(w => w.Unblack());
                 }
                 e.Handled = true;
                 break;
@@ -3686,7 +3734,7 @@ public partial class OperatorWindow : Window
                 dialog.AlertService = _alertService;
             dialog.AlertFired += (s, template) =>
             {
-                _outputWindow?.ShowAlert(template, 5000);
+                ForEachOutputWindow(w => w.ShowAlert(template, 5000));
             };
             dialog.ShowDialog();
         }

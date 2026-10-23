@@ -5,6 +5,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Services;
+using WorshipPlayer.Core.Services.Interfaces;
 using WorshipPlayer.Presenter.Services;
 
 namespace WorshipPlayer.Presenter.Views;
@@ -157,6 +158,139 @@ public partial class OutputWindow : Window
     public void SetChordDisplay(bool show)
     {
         _showChords = show;
+    }
+
+    // ─── Đợt 2 T16 / R8: per-output foreground template ───────────────────
+    // This window renders for exactly one audience output (bound via SetOutputConfig).
+    // Its foreground text styling follows the 3-layer resolution of T15
+    // (OutputTemplateResolver): the output's template override → the current item's
+    // template → default (null = keep the theme styling, i.e. pre-T16 behavior).
+    // Every window shows the SAME slide content; only the foreground presentation
+    // may differ per output (hard R8 requirement: outputs never diverge in content).
+    private OutputConfig? _outputConfig;
+    private ITemplateService? _templateService;
+    private string? _itemTemplateId;
+    private SlideTemplate? _effectiveTemplate;
+    private string? _effectiveTemplateId;
+
+    /// <summary>
+    /// Bind this window to the audience output it renders. Null = legacy single-window
+    /// behavior (theme styling only, no template resolution).
+    /// </summary>
+    public void SetOutputConfig(OutputConfig? config)
+    {
+        _outputConfig = config;
+        _ = RefreshEffectiveTemplateAsync();
+    }
+
+    /// <summary>
+    /// Provide the template service used to fetch the resolved template's styling.
+    /// </summary>
+    public void SetTemplateService(ITemplateService? templateService)
+    {
+        _templateService = templateService;
+        _ = RefreshEffectiveTemplateAsync();
+    }
+
+    /// <summary>
+    /// The current item's own template id (e.g. the current song's TemplateId) — the
+    /// middle layer of the T15 resolution. Null = the item sets none.
+    /// </summary>
+    public void SetItemTemplateId(string? templateId)
+    {
+        if (_itemTemplateId == templateId) return;
+        _itemTemplateId = templateId;
+        _ = RefreshEffectiveTemplateAsync();
+    }
+
+    /// <summary>
+    /// Re-resolve the effective foreground template and re-render the current slide
+    /// with its styling. Best-effort: a missing/deleted template falls back to the
+    /// theme styling; failures never break the output.
+    /// </summary>
+    private async Task RefreshEffectiveTemplateAsync()
+    {
+        try
+        {
+            string? templateId = null;
+            if (_outputConfig != null && _templateService != null)
+            {
+                // R8.2: default layer = null → theme styling preserved (pre-T16 look)
+                // for outputs without an override and items without a template.
+                templateId = OutputTemplateResolver.Resolve(_outputConfig, _itemTemplateId, defaultTemplateId: null);
+            }
+
+            if (templateId == _effectiveTemplateId) return;
+            _effectiveTemplateId = templateId;
+            _effectiveTemplate = string.IsNullOrWhiteSpace(templateId)
+                ? null
+                : await _templateService!.GetByIdAsync(templateId);
+
+            // Re-render the showing slide so the new styling takes effect immediately.
+            if (_currentSlide != null && !_isBlacked && !_isVideoMode)
+            {
+                if (_isSlideAActive)
+                    LoadSlideIntoBuffer(_currentSlide, SlideAText, SlideAHeader, SlideAFooter, SlideAChords);
+                else
+                    LoadSlideIntoBuffer(_currentSlide, SlideBText, SlideBHeader, SlideBFooter, SlideBChords);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[OutputWindow] RefreshEffectiveTemplate failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Parse a template's font-weight name ("Bold", "Normal", ...) to a WPF FontWeight.
+    /// Unknown values fall back to Normal — never throws.
+    /// </summary>
+    private static FontWeight ParseTemplateFontWeight(string? name)
+    {
+        return name?.Trim().ToLowerInvariant() switch
+        {
+            "bold" => FontWeights.Bold,
+            "semibold" => FontWeights.SemiBold,
+            "light" => FontWeights.Light,
+            "medium" => FontWeights.Medium,
+            "black" => FontWeights.Black,
+            "thin" => FontWeights.Thin,
+            _ => FontWeights.Normal,
+        };
+    }
+
+    /// <summary>
+    /// Apply a resolved foreground template's text styling to a slide text block.
+    /// Called at the end of LoadSlideIntoBuffer; the theme remains the base and the
+    /// template only overrides the foreground text presentation.
+    /// </summary>
+    private void ApplyForegroundTemplate(System.Windows.Controls.TextBlock textBlock, SlideTemplate template)
+    {
+        try
+        {
+            textBlock.FontFamily = new FontFamily(template.FontFamily);
+            textBlock.FontSize = template.FontSize;
+            textBlock.FontWeight = ParseTemplateFontWeight(template.FontWeight);
+            textBlock.FontStyle = template.FontItalic ? FontStyles.Italic : FontStyles.Normal;
+            textBlock.Foreground = new SolidColorBrush(
+                (Color)ColorConverter.ConvertFromString(template.FontColor));
+            textBlock.TextAlignment = template.HorizontalAlignment switch
+            {
+                Core.Models.TextAlignment.Left => System.Windows.TextAlignment.Left,
+                Core.Models.TextAlignment.Right => System.Windows.TextAlignment.Right,
+                _ => System.Windows.TextAlignment.Center,
+            };
+            textBlock.VerticalAlignment = template.VerticalAlignment switch
+            {
+                Core.Models.VerticalAlignment.Top => System.Windows.VerticalAlignment.Top,
+                Core.Models.VerticalAlignment.Bottom => System.Windows.VerticalAlignment.Bottom,
+                _ => System.Windows.VerticalAlignment.Center,
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[OutputWindow] ApplyForegroundTemplate failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -786,6 +920,12 @@ public partial class OutputWindow : Window
         footerBlock.FontSize = _currentTheme.FooterFontSize;
         footerBlock.Foreground = new SolidColorBrush(
             (Color)ColorConverter.ConvertFromString(_currentTheme.FooterFontColor));
+
+        // Đợt 2 T16 / R8: when this window is bound to an output whose effective
+        // template resolved (override → item template), the template's foreground
+        // styling wins over the theme for the main text. Null = theme look kept.
+        if (_effectiveTemplate != null)
+            ApplyForegroundTemplate(textBlock, _effectiveTemplate);
 
         // Foreground image (QR code etc.) — resolve relative paths against the app base dir and
         // never let a missing/corrupt image throw during render (F9/F10).

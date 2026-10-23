@@ -55,4 +55,12 @@ public class OutputConfig
     /// </summary>
     [JsonPropertyName("foregroundTemplateIdOverride")]
     public string? ForegroundTemplateIdOverride { get; set; }
+
+    /// <summary>
+    /// Whether this output is switched on (đợt 2 T16 / R8). A disabled output gets no
+    /// window: disabling closes its window, re-enabling re-opens it with the saved
+    /// configuration. Defaults to true; missing in old JSON → true (backward compatible).
+    /// </summary>
+    [JsonPropertyName("isEnabled")]
+    public bool IsEnabled { get; set; } = true;
 }

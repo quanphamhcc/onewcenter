@@ -53,7 +53,17 @@ public class PresenterIntegration : IDisposable
 
     // Windows
     private OperatorWindow? _operatorWindow;
-    private OutputWindow? _outputWindow;
+
+    // Đợt 2 T16 / R8 — nhiều outputs: one window per enabled audience OutputConfig,
+    // keyed by OutputConfig.Id. Every window shows the SAME content (hard requirement);
+    // each renders its foreground with its own resolved template
+    // (see OutputWindow.SetOutputConfig + T15 OutputTemplateResolver).
+    private readonly Dictionary<string, OutputWindow> _audienceWindows = new();
+
+    // Single-monitor Go-Live window (not in the dict): opened lazily when no audience
+    // output is configured, full-screened on the sole monitor. A configured audience
+    // output supersedes it (see ApplyDisplaySettings).
+    private OutputWindow? _goLiveWindow;
 
     /// <summary>
     /// Fired when a ServiceOrder item wants to load a song in the backtrack player.
@@ -262,7 +272,9 @@ public class PresenterIntegration : IDisposable
         if (_operatorWindow == null || !_operatorWindow.IsLoaded)
         {
             _operatorWindow = new OperatorWindow();
-            _operatorWindow.Initialize(PresenterEngine, _outputWindow, ThemeManager, DisplayManager, SavePresenterSettings);
+            // Đợt 2 T16: no output windows exist yet — they are created by
+            // ApplyDisplaySettings / HandleGoLiveSingleMonitor and registered via SetOutputWindows.
+            _operatorWindow.Initialize(PresenterEngine, null, ThemeManager, DisplayManager, SavePresenterSettings);
             _operatorWindow.SetServices(
                 SongLibraryService,
                 MediaLibraryService,
@@ -460,48 +472,108 @@ public class PresenterIntegration : IDisposable
     }
 
     /// <summary>
-    /// Apply display settings immediately — move/create/close the Output Window
-    /// based on the current OutputDisplay setting.
+    /// Apply display settings immediately — reconcile the audience output windows with
+    /// the configured outputs (đợt 2 T16 / R8). One window per enabled audience
+    /// <see cref="OutputConfig"/> with a valid display (see
+    /// <see cref="OutputWindowPlanner"/>); windows whose output was disabled, moved to
+    /// a removed monitor, or deleted are closed. Each window is bound to its output so
+    /// it renders the foreground with that output's resolved template.
+    /// Stage display keeps its existing behavior (web stage display — untouched).
     /// </summary>
     private void ApplyDisplaySettings(PresenterSettings settings)
     {
-        var outputDisplay = DisplayManager.GetOutputBounds();
+        OutputMigration.EnsureOutputs(settings);
+        var plan = OutputWindowPlanner.PlanAudienceWindows(
+            settings.Outputs, DisplayManager.AvailableDisplays.Count);
+        var plannedIds = new HashSet<string>(plan.Select(p => p.Output.Id));
 
-        if (settings.OutputDisplay >= 0 && outputDisplay != null)
+        // A configured audience output supersedes the single-monitor Go-Live window.
+        if (plan.Count > 0)
+            CloseGoLiveWindow();
+
+        // Close windows whose output is no longer planned (disabled / unplugged / removed).
+        foreach (var id in _audienceWindows.Keys.Where(k => !plannedIds.Contains(k)).ToList())
+            CloseAudienceWindow(id);
+
+        // Create / move / show the planned windows.
+        foreach (var planned in plan)
         {
-            // A display is configured — show output window on that monitor
-            if (_outputWindow == null || !_outputWindow.IsLoaded)
+            var outputId = planned.Output.Id;
+            if (!_audienceWindows.TryGetValue(outputId, out var window) || !window.IsLoaded)
             {
-                _outputWindow = new OutputWindow();
-                _outputWindow.Closed += (s, e) => _outputWindow = null;
-                _outputWindow.VideoPlaybackEnded += OnOutputVideoEnded;
-                _outputWindow.BackgroundVideoEnded += OnOutputVideoEnded;
+                window = new OutputWindow();
+                window.Closed += (s, e) => _audienceWindows.Remove(outputId);
+                window.VideoPlaybackEnded += OnOutputVideoEnded;
+                window.BackgroundVideoEnded += OnOutputVideoEnded;
+                window.SetTemplateService(TemplateService);
+                _audienceWindows[outputId] = window;
             }
 
-            // Dual-monitor / explicitly-configured output: preserve the existing close semantics
-            // (closing the dedicated output monitor's window destroys it as before).
-            _outputWindow.SuppressDestroyWhileLive = false;
+            window.SetOutputConfig(planned.Output);
 
-            _outputWindow.PlaceOnDisplay(outputDisplay);
+            // Configured outputs: preserve the existing close semantics (closing the
+            // dedicated output window destroys it as before).
+            window.SuppressDestroyWhileLive = false;
 
-            if (!_outputWindow.IsVisible)
-                _outputWindow.Show();
+            window.PlaceOnDisplay(DisplayManager.AvailableDisplays[planned.ClampedDisplayIndex]);
+
+            if (!window.IsVisible)
+                window.Show();
         }
-        else
+
+        // Update the OperatorWindow's window list so slides fan out to every output.
+        RefreshOperatorWindows();
+    }
+
+    /// <summary>
+    /// Push the current audience + Go-Live windows into the OperatorWindow for fan-out.
+    /// </summary>
+    private void RefreshOperatorWindows()
+    {
+        if (_operatorWindow == null) return;
+        var windows = new List<OutputWindow>(_audienceWindows.Values);
+        if (_goLiveWindow != null && _goLiveWindow.IsLoaded)
+            windows.Add(_goLiveWindow);
+        _operatorWindow.SetOutputWindows(windows);
+    }
+
+    /// <summary>
+    /// Close and forget one audience output window (genuine teardown: the close actually
+    /// destroys the window and OnClosed disposes its VLC services).
+    /// </summary>
+    private void CloseAudienceWindow(string outputId)
+    {
+        if (!_audienceWindows.TryGetValue(outputId, out var window)) return;
+        _audienceWindows.Remove(outputId);
+        try
         {
-            // "None" selected — close the output window if it's open
-            if (_outputWindow != null && _outputWindow.IsLoaded)
-            {
-                // Genuine teardown: ensure the close actually destroys (OnClosed disposes VLC).
-                _outputWindow.SuppressDestroyWhileLive = false;
-                _outputWindow.ExitFullScreen();
-                _outputWindow.Close();
-                _outputWindow = null;
-            }
+            window.SuppressDestroyWhileLive = false;
+            window.ExitFullScreen();
+            window.Close();
         }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"CloseAudienceWindow failed: {ex.Message}");
+        }
+    }
 
-        // Update OperatorWindow's reference so it forwards slides to the correct output
-        _operatorWindow?.SetOutputWindow(_outputWindow);
+    /// <summary>
+    /// Close and forget the single-monitor Go-Live window.
+    /// </summary>
+    private void CloseGoLiveWindow()
+    {
+        var window = _goLiveWindow;
+        _goLiveWindow = null;
+        if (window == null) return;
+        try
+        {
+            window.SuppressDestroyWhileLive = false;
+            window.Close();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"CloseGoLiveWindow failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -516,32 +588,36 @@ public class PresenterIntegration : IDisposable
     {
         try
         {
-            bool singleMonitor = _presenterSettings.OutputDisplay < 0 || DisplayManager.AvailableDisplays.Count <= 1;
+            // Đợt 2 T16: Go-Live applies when no audience output window is configured
+            // (or only one monitor exists). Configured audience outputs take precedence.
+            bool singleMonitor = _audienceWindows.Count == 0 || DisplayManager.AvailableDisplays.Count <= 1;
             if (!singleMonitor) return;
 
-            // Lazily create the output window (same pattern as ApplyDisplaySettings).
-            if (_outputWindow == null || !_outputWindow.IsLoaded)
+            // Lazily create the Go-Live window (same pattern as ApplyDisplaySettings).
+            if (_goLiveWindow == null || !_goLiveWindow.IsLoaded)
             {
-                _outputWindow = new OutputWindow();
-                _outputWindow.Closed += (s, e) => _outputWindow = null;
-                _outputWindow.VideoPlaybackEnded += OnOutputVideoEnded;
-                _outputWindow.BackgroundVideoEnded += OnOutputVideoEnded;
+                _goLiveWindow = new OutputWindow();
+                _goLiveWindow.Closed += (s, e) => _goLiveWindow = null;
+                _goLiveWindow.VideoPlaybackEnded += OnOutputVideoEnded;
+                _goLiveWindow.BackgroundVideoEnded += OnOutputVideoEnded;
+                _goLiveWindow.SetTemplateService(TemplateService);
+                _goLiveWindow.SetOutputConfig(null); // legacy theme rendering
             }
 
-            if (!_outputWindow.IsVisible)
-                _outputWindow.Show();
+            if (!_goLiveWindow.IsVisible)
+                _goLiveWindow.Show();
 
             // Full-screen but NOT topmost so the operator can return to the command center.
-            _outputWindow.GoFullScreen(topmost: false);
+            _goLiveWindow.GoFullScreen(topmost: false);
 
             // While LIVE on a single monitor, a user close ([X]) should hide (keep the one instance
             // + its LibVLC services alive) rather than destroy/orphan it; GO LIVE then re-shows it.
             // The flag is cleared on a genuine non-live reconfigure (ApplyDisplaySettings) and on
             // Dispose so app shutdown still destroys normally.
-            _outputWindow.SuppressDestroyWhileLive = true;
+            _goLiveWindow.SuppressDestroyWhileLive = true;
 
             // Register with the operator window so slides forward to this output.
-            _operatorWindow?.SetOutputWindow(_outputWindow);
+            RefreshOperatorWindows();
         }
         catch (Exception ex)
         {
@@ -555,8 +631,8 @@ public class PresenterIntegration : IDisposable
     /// ExitFullScreen (reclaim the screen) rather than content-black.
     /// </summary>
     public bool IsSingleMonitorOutput =>
-        (_presenterSettings.OutputDisplay < 0 || DisplayManager.AvailableDisplays.Count <= 1)
-        && _outputWindow != null;
+        (_audienceWindows.Count == 0 || DisplayManager.AvailableDisplays.Count <= 1)
+        && _goLiveWindow != null;
 
     private void BroadcastStageUpdate()
     {
@@ -588,17 +664,13 @@ public class PresenterIntegration : IDisposable
         StageDisplayServer.Dispose();
         CountdownService.Dispose();
 
-        // Close windows — app shutdown must destroy the output (and dispose its VLC services),
-        // so clear the hide-while-live guard before closing.
+        // Close windows — app shutdown must destroy the outputs (and dispose their VLC
+        // services), so clear the hide-while-live guard before closing.
         try { _operatorWindow?.Close(); } catch { }
-        try
+        foreach (var id in _audienceWindows.Keys.ToList())
         {
-            if (_outputWindow != null)
-            {
-                _outputWindow.SuppressDestroyWhileLive = false;
-                _outputWindow.Close();
-            }
+            try { CloseAudienceWindow(id); } catch { }
         }
-        catch { }
+        try { CloseGoLiveWindow(); } catch { }
     }
 }
