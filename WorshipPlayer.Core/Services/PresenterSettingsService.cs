@@ -91,6 +91,11 @@ public class PresenterSettingsService
         {
             Settings = new PresenterSettings();
         }
+
+        // Đợt 2 T7 / R5: seed the shared slide-label catalog when the loaded settings
+        // predate it (missing "slideLabels" key → null). A present list — even an empty
+        // one — is the user's own state and is kept as-is.
+        SlideLabelService.EnsureLabels(Settings);
     }
 
     /// <summary>

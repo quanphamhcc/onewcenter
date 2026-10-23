@@ -247,6 +247,17 @@ public class Section
     public string? TemplateId { get; set; }
 
     /// <summary>
+    /// Optional slide-label reference (đợt 2 T7 / R5): the
+    /// <see cref="SlideLabelDefinition.Id"/> of this section's label in the shared catalog
+    /// (<see cref="PresenterSettings.SlideLabels"/>). Null when unset — older songs without
+    /// this field still load, and such sections resolve a label by NAME instead (see
+    /// <see cref="Services.SlideLabelService.ResolveForSection"/>). Purely additive display
+    /// metadata: it does NOT change the meaning of the loop fields above or loop behavior.
+    /// </summary>
+    [JsonPropertyName("labelId")]
+    public string? LabelId { get; set; }
+
+    /// <summary>
     /// Optional per-section override of the global lines-per-slide setting
     /// (<c>PresenterSettings.LinesPerSlide</c>). Null = use the global value. Clamped 2–4 when set.
     /// Lets a dense verse group differently from a short chorus. Additive and backward-compatible.
