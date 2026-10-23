@@ -35,6 +35,16 @@ public partial class ItemSettingsPanel : UserControl
         EmptyStateText.Visibility = Visibility.Collapsed;
         SettingsPanel.Visibility = Visibility.Visible;
 
+        // Đợt 2 T3: lyrics/scripture items can never auto-advance — show a note and
+        // disable the auto-advance controls (guard ở Core là bắt buộc, UI là hỗ trợ).
+        // Transition Fade Time stays editable: it is not auto-advance.
+        bool eligible = WorshipPlayer.Core.Services.AutoAdvanceResolver.IsEligible(item);
+        AutoAdvanceNotAvailableNote.Visibility = eligible ? Visibility.Collapsed : Visibility.Visible;
+        GoToComboBox.IsEnabled = eligible;
+        AfterConditionComboBox.IsEnabled = eligible;
+        GoToTargetComboBox.IsEnabled = eligible;
+        DelayTextBox.IsEnabled = eligible;
+
         var settings = item.AutoAdvanceSettings ?? new ServiceItemSettings();
 
         // Target picker: all other items, by id. Done before preselecting GoTo so the

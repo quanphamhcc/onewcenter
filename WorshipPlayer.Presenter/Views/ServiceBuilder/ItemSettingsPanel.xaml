@@ -41,6 +41,13 @@
 
                     <!-- Settings panel -->
                     <StackPanel x:Name="SettingsPanel" Visibility="Collapsed">
+                        <!-- Đợt 2 T3: auto-advance not available for lyrics/scripture items -->
+                        <TextBlock x:Name="AutoAdvanceNotAvailableNote"
+                                   Text="Auto-advance is not available for this item: lyrics and scripture items never advance automatically."
+                                   Foreground="{StaticResource OwcWarningBrush}"
+                                   FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"
+                                   Visibility="Collapsed"/>
+
                         <!-- Auto-Advance Go To -->
                         <TextBlock Text="Go To" Foreground="{StaticResource OwcTextSecondaryBrush}"
                                    FontSize="11" Margin="0,0,0,4"/>

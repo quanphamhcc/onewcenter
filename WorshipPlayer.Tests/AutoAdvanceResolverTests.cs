@@ -58,6 +58,7 @@ public class AutoAdvanceResolverTests
     public void TimerNextItem_WithFollowingItem_ReturnsNextItem()
     {
         var a = Item("A");
+        a.ForegroundType = ForegroundType.Text; // đợt 2 T3: đường Timer chỉ chạy với item hợp lệ
         var b = Item("B");
         a.AutoAdvanceSettings = new ServiceItemSettings
         {
@@ -76,6 +77,7 @@ public class AutoAdvanceResolverTests
     public void TimerNextSlide_TreatedLikeNextItem()
     {
         var a = Item("A");
+        a.ForegroundType = ForegroundType.Text; // đợt 2 T3: đường Timer chỉ chạy với item hợp lệ
         var b = Item("B");
         a.AutoAdvanceSettings = new ServiceItemSettings
         {
@@ -93,6 +95,7 @@ public class AutoAdvanceResolverTests
     public void TimerSpecificItem_ValidTarget_ReturnsGoToTarget()
     {
         var a = Item("A");
+        a.ForegroundType = ForegroundType.Text; // đợt 2 T3: đường Timer chỉ chạy với item hợp lệ
         var b = Item("B");
         var c = Item("C");
         a.AutoAdvanceSettings = new ServiceItemSettings
@@ -113,6 +116,7 @@ public class AutoAdvanceResolverTests
     public void TimerSpecificItem_MissingTarget_FallsBackToNextItem()
     {
         var a = Item("A");
+        a.ForegroundType = ForegroundType.Text; // đợt 2 T3: đường Timer chỉ chạy với item hợp lệ
         var b = Item("B");
         a.AutoAdvanceSettings = new ServiceItemSettings
         {
@@ -131,6 +135,7 @@ public class AutoAdvanceResolverTests
     public void TimerSpecificItem_NullTarget_FallsBackToNextItem()
     {
         var a = Item("A");
+        a.ForegroundType = ForegroundType.Text; // đợt 2 T3: đường Timer chỉ chạy với item hợp lệ
         var b = Item("B");
         a.AutoAdvanceSettings = new ServiceItemSettings
         {
@@ -150,6 +155,7 @@ public class AutoAdvanceResolverTests
     {
         var a = Item("A");
         var b = Item("B");
+        b.ForegroundType = ForegroundType.Text; // đợt 2 T3: đường Timer chỉ chạy với item hợp lệ
         b.AutoAdvanceSettings = new ServiceItemSettings
         {
             AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.Timer,
@@ -168,6 +174,7 @@ public class AutoAdvanceResolverTests
     {
         var a = Item("A");
         var b = Item("B");
+        b.ForegroundType = ForegroundType.Text; // đợt 2 T3: đường Timer chỉ chạy với item hợp lệ
         b.AutoAdvanceSettings = new ServiceItemSettings
         {
             AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.Timer,
@@ -184,6 +191,7 @@ public class AutoAdvanceResolverTests
     public void TimerLoop_ReturnsGoToCurrentItem()
     {
         var a = Item("A");
+        a.ForegroundType = ForegroundType.Text; // đợt 2 T3: đường Timer chỉ chạy với item hợp lệ
         var b = Item("B");
         a.AutoAdvanceSettings = new ServiceItemSettings
         {
@@ -234,5 +242,120 @@ public class AutoAdvanceResolverTests
         var decision = AutoAdvanceResolver.Resolve(null, "any");
 
         Assert.Equal(AutoAdvanceAction.None, decision.Action);
+    }
+
+    // ─── Đợt 2 T3: eligibility Lyrics/Scripture ──────────────────────────────
+
+    [Fact]
+    public void IsEligible_NullItem_ReturnsFalse()
+    {
+        Assert.False(AutoAdvanceResolver.IsEligible(null));
+    }
+
+    [Theory]
+    [InlineData(ForegroundType.Lyrics)]
+    [InlineData(ForegroundType.Scripture)]
+    public void IsEligible_LyricsOrScripture_ReturnsFalse(ForegroundType foreground)
+    {
+        var item = new ServiceItem { Title = "X", ForegroundType = foreground };
+
+        Assert.False(AutoAdvanceResolver.IsEligible(item));
+    }
+
+    [Theory]
+    [InlineData(ForegroundType.Text)]
+    [InlineData(ForegroundType.Media)]
+    [InlineData(ForegroundType.Blank)]
+    public void IsEligible_TextMediaBlank_ReturnsTrue(ForegroundType foreground)
+    {
+        var item = new ServiceItem { Title = "X", ForegroundType = foreground };
+
+        Assert.True(AutoAdvanceResolver.IsEligible(item));
+    }
+
+    [Fact]
+    public void IsEligible_SlidesTypeWithLyricsForeground_ReturnsTrue()
+    {
+        // Slides-library item: eligible via Type even when its foreground is Lyrics.
+        var item = new ServiceItem
+        {
+            Title = "X",
+            Type = ServiceItemType.Slides,
+            ForegroundType = ForegroundType.Lyrics
+        };
+
+        Assert.True(AutoAdvanceResolver.IsEligible(item));
+    }
+
+    [Fact]
+    public void Timer_WithLyricsItem_ReturnsNone()
+    {
+        var a = Item("A"); // default ForegroundType = Lyrics
+        var b = Item("B");
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.Timer,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.NextItem
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id);
+
+        Assert.Equal(AutoAdvanceAction.None, decision.Action);
+    }
+
+    [Fact]
+    public void Timer_WithScriptureItem_ReturnsNone_EvenSpecificTarget()
+    {
+        var a = Item("A");
+        var b = Item("B");
+        a.ForegroundType = ForegroundType.Scripture;
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.Timer,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.SpecificItem,
+            GoToItemId = b.Id
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id);
+
+        Assert.Equal(AutoAdvanceAction.None, decision.Action);
+    }
+
+    [Fact]
+    public void Timer_WithTextItem_StillAdvancesNextItem()
+    {
+        var a = Item("A");
+        var b = Item("B");
+        a.ForegroundType = ForegroundType.Text;
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.Timer,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.NextItem
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id);
+
+        Assert.Equal(AutoAdvanceAction.NextItem, decision.Action);
+    }
+
+    [Fact]
+    public void Timer_WithSlidesTypeItem_AdvancesNextItem()
+    {
+        var a = Item("A");
+        var b = Item("B");
+        a.Type = ServiceItemType.Slides; // eligible via Type despite Lyrics foreground
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.Timer,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.NextItem
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id);
+
+        Assert.Equal(AutoAdvanceAction.NextItem, decision.Action);
     }
 }

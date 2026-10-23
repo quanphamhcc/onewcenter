@@ -16,6 +16,27 @@ namespace WorshipPlayer.Core.Services;
 public static class AutoAdvanceResolver
 {
     /// <summary>
+    /// Whether the item may ever be auto-advanced (đợt 2 T3 / R3).
+    /// Items whose foreground is <see cref="ForegroundType.Lyrics"/> or
+    /// <see cref="ForegroundType.Scripture"/> are NEVER auto-advanced, no matter
+    /// what their <see cref="ServiceItem.AutoAdvanceSettings"/> say. Items with a
+    /// Text/Media/Blank foreground, and Slides-library items
+    /// (<see cref="ServiceItemType.Slides"/>), are eligible.
+    /// </summary>
+    public static bool IsEligible(ServiceItem? item)
+    {
+        if (item == null)
+            return false;
+
+        if (item.Type == ServiceItemType.Slides)
+            return true;
+
+        return item.ForegroundType is ForegroundType.Text
+            or ForegroundType.Media
+            or ForegroundType.Blank;
+    }
+
+    /// <summary>
     /// Decide what should happen when the current item's auto-advance trigger fires.
     /// </summary>
     /// <param name="order">The active service order (may be null → <see cref="AutoAdvanceAction.None"/>).</param>
@@ -30,6 +51,11 @@ public static class AutoAdvanceResolver
             return Decision.None;
 
         var current = order.Items[currentIndex];
+
+        // Đợt 2 T3: lyrics/scripture items never auto-advance, regardless of settings.
+        if (!IsEligible(current))
+            return Decision.None;
+
         var settings = current.AutoAdvanceSettings;
 
         // No settings, or a condition we don't trigger on, means "behave exactly as today".

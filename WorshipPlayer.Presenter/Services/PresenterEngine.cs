@@ -787,6 +787,12 @@ public class PresenterEngine : IDisposable
         }
 
         var settings = newItem?.AutoAdvanceSettings;
+
+        // Đợt 2 T3: lyrics/scripture items never auto-advance — don't even arm the
+        // timer. The pure resolver enforces the same rule at fire time.
+        if (!AutoAdvanceResolver.IsEligible(newItem))
+            return;
+
         if (settings == null || settings.AutoAdvanceAfterCondition != AutoAdvanceAfterCondition.Timer)
             return;
 
