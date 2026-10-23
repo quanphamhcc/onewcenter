@@ -623,6 +623,12 @@ public partial class MainWindow : Window
         editor.LinesPerSlide = _presenterSettingsService.Settings.LinesPerSlide;
         editor.SlideLeadMs = _presenterSettingsService.Settings.SlideLeadMs;
 
+        // Feed the slide-label catalog (đợt 2 T8 / R5.3) so the editor's Label dropdown can
+        // assign Section.LabelId. A pre-labels settings file (null) falls back to the
+        // seeded defaults, matching T7's EnsureLabels semantics for display purposes.
+        editor.SlideLabels = _presenterSettingsService.Settings.SlideLabels
+            ?? WorshipPlayer.Core.Services.SlideLabelService.CreateDefaults();
+
         if (editor.ShowDialog() == true)
         {
             try

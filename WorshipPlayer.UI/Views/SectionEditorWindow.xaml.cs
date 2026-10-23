@@ -74,6 +74,41 @@ public partial class SectionEditorWindow : Window
     /// </summary>
     public int SlideLeadMs { get; set; } = 500;
 
+    // ─── SLIDE LABELS (đợt 2 T8 / R5.3) ───────────────────────────────────
+    // The shared label catalog (PresenterSettings.SlideLabels), fed in by MainWindow the
+    // same way as LinesPerSlide/SlideLeadMs. The grid's Label column is a ComboBox over
+    // these choices plus a "(No label)" sentinel whose Id is null, so picking it clears
+    // Section.LabelId.
+    private List<SlideLabelDefinition> _slideLabels = new();
+
+    /// <summary>The slide-label catalog offered by the Label dropdown. Optional.</summary>
+    public List<SlideLabelDefinition> SlideLabels
+    {
+        get => _slideLabels;
+        set
+        {
+            _slideLabels = value ?? new List<SlideLabelDefinition>();
+            RefreshLabelChoices();
+        }
+    }
+
+    private void RefreshLabelChoices()
+    {
+        if (SectionsGrid == null) return;
+
+        var choices = new List<SlideLabelDefinition>
+        {
+            new() { Id = null!, Name = "(No label)", Color = "", Hotkey = "" }
+        };
+        choices.AddRange(_slideLabels);
+
+        foreach (var column in SectionsGrid.Columns)
+        {
+            if (column is DataGridComboBoxColumn comboColumn)
+                comboColumn.ItemsSource = choices;
+        }
+    }
+
     public SectionEditorWindow(Song song, AudioEngine? audioEngine = null,
         string? configuredPythonPath = null, Action<string>? onPythonPathSaved = null)
     {
@@ -112,11 +147,13 @@ public partial class SectionEditorWindow : Window
                 Color = s.Color,
                 LightingPresetIndex = s.LightingPresetIndex,
                 Text = s.Text,
-                LinesPerSlideOverride = s.LinesPerSlideOverride
+                LinesPerSlideOverride = s.LinesPerSlideOverride,
+                LabelId = s.LabelId
             });
         }
 
         SectionsGrid.ItemsSource = _sections;
+        RefreshLabelChoices();
 
         // Initialize downbeat display
         DownbeatTimecodeBox.Text = MsToTimecode(song.GridAnchorMs);
@@ -619,7 +656,8 @@ public partial class SectionEditorWindow : Window
                 Color = vm.Color,
                 LightingPresetIndex = vm.LightingPresetIndex,
                 Text = vm.Text,
-                LinesPerSlideOverride = vm.LinesPerSlideOverride
+                LinesPerSlideOverride = vm.LinesPerSlideOverride,
+                LabelId = vm.LabelId
             });
         }
 
@@ -2432,7 +2470,8 @@ public partial class SectionEditorWindow : Window
                 LightingPresetIndex = vm.LightingPresetIndex,
                 Text = vm.Text,
                 CanLoop = vm.CanLoop,
-                LinesPerSlideOverride = vm.LinesPerSlideOverride
+                LinesPerSlideOverride = vm.LinesPerSlideOverride,
+                LabelId = vm.LabelId
             });
         }
     }
@@ -2792,6 +2831,12 @@ public class SectionViewModel
     /// Mirrors <see cref="WorshipPlayer.Core.Models.Section.LinesPerSlideOverride"/>.
     /// </summary>
     public int? LinesPerSlideOverride { get; set; }
+
+    /// <summary>
+    /// Slide label assigned to this section (đợt 2 T8 / R5.3); null = no label.
+    /// Mirrors <see cref="WorshipPlayer.Core.Models.Section.LabelId"/>.
+    /// </summary>
+    public string? LabelId { get; set; }
 
     public string LoopInTimecode
     {

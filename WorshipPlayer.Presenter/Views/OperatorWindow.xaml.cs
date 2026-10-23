@@ -1201,6 +1201,15 @@ public partial class OperatorWindow : Window
         // Don't intercept if a text-editable input has focus
         if (e.OriginalSource is TextBoxBase || e.OriginalSource is ComboBox) return;
 
+        // Slide-label hotkeys (đợt 2 T8 / R5.4): a plain letter key bound to a label jumps
+        // to that label's first section in the live song. When it doesn't match, every
+        // built-in key below keeps its exact existing behaviour.
+        if (Keyboard.Modifiers == ModifierKeys.None && TryHandleSlideLabelHotkey(e.Key))
+        {
+            e.Handled = true;
+            return;
+        }
+
         switch (e.Key)
         {
             case Key.Right:
@@ -2320,6 +2329,13 @@ public partial class OperatorWindow : Window
 
                 var grid = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
 
+                // The item's song (for slide-label resolution, đợt 2 T8 / R5.4): the same
+                // resolver GetSlidesForItem uses. Null when the song isn't in the library —
+                // label resolution then falls back to the section-name rule.
+                var itemSong = _songManager != null
+                    ? SongPathResolver.Resolve(_songManager.Songs, item.SongFolder, item.Title)
+                    : null;
+
                 var slides = GetSlidesForItem(item);
                 if (slides.Count == 0)
                 {
@@ -2359,7 +2375,7 @@ public partial class OperatorWindow : Window
                         bool isSelected = isLiveSection && _isEditMode && slideIndex == _selectedSlideIndex;
 
                         var thumb = BuildSlideThumbnail(
-                            slides[slideIndex], slideIndex + 1, isActive, isSelected, thumbWidth,
+                            slides[slideIndex], slideIndex + 1, isActive, isSelected, thumbWidth, itemSong,
                             idx =>
                             {
                                 if (_isEditMode && isLiveSection)
@@ -2583,7 +2599,7 @@ public partial class OperatorWindow : Window
     /// invokes <paramref name="onClick"/> with the zero-based slide index.
     /// </summary>
     private Border BuildSlideThumbnail(Slide slide, int slideNumber, bool isActive, bool isSelected,
-        double thumbWidth, Action<int> onClick)
+        double thumbWidth, Song? labelSong, Action<int> onClick)
     {
         double thumbHeight = thumbWidth * 0.6;
 
@@ -2661,24 +2677,40 @@ public partial class OperatorWindow : Window
         };
 
         // ── Layer 3: label chip (bottom-left) — e.g. "Verse 1" / "Chorus"; RED when live ──
+        // Đợt 2 T8 / R5.4: when the slide's section carries a slide label, the chip shows
+        // the LABEL's name on the LABEL's color; otherwise it keeps the plain section-name
+        // treatment. The label color hex rides in the chip's Tag ("labelChip|<hex>") so
+        // UpdateLabelChipLiveState can restore it after a live highlight pass.
+        var slideLabel = SlideLabelNavigation.ResolveLabelForSlide(
+            slide, labelSong?.Sections, EffectiveSlideLabels());
+        Color? labelColor = null;
+        if (slideLabel != null)
+        {
+            try
+            {
+                labelColor = (Color)ColorConverter.ConvertFromString(slideLabel.Color.Trim());
+            }
+            catch (FormatException) { labelColor = null; /* bad hex in catalog: plain chip */ }
+        }
+
         var labelChip = new Border
         {
             Background = new SolidColorBrush(isActive
                 ? LivePink
-                : Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
+                : labelColor ?? Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(5, 1, 5, 1),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
             Margin = new Thickness(5, 0, 0, 5),
             // Tagged so UpdateLiveSectionHighlights can recolor it on live changes.
-            Tag = "labelChip",
+            Tag = labelColor.HasValue ? $"labelChip|{slideLabel!.Color.Trim()}" : "labelChip",
             Child = new TextBlock
             {
-                Text = (slide.SectionName ?? "").Trim(),
+                Text = slideLabel?.Name ?? (slide.SectionName ?? "").Trim(),
                 FontSize = sectionFontSize,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(isActive ? Colors.White : AccentCyan)
+                Foreground = new SolidColorBrush(isActive || labelColor.HasValue ? Colors.White : AccentCyan)
             }
         };
         // Hide the chip entirely when a slide has no section label.
@@ -2791,8 +2823,10 @@ public partial class OperatorWindow : Window
     }
 
     /// <summary>
-    /// Recolor a thumbnail's label chip (tagged "labelChip") to match its live state:
-    /// RED fill + white text when live, otherwise a dark chip with the cyan section label.
+    /// Recolor a thumbnail's label chip (tagged "labelChip", or "labelChip|&lt;hex&gt;" when
+    /// the slide's section carries a slide label — đợt 2 T8) to match its live state:
+    /// RED fill + white text when live; otherwise the label's own color with white text,
+    /// or a dark chip with the cyan section label when no label applies.
     /// Walks the thumbnail's inner Grid; no-op if the chip isn't present.
     /// </summary>
     private void UpdateLabelChipLiveState(Border thumbnail, bool isActive)
@@ -2801,18 +2835,63 @@ public partial class OperatorWindow : Window
 
         foreach (var child in grid.Children)
         {
-            if (child is Border chip && (chip.Tag as string) == "labelChip")
+            if (child is Border chip && chip.Tag is string tag &&
+                (tag == "labelChip" || tag.StartsWith("labelChip|", StringComparison.Ordinal)))
             {
+                Color? labelColor = null;
+                if (!isActive && tag.Length > "labelChip|".Length)
+                {
+                    try
+                    {
+                        labelColor = (Color)ColorConverter.ConvertFromString(tag["labelChip|".Length..]);
+                    }
+                    catch (FormatException) { labelColor = null; }
+                }
+
                 chip.Background = new SolidColorBrush(isActive
                     ? LivePink
-                    : Color.FromArgb(0xC0, 0x00, 0x00, 0x00));
+                    : labelColor ?? Color.FromArgb(0xC0, 0x00, 0x00, 0x00));
                 if (chip.Child is TextBlock chipText)
                 {
-                    chipText.Foreground = new SolidColorBrush(isActive ? Colors.White : AccentCyan);
+                    chipText.Foreground = new SolidColorBrush(
+                        isActive || labelColor.HasValue ? Colors.White : AccentCyan);
                 }
                 return;
             }
         }
+    }
+
+    /// <summary>
+    /// The effective slide-label catalog for display/hotkeys (đợt 2 T8): the live settings
+    /// catalog, or the seeded defaults when the settings predate slide labels (the T7
+    /// null-catalog case) — display-only fallback, never mutates the settings.
+    /// </summary>
+    private List<SlideLabelDefinition> EffectiveSlideLabels()
+        => _engine?.Settings?.SlideLabels ?? SlideLabelService.CreateDefaults();
+
+    /// <summary>
+    /// Slide-label hotkey jump (đợt 2 T8 / R5.4): when the live item is a song and the
+    /// pressed letter matches a label hotkey, go to the first slide of the first section
+    /// carrying that label (see <see cref="SlideLabelNavigation.FindFirstSlideIndexByHotkey"/>)
+    /// and report the keystroke as handled. Behaviour choices, kept conservative so no
+    /// existing Operator shortcut changes: only plain letter keys A–Z with no modifiers;
+    /// digits stay reserved for the built-in jump-to-slide; "B" always stays GoBlack.
+    /// Returns false when the keystroke is not a label jump (the caller's normal handling
+    /// then applies unchanged).
+    /// </summary>
+    private bool TryHandleSlideLabelHotkey(Key key)
+    {
+        if (_engine?.CurrentSong == null) return false;
+        if (_engine.CurrentItem?.Type != ServiceItemType.Song) return false;
+        if (key is < Key.A or > Key.Z) return false;
+        if (key == Key.B) return false; // B is the built-in GoBlack key — never repurposed.
+
+        int target = SlideLabelNavigation.FindFirstSlideIndexByHotkey(
+            _engine.CurrentSlides, _engine.CurrentSong.Sections, EffectiveSlideLabels(), key.ToString());
+        if (target < 0) return false;
+
+        _engine.GoToSlide(target);
+        return true;
     }
 
     /// <summary>

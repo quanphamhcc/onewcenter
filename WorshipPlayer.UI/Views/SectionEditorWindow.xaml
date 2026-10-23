@@ -374,6 +374,10 @@
                                             Binding="{Binding Index}" />
                         <DataGridTextColumn Header="Section" Width="120"
                                             Binding="{Binding Name}" />
+                        <DataGridComboBoxColumn Header="Label" Width="110"
+                                                SelectedValueBinding="{Binding LabelId}"
+                                                SelectedValuePath="Id"
+                                                DisplayMemberPath="Name" />
                         <DataGridTextColumn Header="Loop IN" Width="75"
                                             Binding="{Binding LoopInTimecode}" />
                         <DataGridTextColumn Header="Loop OUT" Width="75"

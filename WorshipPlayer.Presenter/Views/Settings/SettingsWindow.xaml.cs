@@ -17,6 +17,7 @@ public partial class SettingsWindow : Window
     private StageDisplaySection? _stageDisplaySection;
     private LibrarySection? _librarySection;
     private MidiSection? _midiSection;
+    private SlideLabelsSection? _slideLabelsSection;
     private UpdatesCacheSection? _updatesCacheSection;
 
     /// <summary>
@@ -68,6 +69,7 @@ public partial class SettingsWindow : Window
                 "Stage Display" => _stageDisplaySection ??= new StageDisplaySection(),
                 "Library" => _librarySection ??= new LibrarySection(),
                 "MIDI" => _midiSection ??= new MidiSection(),
+                "Slide Labels" => GetSlideLabelsSection(),
                 "Updates" => _updatesCacheSection ??= new UpdatesCacheSection(),
                 _ => GetDefaultsSection()
             };
@@ -112,6 +114,25 @@ public partial class SettingsWindow : Window
                 PresenterSettings.SlideLeadMs = _defaultsSection.SlideLeadMs;
             }
 
+            // Persist the slide-label catalog from the Slide Labels section if it's been
+            // loaded (đợt 2 T8 / R5.2). A duplicated hotkey BLOCKS the save: report the
+            // exact hotkey and abort before anything is persisted.
+            if (_slideLabelsSection != null && PresenterSettings != null)
+            {
+                // Commit any in-progress grid edit so the check sees the latest text.
+                var dup = _slideLabelsSection.DuplicateHotkey;
+                if (dup != null)
+                {
+                    MessageBox.Show(
+                        $"Two slide labels share the hotkey \"{dup}\". " +
+                        "Give each label its own hotkey (or clear one) before saving.",
+                        "Duplicate Slide Label Hotkey",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                PresenterSettings.SlideLabels = _slideLabelsSection.GetLabels();
+            }
+
             OnSaveRequested?.Invoke();
             MessageBox.Show("Settings saved successfully.", "Settings",
                 MessageBoxButton.OK, MessageBoxImage.Information);
@@ -153,6 +174,24 @@ public partial class SettingsWindow : Window
             }
         }
         return _footerSection;
+    }
+
+    private SlideLabelsSection GetSlideLabelsSection()
+    {
+        if (_slideLabelsSection == null)
+        {
+            _slideLabelsSection = new SlideLabelsSection();
+            if (PresenterSettings != null)
+            {
+                // Seed the editor from the live catalog; a settings file that predates
+                // slide labels (null) shows the seeded defaults (T7 EnsureLabels semantics)
+                // without mutating the settings until the user actually saves.
+                var labels = PresenterSettings.SlideLabels
+                    ?? WorshipPlayer.Core.Services.SlideLabelService.CreateDefaults();
+                _slideLabelsSection.SetLabels(labels);
+            }
+        }
+        return _slideLabelsSection;
     }
 
     private ScreenConfigSection GetScreenConfigSection()

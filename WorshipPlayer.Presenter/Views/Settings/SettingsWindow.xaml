@@ -57,6 +57,7 @@
                     <ListBoxItem Content="Stage Display"/>
                     <ListBoxItem Content="Library"/>
                     <ListBoxItem Content="MIDI"/>
+                    <ListBoxItem Content="Slide Labels"/>
                     <ListBoxItem Content="Updates"/>
                 </ListBox>
             </DockPanel>
