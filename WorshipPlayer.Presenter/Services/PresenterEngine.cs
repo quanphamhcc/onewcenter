@@ -800,24 +800,37 @@ public class PresenterEngine : IDisposable
         double delay = settings.AutoAdvanceDelayMs > 0 ? settings.AutoAdvanceDelayMs : 5000;
 
         var timer = new System.Timers.Timer(delay) { AutoReset = false };
-        timer.Elapsed += (_, _) => FireAutoAdvance();
+        timer.Elapsed += (_, _) => FireAutoAdvance(AutoAdvanceTrigger.Timer);
         _autoAdvanceTimer = timer;
         timer.Start();
     }
 
     /// <summary>
-    /// Invoked when a per-item auto-advance timer elapses. Asks the pure
-    /// <see cref="AutoAdvanceResolver"/> what to do for the current item, then executes
-    /// the decision via the manager (which raises ItemChanged for the UI to render).
+    /// Entry point for the video-ended auto-advance trigger (đợt 2 T4 / R3): the
+    /// output layer calls this when the current item's video (per-item background
+    /// video or full-screen video) plays to its end. Only an item whose configured
+    /// condition is VideoEnd advances — the pure resolver enforces the match, so an
+    /// item without a running video, or with any other condition, never moves here.
     /// </summary>
-    private void FireAutoAdvance()
+    public void NotifyCurrentItemVideoEnded()
+    {
+        FireAutoAdvance(AutoAdvanceTrigger.VideoEnd);
+    }
+
+    /// <summary>
+    /// Invoked when a per-item auto-advance trigger fires (timer elapsed, or the
+    /// current item's video ended). Asks the pure <see cref="AutoAdvanceResolver"/>
+    /// what to do for the current item under that trigger, then executes the
+    /// decision via the manager (which raises ItemChanged for the UI to render).
+    /// </summary>
+    private void FireAutoAdvance(AutoAdvanceTrigger trigger)
     {
         var order = _serviceOrderManager.CurrentServiceOrder;
         var currentId = _serviceOrderManager.CurrentItem?.Id;
         if (order == null || currentId == null)
             return;
 
-        var decision = AutoAdvanceResolver.Resolve(order, currentId);
+        var decision = AutoAdvanceResolver.Resolve(order, currentId, trigger);
         switch (decision.Action)
         {
             case AutoAdvanceAction.NextItem:

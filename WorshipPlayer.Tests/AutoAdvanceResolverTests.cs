@@ -12,7 +12,9 @@ namespace WorshipPlayer.Tests;
 /// Documented edge choices under test:
 ///  - SpecificItem with a missing/invalid/null target → fall back to NextItem (else None if last).
 ///  - NextItem on the last item → None (no wraparound).
-///  - Deferred AudioEnd/VideoEnd conditions → None.
+///  - AudioEnd stays deferred → None on every trigger. VideoEnd → None on the
+///    Timer path (the original 2-arg Resolve), advances only on the VideoEnd
+///    trigger (đợt 2 T4).
 /// </summary>
 public class AutoAdvanceResolverTests
 {
@@ -357,5 +359,193 @@ public class AutoAdvanceResolverTests
         var decision = AutoAdvanceResolver.Resolve(order, a.Id);
 
         Assert.Equal(AutoAdvanceAction.NextItem, decision.Action);
+    }
+
+    // ─── Đợt 2 T4: trigger VideoEnd ──────────────────────────────────────────
+
+    [Fact]
+    public void VideoEnd_NextItem_WithVideoEndTrigger_ReturnsNextItem()
+    {
+        var a = Item("A");
+        a.ForegroundType = ForegroundType.Media; // item hợp lệ theo T3
+        var b = Item("B");
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.VideoEnd,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.NextItem
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id, AutoAdvanceTrigger.VideoEnd);
+
+        Assert.Equal(AutoAdvanceAction.NextItem, decision.Action);
+        Assert.Null(decision.TargetItemId);
+    }
+
+    [Fact]
+    public void VideoEnd_SpecificItem_WithVideoEndTrigger_ReturnsGoToTarget()
+    {
+        var a = Item("A");
+        a.ForegroundType = ForegroundType.Media;
+        var b = Item("B");
+        var c = Item("C");
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.VideoEnd,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.SpecificItem,
+            GoToItemId = c.Id
+        };
+        var order = OrderWith(a, b, c);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id, AutoAdvanceTrigger.VideoEnd);
+
+        Assert.Equal(AutoAdvanceAction.GoToItem, decision.Action);
+        Assert.Equal(c.Id, decision.TargetItemId);
+    }
+
+    [Fact]
+    public void VideoEnd_Loop_WithVideoEndTrigger_ReturnsGoToCurrentItem()
+    {
+        var a = Item("A");
+        a.ForegroundType = ForegroundType.Text;
+        var b = Item("B");
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.VideoEnd,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.Loop
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id, AutoAdvanceTrigger.VideoEnd);
+
+        Assert.Equal(AutoAdvanceAction.GoToItem, decision.Action);
+        Assert.Equal(a.Id, decision.TargetItemId);
+    }
+
+    [Fact]
+    public void VideoEnd_SpecificItem_InvalidTarget_WithVideoEndTrigger_FallsBackToNextItem()
+    {
+        var a = Item("A");
+        a.ForegroundType = ForegroundType.Media;
+        var b = Item("B");
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.VideoEnd,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.SpecificItem,
+            GoToItemId = "does-not-exist"
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id, AutoAdvanceTrigger.VideoEnd);
+
+        Assert.Equal(AutoAdvanceAction.NextItem, decision.Action);
+    }
+
+    [Fact]
+    public void VideoEnd_NextItem_OnLastItem_WithVideoEndTrigger_ReturnsNone()
+    {
+        var a = Item("A");
+        var b = Item("B");
+        b.ForegroundType = ForegroundType.Media;
+        b.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.VideoEnd,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.NextItem
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, b.Id, AutoAdvanceTrigger.VideoEnd);
+
+        Assert.Equal(AutoAdvanceAction.None, decision.Action);
+    }
+
+    [Fact]
+    public void VideoEnd_WithTimerTrigger_ReturnsNone_NoFallbackToTimer()
+    {
+        var a = Item("A");
+        a.ForegroundType = ForegroundType.Media;
+        var b = Item("B");
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.VideoEnd,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.NextItem
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id, AutoAdvanceTrigger.Timer);
+
+        Assert.Equal(AutoAdvanceAction.None, decision.Action);
+    }
+
+    [Fact]
+    public void Timer_WithVideoEndTrigger_ReturnsNone()
+    {
+        var a = Item("A");
+        a.ForegroundType = ForegroundType.Text;
+        var b = Item("B");
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.Timer,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.NextItem
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id, AutoAdvanceTrigger.VideoEnd);
+
+        Assert.Equal(AutoAdvanceAction.None, decision.Action);
+    }
+
+    [Fact]
+    public void AudioEnd_WithVideoEndTrigger_StillDeferred_ReturnsNone()
+    {
+        var a = Item("A");
+        a.ForegroundType = ForegroundType.Media;
+        var b = Item("B");
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.AudioEnd,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.NextItem
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id, AutoAdvanceTrigger.VideoEnd);
+
+        Assert.Equal(AutoAdvanceAction.None, decision.Action);
+    }
+
+    [Fact]
+    public void VideoEnd_WithLyricsItem_ReturnsNone()
+    {
+        var a = Item("A"); // default ForegroundType = Lyrics → không hợp lệ theo T3
+        var b = Item("B");
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.VideoEnd,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.NextItem
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id, AutoAdvanceTrigger.VideoEnd);
+
+        Assert.Equal(AutoAdvanceAction.None, decision.Action);
+    }
+
+    [Fact]
+    public void VideoEnd_WithScriptureItem_ReturnsNone_EvenSpecificTarget()
+    {
+        var a = Item("A");
+        var b = Item("B");
+        a.ForegroundType = ForegroundType.Scripture;
+        a.AutoAdvanceSettings = new ServiceItemSettings
+        {
+            AutoAdvanceAfterCondition = AutoAdvanceAfterCondition.VideoEnd,
+            AutoAdvanceGoTo = AutoAdvanceGoTo.SpecificItem,
+            GoToItemId = b.Id
+        };
+        var order = OrderWith(a, b);
+
+        var decision = AutoAdvanceResolver.Resolve(order, a.Id, AutoAdvanceTrigger.VideoEnd);
+
+        Assert.Equal(AutoAdvanceAction.None, decision.Action);
     }
 }

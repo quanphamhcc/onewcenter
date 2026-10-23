@@ -449,6 +449,17 @@ public class PresenterIntegration : IDisposable
     }
 
     /// <summary>
+    /// Đợt 2 T4 / R3: a video on the output window ended (full-screen playback or
+    /// the current item's background video) — forward it to the engine's VideoEnd
+    /// auto-advance trigger. Whether the current item actually advances is decided
+    /// by the engine + the pure AutoAdvanceResolver (condition must be VideoEnd).
+    /// </summary>
+    private void OnOutputVideoEnded(object? sender, EventArgs e)
+    {
+        PresenterEngine.NotifyCurrentItemVideoEnded();
+    }
+
+    /// <summary>
     /// Apply display settings immediately — move/create/close the Output Window
     /// based on the current OutputDisplay setting.
     /// </summary>
@@ -463,6 +474,8 @@ public class PresenterIntegration : IDisposable
             {
                 _outputWindow = new OutputWindow();
                 _outputWindow.Closed += (s, e) => _outputWindow = null;
+                _outputWindow.VideoPlaybackEnded += OnOutputVideoEnded;
+                _outputWindow.BackgroundVideoEnded += OnOutputVideoEnded;
             }
 
             // Dual-monitor / explicitly-configured output: preserve the existing close semantics
@@ -511,6 +524,8 @@ public class PresenterIntegration : IDisposable
             {
                 _outputWindow = new OutputWindow();
                 _outputWindow.Closed += (s, e) => _outputWindow = null;
+                _outputWindow.VideoPlaybackEnded += OnOutputVideoEnded;
+                _outputWindow.BackgroundVideoEnded += OnOutputVideoEnded;
             }
 
             if (!_outputWindow.IsVisible)

@@ -63,6 +63,14 @@ public partial class OutputWindow : Window
     public event EventHandler? VideoPlaybackEnded;
 
     /// <summary>
+    /// Fired when the current item's background video plays to its end (đợt 2 T4 / R3).
+    /// Only raised for items configured with the VideoEnd auto-advance condition —
+    /// those play their background video once instead of looping (see ApplyBackground).
+    /// Raised on the UI thread.
+    /// </summary>
+    public event EventHandler? BackgroundVideoEnded;
+
+    /// <summary>
     /// Whether to show inline chord notation on the output.
     /// When false (default for congregation), chords are stripped from displayed text.
     /// When true (stage mode), chords are shown inline.
@@ -96,6 +104,7 @@ public partial class OutputWindow : Window
         }
 
         _videoPlaybackService.PlaybackEnded += OnVideoPlaybackEnded;
+        _videoBackgroundService.PlaybackEnded += OnBackgroundVideoEnded;
     }
 
     /// <summary>
@@ -130,6 +139,7 @@ public partial class OutputWindow : Window
 
         _alertTimer?.Stop();
         _videoPlaybackService.PlaybackEnded -= OnVideoPlaybackEnded;
+        _videoBackgroundService.PlaybackEnded -= OnBackgroundVideoEnded;
 
         // Detach the MediaPlayers from the real VideoView surfaces BEFORE disposing the services,
         // so the VideoView does not touch a MediaPlayer that is about to be released (native-handle race).
@@ -655,7 +665,18 @@ public partial class OutputWindow : Window
     // ─── Video Private Methods ────────────────────────────────────
 
     /// <summary>
-    /// Start a motion background video (looping behind lyrics).
+    /// Whether the current item waits for its background video to end
+    /// (AutoAdvance VideoEnd condition — đợt 2 T4 / R3). Such an item's video must
+    /// play ONCE so the end can actually fire the advance; every other item keeps
+    /// the historical looping motion-background behaviour.
+    /// </summary>
+    private bool CurrentItemWaitsForVideoEnd =>
+        _currentItem?.AutoAdvanceSettings?.AutoAdvanceAfterCondition
+            == AutoAdvanceAfterCondition.VideoEnd;
+
+    /// <summary>
+    /// Start a motion background video (looping behind lyrics, unless the current
+    /// item is configured for the VideoEnd auto-advance condition — then play once).
     /// </summary>
     private void StartMotionBackground(string videoPath, double opacity)
     {
@@ -671,7 +692,7 @@ public partial class OutputWindow : Window
         BackgroundVideoView.Opacity = opacity;
         BackgroundVideoView.Visibility = Visibility.Visible;
 
-        _videoBackgroundService.PlayBackground(videoPath, loop: true);
+        _videoBackgroundService.PlayBackground(videoPath, loop: !CurrentItemWaitsForVideoEnd);
     }
 
     /// <summary>
@@ -692,6 +713,20 @@ public partial class OutputWindow : Window
         {
             StopVideo();
             VideoPlaybackEnded?.Invoke(this, EventArgs.Empty);
+        });
+    }
+
+    /// <summary>
+    /// Handle the background video reaching its end (đợt 2 T4): re-raise as
+    /// BackgroundVideoEnded on the UI thread so the engine can fire the VideoEnd
+    /// auto-advance trigger. The video is NOT stopped here — the advance it causes
+    /// changes the item, which re-applies the background through the normal path.
+    /// </summary>
+    private void OnBackgroundVideoEnded(object? sender, EventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            BackgroundVideoEnded?.Invoke(this, EventArgs.Empty);
         });
     }
 

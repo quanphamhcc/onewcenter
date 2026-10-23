@@ -58,6 +58,14 @@ public class VideoBackgroundService : IDisposable
     public MediaPlayer? Player => _mediaPlayer;
 
     /// <summary>
+    /// Fired when a NON-looping background video reaches its end (đợt 2 T4 / R3).
+    /// Looping videos restart instead and never raise this. Raised on a LibVLC
+    /// thread — subscribers must dispatch to their own thread before touching UI
+    /// (same contract as the player's EndReached event).
+    /// </summary>
+    public event EventHandler? PlaybackEnded;
+
+    /// <summary>
     /// Initialize the LibVLC core and create a media player instance.
     /// This is safe to call — if LibVLC native libraries are not available,
     /// the service will remain uninitialized and video features will be disabled.
@@ -126,13 +134,24 @@ public class VideoBackgroundService : IDisposable
     }
 
     /// <summary>
-    /// Handles EndReached to restart the video for deterministic infinite looping.
+    /// Handles EndReached: for a looping video, restart it for deterministic infinite
+    /// looping; for a non-looping video this is a genuine end — surface it via
+    /// <see cref="PlaybackEnded"/> so the auto-advance VideoEnd trigger can fire (đợt 2 T4).
     /// LibVLC fires EndReached on a VLC thread, so we must dispatch Play on a ThreadPool thread
     /// (calling Play directly in the EndReached handler deadlocks).
     /// </summary>
     private void OnMediaEndReached(object? sender, EventArgs e)
     {
-        if (!_shouldLoop || _libVLC == null || _mediaPlayer == null)
+        if (!_shouldLoop)
+        {
+            // Genuine end of a play-once video. Clear the path so a stale replay of
+            // the same handler cannot fire twice for one playback.
+            _currentVideoPath = "";
+            PlaybackEnded?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        if (_libVLC == null || _mediaPlayer == null)
             return;
 
         var path = _currentVideoPath;
