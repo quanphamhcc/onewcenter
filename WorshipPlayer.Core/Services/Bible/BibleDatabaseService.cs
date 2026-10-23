@@ -298,6 +298,20 @@ public class BibleDatabaseService : IBibleProvider
     }
 
     /// <inheritdoc />
+    public async Task<int> GetVerseCountAsync(string translationId)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM Verses WHERE TranslationId = @translationId";
+        cmd.Parameters.AddWithValue("@translationId", translationId);
+
+        var result = await cmd.ExecuteScalarAsync();
+        return Convert.ToInt32(result);
+    }
+
+    /// <inheritdoc />
     public Task<ScriptureReference?> ParseReferenceAsync(string referenceText, string translationId)
     {
         var reference = _parser.Parse(referenceText, translationId);

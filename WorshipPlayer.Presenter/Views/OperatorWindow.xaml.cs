@@ -987,6 +987,9 @@ public partial class OperatorWindow : Window
             var settingsWindow = new SettingsWindow();
             settingsWindow.Owner = this;
             settingsWindow.PresenterSettings = _engine?.Settings;
+            // dot2-T12: the Bibles section lists/imports translations against
+            // the same shared Bible database the Scripture panel reads.
+            settingsWindow.BibleProvider = _bibleProvider;
             settingsWindow.OnSaveRequested = () =>
             {
                 // Save presenter settings to disk and apply display changes
@@ -3319,6 +3322,10 @@ public partial class OperatorWindow : Window
                         // E3: generated scripture slides reach the live output via the engine.
                         _scriptureBrowserPanel.PresentSlidesRequested += OnScripturePresentRequested;
                     }
+                    // dot2-T12: reload the translation list from the database on
+                    // every show, so a translation imported via Settings appears
+                    // here without restarting the app.
+                    _ = _scriptureBrowserPanel.RefreshTranslationsAsync();
                     ScripturePanelContent.Content = _scriptureBrowserPanel;
                     ScripturePanel.Visibility = Visibility.Visible;
                     SetTabActive(TabScripture);

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using WorshipPlayer.Core.Services.Interfaces;
 
 namespace WorshipPlayer.Presenter.Views.Settings;
 
@@ -30,6 +31,13 @@ public partial class SettingsWindow : Window
     /// Set this before showing the window so ScreenConfig can update it.
     /// </summary>
     public WorshipPlayer.Core.Models.PresenterSettings? PresenterSettings { get; set; }
+
+    /// <summary>
+    /// The shared Bible provider, forwarded to the Bibles section so its
+    /// translation list and XML import run against the live Bible database
+    /// (dot2-T12). Set this before showing the window.
+    /// </summary>
+    public IBibleProvider? BibleProvider { get; set; }
 
     public SettingsWindow()
     {
@@ -64,7 +72,7 @@ public partial class SettingsWindow : Window
                 "Defaults" => GetDefaultsSection(),
                 "Footer" => GetFooterSection(),
                 "Interface" => _interfaceSection ??= new InterfaceSection(),
-                "Bibles" => _biblesSection ??= new BiblesSection(),
+                "Bibles" => GetBiblesSection(),
                 "Screen Config" => GetScreenConfigSection(),
                 "Stage Display" => _stageDisplaySection ??= new StageDisplaySection(),
                 "Library" => _librarySection ??= new LibrarySection(),
@@ -192,6 +200,19 @@ public partial class SettingsWindow : Window
             }
         }
         return _slideLabelsSection;
+    }
+
+    private BiblesSection GetBiblesSection()
+    {
+        if (_biblesSection == null)
+        {
+            _biblesSection = new BiblesSection();
+            if (BibleProvider != null)
+            {
+                _biblesSection.BibleProvider = BibleProvider;
+            }
+        }
+        return _biblesSection;
     }
 
     private ScreenConfigSection GetScreenConfigSection()

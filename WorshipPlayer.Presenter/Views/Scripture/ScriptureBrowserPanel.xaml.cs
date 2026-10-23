@@ -54,6 +54,49 @@ public partial class ScriptureBrowserPanel : UserControl
         Loaded += OnLoaded;
     }
 
+    /// <summary>
+    /// Reload the translation drop-down from the Bible database (dot2-T12), so
+    /// a translation imported via Settings → Bibles appears here without
+    /// restarting the app. The current selection is preserved when it still
+    /// exists; otherwise the database default (or the first translation) is
+    /// selected. No-op when no provider is wired, the database returns no
+    /// translations, or the read fails — the existing items are kept then.
+    /// </summary>
+    public async Task RefreshTranslationsAsync()
+    {
+        if (_bibleProvider == null) return;
+
+        List<BibleTranslation> translations;
+        try
+        {
+            translations = await _bibleProvider.GetTranslationsAsync();
+        }
+        catch
+        {
+            return; // Keep the current items if the database cannot be read.
+        }
+
+        if (translations.Count == 0) return;
+
+        var current = GetComboBoxText(TranslationComboBox);
+
+        TranslationComboBox.Items.Clear();
+        ComboBoxItem? selected = null;
+        ComboBoxItem? fallback = null;
+        foreach (var t in translations)
+        {
+            var item = new ComboBoxItem { Content = t.Abbreviation };
+            TranslationComboBox.Items.Add(item);
+            if (item.Content?.ToString() == current)
+                selected = item;
+            if (fallback == null && t.IsDefault)
+                fallback = item;
+        }
+
+        TranslationComboBox.SelectedItem =
+            selected ?? fallback ?? TranslationComboBox.Items[0];
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         // Seed the toggle defaults from persisted settings (E5 / AC3). Guard against
