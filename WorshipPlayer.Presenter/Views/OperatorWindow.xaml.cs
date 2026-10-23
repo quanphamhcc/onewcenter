@@ -158,6 +158,7 @@ public partial class OperatorWindow : Window
         {
             _engine.SlideChanged -= OnSlideChanged;
             _engine.ItemChanged -= OnItemChanged;
+            _engine.AutoAdvanceCountdownChanged -= OnAutoAdvanceCountdownChanged;
             _engine.DisplayStateChanged -= OnDisplayStateChanged;
             _engine.PitchShiftChanged -= OnPitchShiftChanged;
             _engine.TempoChanged -= OnTempoChanged;
@@ -231,6 +232,7 @@ public partial class OperatorWindow : Window
         // Subscribe to engine events
         _engine.SlideChanged += OnSlideChanged;
         _engine.ItemChanged += OnItemChanged;
+        _engine.AutoAdvanceCountdownChanged += OnAutoAdvanceCountdownChanged;
         _engine.DisplayStateChanged += OnDisplayStateChanged;
         _engine.PitchShiftChanged += OnPitchShiftChanged;
         _engine.TempoChanged += OnTempoChanged;
@@ -642,6 +644,33 @@ public partial class OperatorWindow : Window
             {
                 _outputWindow.ShowSlide(e.NewSlide, e.Transition, e.TransitionDurationMs);
             }
+        });
+    }
+
+    /// <summary>
+    /// Đợt 2 T5 (R3.4/R3.5): reflect the engine's auto-advance countdown — a bar with
+    /// the remaining time at the TOP of the service list frame, plus a clock marker
+    /// on the counting item's row. The engine cancels the countdown the moment the
+    /// current item changes (including manual navigation) or becomes ineligible, so
+    /// an inactive event hides the bar and clears every marker immediately.
+    /// </summary>
+    private void OnAutoAdvanceCountdownChanged(object? sender, AutoAdvanceCountdownEventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (!e.IsActive)
+            {
+                AutoAdvanceCountdownBar.Visibility = Visibility.Collapsed;
+                foreach (var row in _serviceOrderItems)
+                    row.IsAutoAdvanceCountingDown = false;
+                return;
+            }
+
+            AutoAdvanceCountdownText.Text =
+                $"Auto-advance in {AutoAdvanceCountdown.Format(e.RemainingMs)}";
+            AutoAdvanceCountdownBar.Visibility = Visibility.Visible;
+            foreach (var row in _serviceOrderItems)
+                row.IsAutoAdvanceCountingDown = row.Item?.Id == e.ItemId;
         });
     }
 
@@ -1265,7 +1294,7 @@ public partial class OperatorWindow : Window
     /// keeping a reference back to the underlying ServiceItem (selected index maps to
     /// CurrentServiceOrder.Items[i]).
     /// </summary>
-    private sealed class ServiceItemDisplay
+    private sealed class ServiceItemDisplay : System.ComponentModel.INotifyPropertyChanged
     {
         public string Icon { get; set; } = "";
         public string Title { get; set; } = "";
@@ -1289,6 +1318,28 @@ public partial class OperatorWindow : Window
         // their name so the operator can see the inheritance at a glance.
         public Visibility InheritBadgeVisibility => Item?.BackgroundKind == ItemBackgroundKind.Inherit
             ? Visibility.Visible : Visibility.Collapsed;
+
+        // Đợt 2 T5 (R3.4/R3.5): live clock marker shown only while THIS item's
+        // auto-advance countdown is running. Set from the engine's countdown events
+        // (and at row creation, from the engine's current countdown item), so it
+        // needs change notification unlike the static badges above.
+        private bool _isAutoAdvanceCountingDown;
+        public bool IsAutoAdvanceCountingDown
+        {
+            get => _isAutoAdvanceCountingDown;
+            set
+            {
+                if (_isAutoAdvanceCountingDown == value) return;
+                _isAutoAdvanceCountingDown = value;
+                PropertyChanged?.Invoke(this,
+                    new System.ComponentModel.PropertyChangedEventArgs(nameof(CountdownBadgeVisibility)));
+            }
+        }
+
+        public Visibility CountdownBadgeVisibility => _isAutoAdvanceCountingDown
+            ? Visibility.Visible : Visibility.Collapsed;
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
     }
 
     private readonly System.Collections.ObjectModel.ObservableCollection<ServiceItemDisplay> _serviceOrderItems = new();
@@ -1463,7 +1514,12 @@ public partial class OperatorWindow : Window
         {
             Icon = icon,
             Title = ServiceItemDisplayName.ResolveDisplayName(item, ResolveLinkedPresentation(item)),
-            Item = item
+            Item = item,
+            // Đợt 2 T5 (R3.4): a rebuilt list must keep the clock marker on the item
+            // whose countdown is currently running.
+            IsAutoAdvanceCountingDown =
+                _engine?.AutoAdvanceCountdownItemId != null &&
+                item.Id == _engine.AutoAdvanceCountdownItemId
         };
     }
 
