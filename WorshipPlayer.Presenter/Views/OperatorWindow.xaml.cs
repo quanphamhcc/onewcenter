@@ -673,6 +673,12 @@ public partial class OperatorWindow : Window
                 _outputWindow.StopVideo();
             }
 
+            // Đợt 2 T1 (R1): hand the new current item to the output window so its
+            // per-item background (if any) is resolved via ItemBackgroundResolver and
+            // applied under the item's foreground; Theme-kind items are a no-op
+            // visually (the theme background is re-applied as before).
+            _outputWindow?.SetCurrentItem(e.NewItem);
+
             // BUG A: ensure the sidebar reflects the loaded service. On startup the service order
             // is auto-loaded asynchronously (ServiceOrderManager.LoadAsync) AFTER the operator
             // window has already run its initial RefreshServiceOrderList() against an empty order.

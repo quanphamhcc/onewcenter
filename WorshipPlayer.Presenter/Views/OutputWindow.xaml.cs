@@ -26,6 +26,9 @@ public partial class OutputWindow : Window
 {
     private bool _isSlideAActive = true; // Which buffer is currently showing
     private SlideTheme _currentTheme = new();
+    // The item currently being presented (đợt 2 T1 / R1): its per-item background,
+    // when set to anything other than Theme, overrides the theme background.
+    private ServiceItem? _currentItem;
     private bool _isBlacked = false;
     private bool _showChords = false;
     private readonly ChordProParserService _chordParser = new();
@@ -191,49 +194,25 @@ public partial class OutputWindow : Window
     }
 
     /// <summary>
+    /// Set the item currently being presented (đợt 2 T1 / R1). When the item carries
+    /// its own background, the background layer is re-resolved and re-applied
+    /// immediately; Theme-kind items keep the theme background untouched.
+    /// </summary>
+    public void SetCurrentItem(ServiceItem? item)
+    {
+        _currentItem = item;
+        ApplyBackground(_currentTheme);
+    }
+
+    /// <summary>
     /// Apply a theme to the output window.
     /// </summary>
     public void ApplyTheme(SlideTheme theme)
     {
         _currentTheme = theme;
 
-        // Apply background
-        switch (theme.BackgroundType)
-        {
-            case BackgroundType.SolidColor:
-                BackgroundImage.Visibility = Visibility.Collapsed;
-                StopMotionBackground();
-                RootGrid.Background = new SolidColorBrush(
-                    (Color)ColorConverter.ConvertFromString(theme.BackgroundColor));
-                break;
-
-            case BackgroundType.Image:
-                StopMotionBackground();
-                var backgroundPath = ResolveImagePath(theme.BackgroundImage);
-                if (!string.IsNullOrEmpty(backgroundPath) && System.IO.File.Exists(backgroundPath))
-                {
-                    try
-                    {
-                        BackgroundImage.Source = new BitmapImage(new Uri(backgroundPath));
-                        BackgroundImage.Opacity = theme.BackgroundImageOpacity;
-                        BackgroundImage.Visibility = Visibility.Visible;
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[OutputWindow] Background image load failed: {ex.Message}");
-                        BackgroundImage.Visibility = Visibility.Collapsed;
-                    }
-                }
-                break;
-
-            case BackgroundType.Video:
-                BackgroundImage.Visibility = Visibility.Collapsed;
-                if (!string.IsNullOrEmpty(theme.MotionBackgroundPath))
-                {
-                    StartMotionBackground(theme.MotionBackgroundPath, theme.MotionBackgroundOpacity);
-                }
-                break;
-        }
+        // Apply background (per-item background wins over the theme — đợt 2 T1 / R1)
+        ApplyBackground(theme);
 
         // Gradient overlay
         GradientOverlay.Visibility = theme.UseGradientOverlay
@@ -275,6 +254,139 @@ public partial class OutputWindow : Window
         {
             LogoWatermark.Visibility = Visibility.Collapsed;
         }
+    }
+
+    /// <summary>
+    /// Apply the effective background layer for the current item + theme (đợt 2 T1 / R1).
+    /// The decision of WHAT the background is lives in
+    /// <see cref="ItemBackgroundResolver"/> (pure Core logic, unit-tested); this method
+    /// only renders the resolved description. Source = Theme renders the theme exactly
+    /// as before T1. A per-item background file that is missing/unreadable falls back
+    /// to black with a log line — the foreground layers are untouched and keep showing.
+    /// </summary>
+    private void ApplyBackground(SlideTheme theme)
+    {
+        var resolved = ItemBackgroundResolver.Resolve(_currentItem, theme);
+
+        if (resolved.Source == ItemBackgroundSource.Theme)
+        {
+            switch (theme.BackgroundType)
+            {
+                case BackgroundType.SolidColor:
+                    BackgroundImage.Visibility = Visibility.Collapsed;
+                    StopMotionBackground();
+                    RootGrid.Background = new SolidColorBrush(
+                        (Color)ColorConverter.ConvertFromString(theme.BackgroundColor));
+                    break;
+
+                case BackgroundType.Image:
+                    StopMotionBackground();
+                    var backgroundPath = ResolveImagePath(theme.BackgroundImage);
+                    if (!string.IsNullOrEmpty(backgroundPath) && System.IO.File.Exists(backgroundPath))
+                    {
+                        try
+                        {
+                            BackgroundImage.Source = new BitmapImage(new Uri(backgroundPath));
+                            BackgroundImage.Opacity = theme.BackgroundImageOpacity;
+                            BackgroundImage.Visibility = Visibility.Visible;
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[OutputWindow] Background image load failed: {ex.Message}");
+                            BackgroundImage.Visibility = Visibility.Collapsed;
+                        }
+                    }
+                    break;
+
+                case BackgroundType.Video:
+                    BackgroundImage.Visibility = Visibility.Collapsed;
+                    if (!string.IsNullOrEmpty(theme.MotionBackgroundPath))
+                    {
+                        StartMotionBackground(theme.MotionBackgroundPath, theme.MotionBackgroundOpacity);
+                    }
+                    break;
+            }
+            return;
+        }
+
+        // Per-item background (đợt 2 T1 / R1): render the resolved kind + value.
+        switch (resolved.Kind)
+        {
+            case ItemBackgroundKind.None:
+                BackgroundImage.Visibility = Visibility.Collapsed;
+                StopMotionBackground();
+                RootGrid.Background = Brushes.Black;
+                break;
+
+            case ItemBackgroundKind.Color:
+                BackgroundImage.Visibility = Visibility.Collapsed;
+                StopMotionBackground();
+                RootGrid.Background = ParseItemColorOrBlack(resolved.Color);
+                break;
+
+            case ItemBackgroundKind.Image:
+                StopMotionBackground();
+                RootGrid.Background = Brushes.Black;
+                BackgroundImage.Visibility = Visibility.Collapsed;
+                var itemImagePath = ResolveImagePath(resolved.FilePath);
+                if (!string.IsNullOrEmpty(itemImagePath) && System.IO.File.Exists(itemImagePath))
+                {
+                    try
+                    {
+                        BackgroundImage.Source = new BitmapImage(new Uri(itemImagePath));
+                        BackgroundImage.Opacity = theme.BackgroundImageOpacity;
+                        BackgroundImage.Visibility = Visibility.Visible;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[OutputWindow] Item background image load failed: {ex.Message}");
+                        BackgroundImage.Visibility = Visibility.Collapsed;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(resolved.FilePath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[OutputWindow] Item background image missing: {resolved.FilePath} — falling back to black.");
+                }
+                break;
+
+            case ItemBackgroundKind.Video:
+                BackgroundImage.Visibility = Visibility.Collapsed;
+                RootGrid.Background = Brushes.Black;
+                var itemVideoPath = ResolveImagePath(resolved.FilePath);
+                if (!string.IsNullOrEmpty(itemVideoPath) && System.IO.File.Exists(itemVideoPath))
+                {
+                    StartMotionBackground(itemVideoPath, theme.MotionBackgroundOpacity);
+                }
+                else
+                {
+                    StopMotionBackground();
+                    if (!string.IsNullOrEmpty(resolved.FilePath))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[OutputWindow] Item background video missing: {resolved.FilePath} — falling back to black.");
+                    }
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Parse a per-item background color; an invalid value logs and falls back to
+    /// black instead of throwing (R1 edge case: never crash the output).
+    /// </summary>
+    private static Brush ParseItemColorOrBlack(string? color)
+    {
+        if (!string.IsNullOrWhiteSpace(color))
+        {
+            try
+            {
+                return new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[OutputWindow] Invalid item background color '{color}': {ex.Message}");
+            }
+        }
+        return Brushes.Black;
     }
 
     /// <summary>
