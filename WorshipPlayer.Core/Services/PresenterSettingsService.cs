@@ -96,6 +96,12 @@ public class PresenterSettingsService
         // predate it (missing "slideLabels" key → null). A present list — even an empty
         // one — is the user's own state and is kept as-is.
         SlideLabelService.EnsureLabels(Settings);
+
+        // Đợt 2 T15 / R8: migrate the legacy fixed display indices (OutputDisplay /
+        // StageDisplay) into the output list when the loaded settings predate it
+        // (missing "outputs" key → null). A present list — even an empty one — is the
+        // user's own state and is kept as-is. The legacy fields stay intact.
+        OutputMigration.EnsureOutputs(Settings);
     }
 
     /// <summary>

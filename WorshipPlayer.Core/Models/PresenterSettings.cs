@@ -24,6 +24,20 @@ public class PresenterSettings
     public int StageDisplay { get; set; } = -1;
 
     /// <summary>
+    /// Output list (đợt 2 T15 / R8): replaces the two fixed display indices above with a
+    /// list of <see cref="OutputConfig"/> (each: name, display index, purpose, optional
+    /// per-output foreground template override).
+    /// Nullable: null = the settings predate the list (missing "outputs" key) → migrated
+    /// from OutputDisplay/StageDisplay at LoadAsync
+    /// (see <see cref="Services.OutputMigration.EnsureOutputs"/>). A present list — even
+    /// an EMPTY one — is the user's own state and is kept as-is.
+    /// The legacy OutputDisplay/StageDisplay fields are KEPT (not removed) for backward
+    /// compatibility: DisplayManager still reads them until T16 rewires the engine.
+    /// </summary>
+    [JsonPropertyName("outputs")]
+    public List<OutputConfig>? Outputs { get; set; }
+
+    /// <summary>
     /// Output resolution (0 = match display native resolution).
     /// </summary>
     [JsonPropertyName("outputWidth")]
