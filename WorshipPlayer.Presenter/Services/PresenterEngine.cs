@@ -773,7 +773,11 @@ public class PresenterEngine : IDisposable
             Slide? firstSlide;
             lock (_stateLock)
             {
-                _currentSlides = e.NewItem.Slides ?? new List<Slide>();
+                // Đợt 2 T10 / R6.2: the item's OWN slide order (when set) is applied
+                // on top of its baked slides — priority T10 > T9 > original (R6.3).
+                // A null order makes Apply an identity, so pre-T10 items load
+                // byte-for-byte as before.
+                _currentSlides = ServiceItemSlideOrder.Apply(e.NewItem.Slides, e.NewItem.SlideOrder);
                 _currentSlideIndex = _currentSlides.Count > 0 ? 0 : -1;
                 firstSlide = _currentSlideIndex >= 0 ? _currentSlides[0] : null;
             }

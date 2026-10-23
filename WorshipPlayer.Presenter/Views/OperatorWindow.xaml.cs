@@ -2392,6 +2392,14 @@ public partial class OperatorWindow : Window
                                 }
                             });
 
+                        // Đợt 2 T10 / R6.2: right-click a thumbnail to edit THIS item's
+                        // own slide order (move / duplicate / reset). Live-linked Slides
+                        // items are excluded — they follow their presentation.
+                        if (SupportsItemSlideOrder(item))
+                        {
+                            thumb.ContextMenu = BuildSlideOrderContextMenu(item, slides, capturedSlideIndex);
+                        }
+
                         grid.Children.Add(thumb);
                     }
                 }
@@ -2467,10 +2475,12 @@ public partial class OperatorWindow : Window
         Grid.SetColumn(titleStack, 0);
         grid.Children.Add(titleStack);
 
-        // Middle: non-functional "ORDER [Original]" chip (matches reference).
+        // Middle: "ORDER" chip (matches reference). Đợt 2 T10 / R6.2: the chip now
+        // tells the truth — [Custom] when this item carries its own slide order
+        // (ServiceItem.SlideOrder), [Original] when it follows the song/default order.
         var orderChip = new TextBlock
         {
-            Text = "ORDER [Original]",
+            Text = ServiceItemSlideOrder.HasCustomOrder(item) ? "ORDER [Custom]" : "ORDER [Original]",
             FontSize = 9,
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8B92A5")),
             VerticalAlignment = System.Windows.VerticalAlignment.Center,
@@ -2551,21 +2561,35 @@ public partial class OperatorWindow : Window
 
         if (item.Type == ServiceItemType.Song)
         {
+            List<Slide> songSlides;
+
             // Pre-baked slides win if present (F2/F3: item slides are the source of truth).
-            if (item.Slides != null && item.Slides.Count > 0) return item.Slides;
-
-            if (_engine == null || _songManager == null) return new List<Slide>();
-
-            var song = SongPathResolver.Resolve(_songManager.Songs, item.SongFolder, item.Title);
-            if (song == null)
+            if (item.Slides != null && item.Slides.Count > 0)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"GetSlidesForItem: could not resolve Song item " +
-                    $"(SongFolder='{item.SongFolder}', Title='{item.Title}').");
+                songSlides = item.Slides;
+            }
+            else if (_engine == null || _songManager == null)
+            {
                 return new List<Slide>();
             }
+            else
+            {
+                var song = SongPathResolver.Resolve(_songManager.Songs, item.SongFolder, item.Title);
+                if (song == null)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"GetSlidesForItem: could not resolve Song item " +
+                        $"(SongFolder='{item.SongFolder}', Title='{item.Title}').");
+                    return new List<Slide>();
+                }
 
-            return _engine.GenerateSlidesForSong(song);
+                songSlides = _engine.GenerateSlidesForSong(song);
+            }
+
+            // Đợt 2 T10 / R6.2: the item's own slide order layers on top of whatever
+            // the pipeline resolved (baked slides, or T9 custom order via generation);
+            // a null order leaves the sequence untouched.
+            return ServiceItemSlideOrder.Apply(songSlides, item.SlideOrder);
         }
 
         // Live-linked Slides item: resolve the presentation's CURRENT slides on demand from the
@@ -2587,8 +2611,119 @@ public partial class OperatorWindow : Window
         }
 
         // Backward compat: a Slides item with no SlidePresentationId (legacy snapshot) renders its
-        // stored item.Slides unchanged.
-        return item.Slides ?? new List<Slide>();
+        // stored item.Slides. (The live-link branch above deliberately returns WITHOUT the
+        // per-item order — T10 scope exclusion: linked items follow their presentation.)
+        // Đợt 2 T10 / R6.2: every other item type honors its own stored slide order here.
+        return ServiceItemSlideOrder.Apply(item.Slides, item.SlideOrder);
+    }
+
+    /// <summary>
+    /// Đợt 2 T10 / R6.2: items that support a per-item slide order. Live-linked Slides
+    /// items are excluded by spec — they follow their presentation, never an item order.
+    /// </summary>
+    private static bool SupportsItemSlideOrder(ServiceItem item) =>
+        !(item.Type == ServiceItemType.Slides && !string.IsNullOrEmpty(item.SlidePresentationId));
+
+    private enum ItemSlideOrderEdit { MoveLeft, MoveRight, Duplicate, Reset }
+
+    /// <summary>
+    /// Build the right-click menu for one slide thumbnail: move the slide within THIS
+    /// item's own order, duplicate it (the copy gets a new id and a place in the item's
+    /// order), or reset the item's order back to the song/default sequence. The menu
+    /// captures the item's currently displayed (already order-applied) slide list.
+    /// </summary>
+    private ContextMenu BuildSlideOrderContextMenu(ServiceItem item, List<Slide> displayedSlides, int slideIndex)
+    {
+        var menu = new ContextMenu();
+
+        var moveLeft = new MenuItem { Header = "Move Slide Left", IsEnabled = slideIndex > 0 };
+        moveLeft.Click += async (s, ev) =>
+            await EditItemSlideOrderAsync(item, displayedSlides, slideIndex, ItemSlideOrderEdit.MoveLeft);
+        menu.Items.Add(moveLeft);
+
+        var moveRight = new MenuItem
+        {
+            Header = "Move Slide Right",
+            IsEnabled = slideIndex >= 0 && slideIndex < displayedSlides.Count - 1
+        };
+        moveRight.Click += async (s, ev) =>
+            await EditItemSlideOrderAsync(item, displayedSlides, slideIndex, ItemSlideOrderEdit.MoveRight);
+        menu.Items.Add(moveRight);
+
+        var duplicate = new MenuItem { Header = "Duplicate Slide" };
+        duplicate.Click += async (s, ev) =>
+            await EditItemSlideOrderAsync(item, displayedSlides, slideIndex, ItemSlideOrderEdit.Duplicate);
+        menu.Items.Add(duplicate);
+
+        menu.Items.Add(new Separator());
+
+        var reset = new MenuItem
+        {
+            Header = "Reset Item Slide Order",
+            IsEnabled = ServiceItemSlideOrder.HasCustomOrder(item)
+        };
+        reset.Click += async (s, ev) =>
+            await EditItemSlideOrderAsync(item, displayedSlides, slideIndex, ItemSlideOrderEdit.Reset);
+        menu.Items.Add(reset);
+
+        return menu;
+    }
+
+    /// <summary>
+    /// Apply one per-item slide-order edit. Every action writes ONLY to the item — its
+    /// baked <see cref="ServiceItem.Slides"/> and its <see cref="ServiceItem.SlideOrder"/>
+    /// — then saves the service order. The linked Song and sibling items are never
+    /// touched (R6.2 isolation). The pure reorder math lives in
+    /// <see cref="ServiceItemSlideOrder"/> (Core) so it is unit-tested.
+    /// </summary>
+    private async Task EditItemSlideOrderAsync(
+        ServiceItem item, List<Slide> displayedSlides, int slideIndex, ItemSlideOrderEdit edit)
+    {
+        try
+        {
+            if (edit == ItemSlideOrderEdit.Reset)
+            {
+                // Back to the song/default order: drop the override only. The item's
+                // baked slide list stays as it is (F2/F3: item slides are the truth).
+                item.SlideOrder = null;
+            }
+            else if (edit == ItemSlideOrderEdit.Duplicate)
+            {
+                if (slideIndex < 0 || slideIndex >= displayedSlides.Count) return;
+                var (newSlides, newOrder) = ServiceItemSlideOrder.Duplicate(
+                    displayedSlides, item.SlideOrder, displayedSlides[slideIndex].Id);
+                item.Slides = newSlides;
+                item.SlideOrder = newOrder;
+            }
+            else
+            {
+                if (slideIndex < 0 || slideIndex >= displayedSlides.Count) return;
+                int delta = edit == ItemSlideOrderEdit.MoveLeft ? -1 : 1;
+                var newOrder = ServiceItemSlideOrder.Move(
+                    ServiceItemSlideOrder.CaptureOrder(displayedSlides), slideIndex, delta);
+                // Bake the reordered display sequence as the item's slide list so the
+                // stored order and the baked slides can never drift apart.
+                item.Slides = ServiceItemSlideOrder.Apply(displayedSlides, newOrder);
+                item.SlideOrder = newOrder;
+            }
+
+            await SaveServiceOrderAsync();
+
+            // If this item is live, reload the engine's slides in the new order
+            // (GoToItem re-fires ItemChanged even for the same index).
+            var order = _serviceOrderManager?.CurrentServiceOrder;
+            int itemIndex = order?.Items.IndexOf(item) ?? -1;
+            if (itemIndex >= 0 && _engine != null && itemIndex == _engine.CurrentItemIndex)
+            {
+                _serviceOrderManager?.GoToItem(itemIndex);
+            }
+
+            RefreshSlideSections();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Edit Slide Order", ex.Message);
+        }
     }
 
     /// <summary>

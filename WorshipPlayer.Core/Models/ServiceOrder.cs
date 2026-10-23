@@ -236,6 +236,24 @@ public class ServiceItem
     /// </summary>
     [JsonPropertyName("stageTemplateId")]
     public string? StageTemplateId { get; set; }
+
+    /// <summary>
+    /// Per-item slide order for THIS service only (đợt 2 T10 / R6.2): the ids of the
+    /// item's slides in the order the operator wants them shown, overriding the
+    /// song-level Custom Slide Order (T9) for this item alone. Editing it never
+    /// touches the linked <see cref="Song"/> or any other item. Null = not set —
+    /// the item resolves exactly as before T10 (song custom order → original
+    /// section order). Applied at render time by
+    /// <see cref="Services.ServiceItemSlideOrder"/>: ids that no longer exist are
+    /// skipped, slides missing from the list append at the end in source order.
+    /// Plain nullable with only [JsonPropertyName] — omitted from JSON when null
+    /// (the manager's global WhenWritingNull convention, same as
+    /// <see cref="StageTemplateId"/>), so old service files are unaffected.
+    /// NOT used for live-linked Slides items (Type = Slides with
+    /// <see cref="SlidePresentationId"/>) — those follow their presentation.
+    /// </summary>
+    [JsonPropertyName("slideOrder")]
+    public List<string>? SlideOrder { get; set; }
 }
 
 /// <summary>
