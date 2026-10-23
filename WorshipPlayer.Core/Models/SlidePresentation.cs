@@ -56,6 +56,15 @@ public class PresentationSlide
     [JsonPropertyName("text")]
     public string Text { get; set; } = "";
 
+    /// <summary>
+    /// Optional subtitle/caption shown under the slide text. dot2-T14 uses it to keep
+    /// the scripture reference with each generated slide so the presentation reads
+    /// independently of the Scripture panel. Empty by default so older JSON rows
+    /// round-trip unchanged.
+    /// </summary>
+    [JsonPropertyName("subtitle")]
+    public string Subtitle { get; set; } = "";
+
     /// <summary>Optional background image path (STAGE 2). Null in STAGE 1.</summary>
     [JsonPropertyName("backgroundImage")]
     public string? BackgroundImage { get; set; }

@@ -70,6 +70,38 @@
                     HorizontalAlignment="Right" Margin="0,12,0,0"
                     Click="Present_Click"/>
 
+            <!-- Scripture to Slides (dot2-T14): save the current lookup into the
+                 Slides library — as a new presentation or appended to an existing one. -->
+            <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                <TextBlock Text="Save to Slides library"
+                           FontSize="12" FontWeight="SemiBold"
+                           Foreground="{StaticResource OwcTextPrimaryBrush}"
+                           Margin="0,0,0,6"/>
+                <TextBox x:Name="PresentationNameTextBox"
+                         Style="{StaticResource OwcTextBox}"
+                         Margin="0,0,0,6"
+                         ToolTip="Presentation name — defaults to the reference"/>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ComboBox x:Name="TargetPresentationComboBox"
+                              Style="{StaticResource OwcDarkComboBox}"
+                              FontSize="12" Padding="6,4"/>
+                    <Button x:Name="CreateSlidesButton" Grid.Column="2"
+                            Content="Create Slides" IsEnabled="False"
+                            Style="{StaticResource OwcAccentButton}"
+                            MinWidth="100"
+                            Click="CreateSlides_Click"/>
+                </Grid>
+                <TextBlock x:Name="SlidesStatusText"
+                           Foreground="{StaticResource OwcTextSecondaryBrush}"
+                           FontSize="11" TextWrapping="Wrap"
+                           Visibility="Collapsed"/>
+            </StackPanel>
+
             <!-- Results area -->
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
                 <StackPanel>

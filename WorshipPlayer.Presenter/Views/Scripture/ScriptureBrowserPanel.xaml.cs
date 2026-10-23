@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Models.Bible;
 using WorshipPlayer.Core.Services;
@@ -19,6 +20,10 @@ public partial class ScriptureBrowserPanel : UserControl
 {
     private IBibleProvider? _bibleProvider;
 
+    // Slides-library service for Scripture to Slides (dot2-T14). Optional like
+    // BibleProvider: when null the Create Slides UI stays inert with a status note.
+    private ISlidePresentationService? _slidePresentationService;
+
     // Last parsed reference + verses, retained so toggling a display option can
     // regenerate slides without re-querying the Bible provider.
     private ScriptureReference? _currentReference;
@@ -31,6 +36,16 @@ public partial class ScriptureBrowserPanel : UserControl
     {
         get => _bibleProvider;
         set => _bibleProvider = value;
+    }
+
+    /// <summary>
+    /// Slides-library service used by Create Slides (dot2-T14). Set by the host
+    /// (OperatorWindow) alongside <see cref="BibleProvider"/>.
+    /// </summary>
+    public ISlidePresentationService? SlidePresentationService
+    {
+        get => _slidePresentationService;
+        set => _slidePresentationService = value;
     }
 
     /// <summary>
@@ -93,6 +108,37 @@ public partial class ScriptureBrowserPanel : UserControl
 
         TranslationComboBox.SelectedItem =
             selected ?? fallback ?? TranslationComboBox.Items[0];
+    }
+
+    /// <summary>
+    /// Reload the Create-Slides target drop-down from the Slides library
+    /// (dot2-T14): a "(New presentation)" option plus every existing
+    /// presentation, so the current lookup can be saved as a new presentation
+    /// or appended to an existing one. The current selection is preserved when
+    /// it still exists. No-op (except the "(New presentation)" option) when no
+    /// service is wired or the read fails.
+    /// </summary>
+    public async Task RefreshTargetPresentationsAsync()
+    {
+        TargetPresentationComboBox.Items.Clear();
+        TargetPresentationComboBox.Items.Add(new ComboBoxItem { Content = "(New presentation)", Tag = null });
+        TargetPresentationComboBox.SelectedIndex = 0;
+
+        if (_slidePresentationService == null) return;
+
+        try
+        {
+            var presentations = await _slidePresentationService.GetAllAsync();
+            foreach (var p in presentations)
+            {
+                TargetPresentationComboBox.Items.Add(
+                    new ComboBoxItem { Content = p.Name, Tag = p.Id });
+            }
+        }
+        catch
+        {
+            // Keep just the "(New presentation)" option if the library cannot be read.
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -177,6 +223,13 @@ public partial class ScriptureBrowserPanel : UserControl
             RegenerateSlides();
 
             PresentButton.IsEnabled = _currentSlides is { Count: > 0 };
+
+            // dot2-T14: the lookup is now saveable to the Slides library —
+            // prefill the presentation name with the reference (editable) and
+            // enable Create Slides for the same generated slides.
+            PresentationNameTextBox.Text = $"{parsedRef.ToReferenceString()} ({translation})";
+            CreateSlidesButton.IsEnabled = _currentSlides is { Count: > 0 };
+            HideSlidesStatus();
         }
         catch (Exception ex)
         {
@@ -252,6 +305,104 @@ public partial class ScriptureBrowserPanel : UserControl
         }
     }
 
+    /// <summary>
+    /// Scripture to Slides (dot2-T14 / R7.4): save the current lookup's slides
+    /// into the Slides library — either as a NEW presentation (name from the
+    /// text box, defaulting to the reference) or APPENDED to the existing
+    /// presentation selected in the target drop-down. The saved presentation is
+    /// usable like any other Slides presentation, including adding it to the
+    /// service as a live-linked Slides item from the Slides tab (existing flow).
+    /// </summary>
+    private async void CreateSlides_Click(object sender, RoutedEventArgs e)
+    {
+        HideSlidesStatus();
+
+        if (_slidePresentationService == null)
+        {
+            ShowSlidesStatus("Slides library is not available.", isError: true);
+            return;
+        }
+
+        if (_currentReference == null || _currentVerses == null || _currentSlides is not { Count: > 0 })
+        {
+            ShowSlidesStatus("Look up a reference first.", isError: true);
+            return;
+        }
+
+        var passage = new ScripturePassage(_currentReference, _currentVerses);
+        var name = PresentationNameTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            name = $"{_currentReference.ToReferenceString()} ({_currentReference.TranslationId})";
+
+        try
+        {
+            if (TargetPresentationComboBox.SelectedItem is ComboBoxItem { Tag: string id }
+                && !string.IsNullOrEmpty(id))
+            {
+                var existing = await _slidePresentationService.GetByIdAsync(id);
+                if (existing == null)
+                {
+                    ShowSlidesStatus("That presentation no longer exists.", isError: true);
+                    return;
+                }
+
+                var before = existing.Slides.Count;
+                ScriptureToSlidesMapper.AppendPassage(existing, passage, BuildOptions());
+                await _slidePresentationService.UpdateAsync(existing);
+                ShowSlidesStatus(
+                    $"Added {existing.Slides.Count - before} slide(s) to '{existing.Name}'. Open the Slides tab to use it.");
+            }
+            else
+            {
+                var presentation = ScriptureToSlidesMapper.CreatePresentation(
+                    name, new[] { passage }, BuildOptions());
+                if (presentation.Slides.Count == 0)
+                {
+                    ShowSlidesStatus("No slides were generated for this passage.", isError: true);
+                    return;
+                }
+
+                await _slidePresentationService.UpdateAsync(presentation);
+                ShowSlidesStatus(
+                    $"Created '{presentation.Name}' ({presentation.Slides.Count} slide(s)) in the Slides library.");
+                await RefreshTargetPresentationsAsync();
+                SelectPresentationInCombo(presentation.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowSlidesStatus($"Could not save: {ex.Message}", isError: true);
+        }
+    }
+
+    private void SelectPresentationInCombo(string id)
+    {
+        foreach (var item in TargetPresentationComboBox.Items)
+        {
+            if (item is ComboBoxItem comboItem
+                && comboItem.Tag is string tag
+                && tag == id)
+            {
+                TargetPresentationComboBox.SelectedItem = item;
+                return;
+            }
+        }
+    }
+
+    private void ShowSlidesStatus(string message, bool isError = false)
+    {
+        SlidesStatusText.Text = message;
+        SlidesStatusText.Foreground = isError
+            ? new SolidColorBrush(Colors.IndianRed)
+            : new SolidColorBrush(Colors.LightGreen);
+        SlidesStatusText.Visibility = Visibility.Visible;
+    }
+
+    private void HideSlidesStatus()
+    {
+        SlidesStatusText.Visibility = Visibility.Collapsed;
+    }
+
     private void ShowError(string message)
     {
         ErrorText.Text = message;
@@ -262,6 +413,8 @@ public partial class ScriptureBrowserPanel : UserControl
         _currentReference = null;
         _currentVerses = null;
         _currentSlides = null;
+        CreateSlidesButton.IsEnabled = false;
+        HideSlidesStatus();
     }
 
     private static string GetComboBoxText(ComboBox comboBox)

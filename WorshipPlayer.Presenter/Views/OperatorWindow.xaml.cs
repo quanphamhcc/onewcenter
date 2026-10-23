@@ -3316,6 +3316,9 @@ public partial class OperatorWindow : Window
                         _scriptureBrowserPanel = new ScriptureBrowserPanel();
                         if (_bibleProvider != null)
                             _scriptureBrowserPanel.BibleProvider = _bibleProvider;
+                        // dot2-T14: Create Slides needs the Slides library service.
+                        if (_slidePresentationService != null)
+                            _scriptureBrowserPanel.SlidePresentationService = _slidePresentationService;
                         // E5: seed/persist the display-option defaults via the Presenter
                         // settings (reachable here; AppSettings/SettingsService are not).
                         _scriptureBrowserPanel.Settings = _engine?.Settings;
@@ -3326,6 +3329,9 @@ public partial class OperatorWindow : Window
                     // every show, so a translation imported via Settings appears
                     // here without restarting the app.
                     _ = _scriptureBrowserPanel.RefreshTranslationsAsync();
+                    // dot2-T14: reload the Create-Slides target list as well, so a
+                    // presentation created elsewhere shows up immediately.
+                    _ = _scriptureBrowserPanel.RefreshTargetPresentationsAsync();
                     ScripturePanelContent.Content = _scriptureBrowserPanel;
                     ScripturePanel.Visibility = Visibility.Visible;
                     SetTabActive(TabScripture);
