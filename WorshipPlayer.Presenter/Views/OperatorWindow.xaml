@@ -302,13 +302,17 @@
                                                    Foreground="#4A5068" VerticalAlignment="Center"
                                                    Padding="0,4,10,4" />
                                     </StackPanel>
-                                    <!-- Item row: icon + title (unchanged layout). -->
+                                    <!-- Item row: icon + title (unchanged layout) + inherit marker (đợt 2 T2). -->
                                     <StackPanel Orientation="Horizontal" Cursor="Hand"
                                                 Visibility="{Binding ItemVisibility}">
                                         <TextBlock Text="{Binding Icon}" FontSize="12" Foreground="#F0F2F5"
                                                    Padding="10,5,4,5" />
                                         <TextBlock Text="{Binding Title}" FontSize="12" Foreground="#F0F2F5"
                                                    Padding="0,5,10,5" />
+                                        <TextBlock Text="&#x21A9;" FontSize="11" Foreground="#8B92A5"
+                                                   ToolTip="Inherits background from the item above"
+                                                   Visibility="{Binding InheritBadgeVisibility}"
+                                                   VerticalAlignment="Center" Padding="0,5,10,5" />
                                     </StackPanel>
                                 </Grid>
                             </DataTemplate>

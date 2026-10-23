@@ -29,6 +29,9 @@ public partial class OutputWindow : Window
     // The item currently being presented (đợt 2 T1 / R1): its per-item background,
     // when set to anything other than Theme, overrides the theme background.
     private ServiceItem? _currentItem;
+    // The live service list the current item belongs to (đợt 2 T2 / R2): used to
+    // resolve Inherit chains at render time. Null = item-level resolution only.
+    private IList<ServiceItem>? _currentServiceItems;
     private bool _isBlacked = false;
     private bool _showChords = false;
     private readonly ChordProParserService _chordParser = new();
@@ -200,8 +203,50 @@ public partial class OutputWindow : Window
     /// </summary>
     public void SetCurrentItem(ServiceItem? item)
     {
+        SetCurrentItem(item, null);
+    }
+
+    /// <summary>
+    /// Set the item currently being presented together with the live service list
+    /// it belongs to (đợt 2 T2 / R2). The background is resolved through the
+    /// inherit chain at render time — Inherit items render their source item's
+    /// background; the resolved value is never written back into the item.
+    /// </summary>
+    public void SetCurrentItem(ServiceItem? item, IList<ServiceItem>? serviceItems)
+    {
         _currentItem = item;
+        _currentServiceItems = serviceItems;
         ApplyBackground(_currentTheme);
+    }
+
+    /// <summary>
+    /// Resolve the effective background for the current item: through the inherit
+    /// chain (đợt 2 T2) when the live list is known and the item is in it, plain
+    /// per-item resolution (đợt 2 T1) otherwise.
+    /// </summary>
+    private ResolvedItemBackground ResolveCurrentBackground(SlideTheme theme)
+    {
+        if (_currentItem != null && _currentServiceItems != null)
+        {
+            var index = -1;
+            for (var i = 0; i < _currentServiceItems.Count; i++)
+            {
+                var candidate = _currentServiceItems[i];
+                if (ReferenceEquals(candidate, _currentItem)
+                    || (candidate?.Id != null && candidate.Id == _currentItem.Id))
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index >= 0)
+            {
+                return InheritBackgroundResolver.ResolveItem(_currentServiceItems, index, theme);
+            }
+        }
+
+        return ItemBackgroundResolver.Resolve(_currentItem, theme);
     }
 
     /// <summary>
@@ -257,16 +302,20 @@ public partial class OutputWindow : Window
     }
 
     /// <summary>
-    /// Apply the effective background layer for the current item + theme (đợt 2 T1 / R1).
-    /// The decision of WHAT the background is lives in
-    /// <see cref="ItemBackgroundResolver"/> (pure Core logic, unit-tested); this method
-    /// only renders the resolved description. Source = Theme renders the theme exactly
-    /// as before T1. A per-item background file that is missing/unreadable falls back
-    /// to black with a log line — the foreground layers are untouched and keep showing.
+    /// Apply the effective background layer for the current item + theme
+    /// (đợt 2 T1 / R1, chains đợt 2 T2 / R2).
+    /// The decision of WHAT the background is lives in the pure Core resolvers
+    /// (<see cref="ItemBackgroundResolver"/>, <see cref="InheritBackgroundResolver"/>),
+    /// both unit-tested; this method only renders the resolved description.
+    /// Source = Theme renders the theme exactly as before T1. A per-item background
+    /// file that is missing/unreadable falls back to black with a log line — the
+    /// foreground layers are untouched and keep showing.
     /// </summary>
     private void ApplyBackground(SlideTheme theme)
     {
-        var resolved = ItemBackgroundResolver.Resolve(_currentItem, theme);
+        // Đợt 2 T1/T2: the decision of WHAT the background is lives in the pure
+        // Core resolvers (unit-tested); this method only renders the description.
+        var resolved = ResolveCurrentBackground(theme);
 
         if (resolved.Source == ItemBackgroundSource.Theme)
         {

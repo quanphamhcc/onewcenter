@@ -673,11 +673,12 @@ public partial class OperatorWindow : Window
                 _outputWindow.StopVideo();
             }
 
-            // Đợt 2 T1 (R1): hand the new current item to the output window so its
-            // per-item background (if any) is resolved via ItemBackgroundResolver and
-            // applied under the item's foreground; Theme-kind items are a no-op
-            // visually (the theme background is re-applied as before).
-            _outputWindow?.SetCurrentItem(e.NewItem);
+            // Đợt 2 T1 (R1) + T2 (R2): hand the new current item to the output window
+            // together with the live service list, so its per-item background
+            // (including Inherit chains, resolved at render time) is applied under
+            // the item's foreground; Theme-kind items are a no-op visually (the
+            // theme background is re-applied as before).
+            _outputWindow?.SetCurrentItem(e.NewItem, _engine?.CurrentServiceOrder?.Items);
 
             // BUG A: ensure the sidebar reflects the loaded service. On startup the service order
             // is auto-loaded asynchronously (ServiceOrderManager.LoadAsync) AFTER the operator
@@ -1283,6 +1284,11 @@ public partial class OperatorWindow : Window
         // ▼ expanded, ► collapsed. The "Ungrouped" header (Group == null) is not collapsible,
         // so it shows no chevron.
         public string CollapseGlyph => Group == null ? "" : (Group.IsCollapsed ? "\u25BA" : "\u25BC");
+
+        // Đợt 2 T2 (R2): items in Inherit background mode show a small marker next to
+        // their name so the operator can see the inheritance at a glance.
+        public Visibility InheritBadgeVisibility => Item?.BackgroundKind == ItemBackgroundKind.Inherit
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private readonly System.Collections.ObjectModel.ObservableCollection<ServiceItemDisplay> _serviceOrderItems = new();

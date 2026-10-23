@@ -298,5 +298,14 @@ public enum ItemBackgroundKind
     None,
     Color,
     Image,
-    Video
+    Video,
+    /// <summary>
+    /// Đợt 2 T2 (R2): use the background of the item immediately above in the
+    /// service list (walk up past other Inherit items to the first item with a
+    /// real background; the list's first item or an empty chain falls back to the
+    /// theme). Resolved at call time by
+    /// <see cref="Services.InheritBackgroundResolver"/> — never persisted into
+    /// child items. (Appended last: pre-T2 files never carry this value.)
+    /// </summary>
+    Inherit
 }
