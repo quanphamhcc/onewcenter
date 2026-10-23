@@ -1,7 +1,10 @@
 # PROGRESS — Nhật ký làm việc của Kiro (Kiro cập nhật sau MỖI task, Muse đọc file này khi nghiệm thu)
 
 ## Trạng thái hiện tại
-- Spec đang làm: `.kiro/specs/dot-1-khoa-bang-chung` (đợt 1 — "Khóa bằng chứng & nối mắt xích cuối của Slides")
+- **ĐỢT 2 ĐANG CHẠY — CHẾ ĐỘ CLAUDE-TỰ-CODE (từ 2026-10-23 09:51 ICT):** phiên Kiro Web hết hạn đăng nhập, chủ sản phẩm ra lệnh trực tiếp không chờ thêm → Muse tự code đợt 2 từ T1 (thông báo tại Issue #4, comment 6356247276). Kiro có phiên/credit trở lại thì bàn giao tiếp từ task đang dở — ĐỌC mục này + nhật ký đợt 2 bên dưới để biết điểm tiếp quản, KHÔNG làm trùng task Muse đã bắt đầu.
+- Spec đợt 2: `.kiro/specs/dot-2-trinh-chieu-chuan-worshiptools` (requirements R1–R9, tasks T1–T17, chế độ liên tục). Đường cơ sở đầu đợt 2: 856 test PASS, build 0 error (tại `375b532`). Chuẩn SQLite bắt buộc: comment 6355687580 trên Issue #4.
+- **[dot2-T1] XONG** (commit `3ca3275` trên kiro-current, Muse tự code): nền riêng theo item + ItemBackgroundResolver + nối render OutputWindow. Build 0 error / 8 warning, test **871/871 PASS** (856 cũ + 15 mới). Task tiếp theo: **T2** (Inherit Background).
+- Spec đợt 1: `.kiro/specs/dot-1-khoa-bang-chung` (đợt 1 — "Khóa bằng chứng & nối mắt xích cuối của Slides")
 - Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật). **T3 XONG** (commit `0ddff03`, build sạch + 856/856 test PASS). **T4 XONG** (bảng 7 panel/dialog ở mục ĐỀ XUẤT; chỉ phân tích, không code). **T5 XONG** (commit `375b532`: gỡ track 25 mp3 + bật .gitignore + xóa latest-changes.patch; build sạch + 856/856 test PASS). **HẾT hàng đợi T3–T5** — không còn task nào trong chế độ liên tục (T2 hoãn).
 - NETSDK1100 đã được giải: **mọi lệnh build/test trên sandbox Linux luôn thêm cờ `-p:EnableWindowsTargeting=true`** (theo Issue #2). Việc 0 đã build sạch + 854/854 test PASS trên Linux (xem nhật ký Việc 0).
 - Commit đã build mới nhất: `b86df8b` (nhánh kiro-current, HEAD khi chạy Việc 0 — code đồng nhất b245e07, chỉ thêm BAO-CAO.md).
@@ -16,6 +19,35 @@
 - Tiêu chí nghiệm thu: đạt ... / chưa đạt ...
 - Commit: <hash + thông điệp>
 -->
+
+### [dot2-T1] Nền riêng theo từng ServiceItem (R1): model + resolver ở Core — 2026-10-23
+- **Người làm: Muse tự code (Kiro không làm việc được)** — chế độ CLAUDE-TỰ-CODE kích hoạt theo lệnh trực tiếp của chủ sản phẩm (Issue #4, comment 6356247276).
+- Commit code (nhánh kiro-current): `3ca3275` — "[dot2-T1] Nen rieng theo tung ServiceItem (R1)...". 5 file: 3 sửa + 2 mới.
+- **Đã làm:**
+  1. `WorshipPlayer.Core/Models/ServiceOrder.cs`: thêm vào `ServiceItem` — `BackgroundKind` (enum mới `ItemBackgroundKind` {Theme, None, Color, Image, Video}), `BackgroundColor`, `BackgroundFilePath` (đều nullable, `[JsonPropertyName]`, bỏ qua khi null theo quy ước WhenWritingNull → file cũ không đổi). Trường `BackgroundType?` cũ GIỮ NGUYÊN, chỉ thêm ghi chú ánh xạ tương thích — không ghi đè dữ liệu cũ khi nạp.
+  2. `WorshipPlayer.Core/Services/ItemBackgroundResolver.cs` (MỚI, thuần): `GetItemKind` (kind tường minh thắng; không có thì ánh xạ legacy: SolidColor→Color, Image→Image, Video→Video, Gradient→Theme vì gradient không có tương đương cấp item) + `Resolve(item, theme)` → `ResolvedItemBackground` {Kind, Color, FilePath, Source Item/Theme}. Fallback giá trị: Color thiếu màu riêng → màu nền theme; Image/Video thiếu BackgroundFilePath → `MediaPath` legacy (nơi editor cũ lưu file nền). Đây là nơi DUY NHẤT tính nền hiệu dụng cấp item (inherit thuộc T2, chưa làm).
+  3. Nối render: `WorshipPlayer.Presenter/Views/OutputWindow.xaml.cs` — tách khối nền của `ApplyTheme` thành `ApplyBackground(theme)`: Source=Theme → chạy nguyên khối switch theme cũ; Source=Item → render theo resolved (None → đen; Color → màu đã parse, sai mã → đen + log; Image/Video → file qua `ResolveImagePath`, Video dùng lại `VideoBackgroundService` qua `StartMotionBackground`; file thiếu/lỗi → nền đen + Debug log, foreground không đụng). Thêm `SetCurrentItem(ServiceItem?)`; `OperatorWindow.OnItemChanged` gọi `_outputWindow?.SetCurrentItem(e.NewItem)` sau khối định tuyến video.
+  4. Ngoài phạm vi (đúng spec): KHÔNG thêm trường nền vào `Song`, KHÔNG đổi `SlideTheme`, KHÔNG làm UI chọn nền, KHÔNG làm inherit.
+- **Lệnh build:** `dotnet build WorshipBacktrackPlayer.sln -c Debug --nologo -p:EnableWindowsTargeting=true`
+- **Kết quả build (NGUYÊN VĂN):**
+  ```
+  Build succeeded.
+      8 Warning(s)
+      0 Error(s)
+  ```
+- **Lệnh test:** build WorshipPlayer.Tests rồi chạy xUnit console runner (xunit.runner.console 2.9.2, `DOTNET_ROLL_FORWARD=LatestMajor`) trên bản Linux của Muse (không dùng `dotnet test` — vstest không chạy được trên VM này, xem AGENTS.md).
+- **Kết quả test (NGUYÊN VĂN):**
+  ```
+  === TEST EXECUTION SUMMARY ===
+     WorshipPlayer.Tests  Total: 871, Errors: 0, Failed: 0, Skipped: 0
+  ```
+  → 856 test cơ sở + **15 test mới** đều PASS.
+- **Tiêu chí nghiệm thu T1:**
+  - [x] Unit test mới `ItemBackgroundResolverTests` (13 test): không đặt gì → theme; None; Color kèm mã màu; Color thiếu màu → màu theme; Image/Video kèm đường dẫn; Image thiếu đường dẫn riêng → MediaPath; kind tường minh thắng legacy.
+  - [x] Ánh xạ file cũ chỉ có `BackgroundType`: SolidColor→Color (màu theme), Image→Image + MediaPath, Video→Video + MediaPath, Gradient→Theme.
+  - [x] Test tương thích ngược `ItemBackgroundPersistenceTests` (2 test): JSON service cũ (không trường nền mới) nạp qua `ServiceOrderManager` → các trường mới null, resolve cho nền = theme (item thường) / đúng ánh xạ legacy (item legacy); trường mới round-trip qua save/load nguyên vẹn.
+  - [x] Build 0 error; toàn bộ test (cũ + mới) pass: 871/871.
+- Commit: `3ca3275` (kiro-current) + commit PROGRESS này (main).
 
 ### [task T5] Vệ sinh repo: gỡ track file nhạc + dọn file patch ở gốc — 2026-10-23
 - Commit code (nhánh kiro-current): `375b532` — "[task T5] Ve sinh repo: go track 25 file .mp3 (giu tren dia), bat *.mp3/*.wav/*.flac trong .gitignore, xoa latest-changes.patch (noi dung da nam trong code)".
