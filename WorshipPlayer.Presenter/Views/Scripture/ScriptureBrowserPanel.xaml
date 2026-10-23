@@ -62,12 +62,13 @@
                           Checked="Options_Changed" Unchecked="Options_Changed"/>
             </StackPanel>
 
-            <!-- Add to service button -->
-            <Button x:Name="AddToServiceButton" DockPanel.Dock="Bottom"
-                    Content="Add to Service" IsEnabled="False"
+            <!-- Quick Scripture: present the current lookup on the live output
+                 immediately (dot2-T13). Creates no service item. -->
+            <Button x:Name="PresentButton" DockPanel.Dock="Bottom"
+                    Content="Present Now" IsEnabled="False"
                     Style="{StaticResource OwcAccentButton}"
                     HorizontalAlignment="Right" Margin="0,12,0,0"
-                    Click="AddToService_Click"/>
+                    Click="Present_Click"/>
 
             <!-- Results area -->
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">

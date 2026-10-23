@@ -9,17 +9,15 @@ using WorshipPlayer.Core.Services.Interfaces;
 namespace WorshipPlayer.Presenter.Views.Scripture;
 
 /// <summary>
-/// Panel for browsing and looking up Bible scripture by reference.
-/// Uses IBibleProvider for verse retrieval and the Core ScriptureSlideGenerator
-/// (the single splitting implementation) to produce presentation slides.
+/// Panel for browsing and looking up Bible scripture by reference, and for
+/// presenting it immediately (Quick Scripture, dot2-T13). Uses IBibleProvider
+/// for verse retrieval and the pure Core QuickScriptureBuilder (over the
+/// single ScriptureSlideGenerator splitting implementation) to produce
+/// presentation slides.
 /// </summary>
 public partial class ScriptureBrowserPanel : UserControl
 {
     private IBibleProvider? _bibleProvider;
-
-    // E3: the ONE splitter. The panel no longer flattens/splits verses itself — it
-    // delegates all slide creation to the Core generator.
-    private readonly ScriptureSlideGenerator _generator = new();
 
     // Last parsed reference + verses, retained so toggling a display option can
     // regenerate slides without re-querying the Bible provider.
@@ -151,28 +149,34 @@ public partial class ScriptureBrowserPanel : UserControl
             }
 
             var verses = await _bibleProvider.GetVersesAsync(parsedRef);
-            if (verses != null && verses.Count > 0)
+
+            // dot2-T13: the pure QuickScriptureBuilder decides success vs the
+            // no-data state, so a translation without verses for this passage
+            // gets its own message (R7 edge case) and the live output is left
+            // untouched — ShowError only changes panel state.
+            var result = QuickScriptureBuilder.Build(parsedRef, verses, BuildOptions());
+            if (!result.IsSuccess)
             {
-                _currentReference = parsedRef;
-                _currentVerses = verses;
-
-                // In-panel preview text (unchanged) so the operator still sees the passage.
-                var displayText = string.Join(" ", verses.Select(v => $"{v.Verse} {v.Text}"));
-                ResultsText.Text = displayText;
-                ResultsText.Visibility = Visibility.Visible;
-                EmptyStateText.Visibility = Visibility.Collapsed;
-                ErrorText.Visibility = Visibility.Collapsed;
-
-                // E3: produce slides via the Core generator (the single splitter),
-                // honoring the E5 display-option toggles.
-                RegenerateSlides();
-
-                AddToServiceButton.IsEnabled = _currentSlides is { Count: > 0 };
+                ShowError($"No verse data for '{reference}' in {translation}. " +
+                          "This translation does not have this passage yet.");
+                return;
             }
-            else
-            {
-                ShowError($"No verses found for '{reference}'.");
-            }
+
+            _currentReference = parsedRef;
+            _currentVerses = verses;
+
+            // In-panel preview text (unchanged) so the operator still sees the passage.
+            var displayText = string.Join(" ", verses.Select(v => $"{v.Verse} {v.Text}"));
+            ResultsText.Text = displayText;
+            ResultsText.Visibility = Visibility.Visible;
+            EmptyStateText.Visibility = Visibility.Collapsed;
+            ErrorText.Visibility = Visibility.Collapsed;
+
+            // Produce slides via the Core builder (the single splitter),
+            // honoring the E5 display-option toggles.
+            RegenerateSlides();
+
+            PresentButton.IsEnabled = _currentSlides is { Count: > 0 };
         }
         catch (Exception ex)
         {
@@ -193,14 +197,21 @@ public partial class ScriptureBrowserPanel : UserControl
             return;
         }
 
-        var options = new ScriptureSlideGenerator.SlideGenerationOptions
+        var result = QuickScriptureBuilder.Build(_currentReference, _currentVerses, BuildOptions());
+        _currentSlides = result.IsSuccess ? new List<Slide>(result.Slides) : null;
+    }
+
+    /// <summary>
+    /// Slide options reflecting the current E5 display-option toggles.
+    /// </summary>
+    private ScriptureSlideGenerator.SlideGenerationOptions BuildOptions()
+    {
+        return new ScriptureSlideGenerator.SlideGenerationOptions
         {
             ShowReference = ShowReferenceCheckBox.IsChecked == true,
             ShowTranslationName = ShowTranslationCheckBox.IsChecked == true
             // LinesPerSlide / MaxCharsPerLine / ShowVerseNumbers keep generator defaults.
         };
-
-        _currentSlides = _generator.GenerateSlides(_currentVerses, _currentReference, options);
     }
 
     /// <summary>
@@ -221,10 +232,19 @@ public partial class ScriptureBrowserPanel : UserControl
         }
 
         RegenerateSlides();
-        AddToServiceButton.IsEnabled = _currentSlides is { Count: > 0 };
+        PresentButton.IsEnabled = _currentSlides is { Count: > 0 };
     }
 
-    private void AddToService_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Quick Scripture (dot2-T13 / R7.3): present the current lookup's slides
+    /// on the live output immediately via the host's PresentSlidesRequested
+    /// wiring — a temporary overlay; no service item is created and the
+    /// service order/file is untouched. (Before T13 this button was labelled
+    /// "Add to Service" although it never added anything — the label now
+    /// matches the behaviour. Creating a Scripture service item remains the
+    /// Service Builder's AddServiceItemDialog path.)
+    /// </summary>
+    private void Present_Click(object sender, RoutedEventArgs e)
     {
         if (_currentSlides is { Count: > 0 })
         {
@@ -238,7 +258,7 @@ public partial class ScriptureBrowserPanel : UserControl
         ErrorText.Visibility = Visibility.Visible;
         ResultsText.Visibility = Visibility.Collapsed;
         EmptyStateText.Visibility = Visibility.Collapsed;
-        AddToServiceButton.IsEnabled = false;
+        PresentButton.IsEnabled = false;
         _currentReference = null;
         _currentVerses = null;
         _currentSlides = null;
