@@ -1,0 +1,109 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<!--Visit the online documentation for Zefania XML Markup-->
+<!--http://bgfdb.de/zefaniaxml/bml/-->
+<!--Download another Zefania XML files from-->
+<!--http://sourceforge.net/projects/zefania-sharp-->
+<XMLBIBLE version="2.0.1.20" p1:noNamespaceSchemaLocation="zef2005.xsd" biblename="New Vietnamese Bible (2002)" type="x-bible" status="v" revision="0" xmlns:p1="http://www.w3.org/2001/XMLSchema-instance">
+  <INFORMATION>
+    <title>New Vietnamese Bible (2002)</title>
+    <creator>The mod2zef tool</creator>
+    <subject />
+    <description>&lt;a href="http://www.nvbible.com/"&gt;Learn more about the New Vietnamese Bible and order copies. Đọc thêm về Kinh Thánh Bản Dịch Mới và đặt mua Kinh Thánh tại http://www.nvbible.com/.&lt;/a&gt;</description>
+    <publisher />
+    <contributors />
+    <date>2009-03-11</date>
+    <type />
+    <format>Zefania XML Bible Markup Language</format>
+    <identifier>VIETNVB</identifier>
+    <source>USFM file provided by Vietnamese Bible Incorporated (VBI)</source>
+    <language>VIE</language>
+    <coverage>provide the bible to the nations of the world</coverage>
+    <rights>
+    </rights>
+  </INFORMATION>
+  <BIBLEBOOK bnumber="1" bname="Genesis" bsname="Gen">
+<CHAPTER cnumber="1">
+      <CAPTION vref="1" type="x-h2" count="146">Bereschit בראשית (Gen 1,1-6,8)</CAPTION>
+      <VERS vnumber="1"> Ban đầu, Đức Chúa Trời sáng tạo trời đất.</VERS>
+      <VERS vnumber="2"> Lúc ấy, đất không có hình thể và còn trống không. Bóng tối, bao trùm vực thẳm và Thần Linh của Đức Chúa Trời vận hành trên mặt nước.</VERS>
+      <VERS vnumber="3"> Bấy giờ, Đức Chúa Trời phán: “Phải có ánh sáng!” Ánh sáng liền xuất hiện.</VERS>
+      <VERS vnumber="4"> Đức Chúa Trời thấy ánh sáng là tốt. Đức Chúa Trời phân rẽ ánh sáng và bóng tối.</VERS>
+      <VERS vnumber="5"> Đức Chúa Trời gọi sáng là Ngày và tối là Đêm. Đó là buổi chiều và buổi sáng ngày thứ nhất.</VERS>
+      <VERS vnumber="6"> Đức Chúa Trời phán: “Phải có khoảng không phân cách nước với nước”. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="7"> Vậy, Đức Chúa Trời tạo khoảng không phân cách nước dưới khoảng không với nước trên khoảng không, thì có như vậy.</VERS>
+      <VERS vnumber="8"> Đức Chúa Trời gọi khoảng không là bầu trời. Đó là buổi chiều và buổi sáng ngày thứ nhì. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="9"> Đức Chúa Trời phán: “Nước dưới bầu trời hãy tụ lại một chỗ và đất khô phải xuất hiện”, thì liền có như thế.</VERS>
+      <VERS vnumber="10"> Đức Chúa Trời gọi đất khô là Đất, và vùng nước tụ lại là Biển. Đức Chúa Trời thấy điều ấy là tốt.</VERS>
+      <VERS vnumber="11"> Đức Chúa Trời phán: “Đất phải sinh cây cỏ; cỏ kết hạt và cây kết quả có hạt tùy theo loại” thì có như vậy.</VERS>
+      <VERS vnumber="12"> Đất sinh sản cây cỏ, cỏ kết hạt tùy theo loại, cây kết quả có hạt tùy theo loại. Đức Chúa Trời thấy điều ấy là tốt.</VERS>
+      <VERS vnumber="13"> Đó là buổi chiều và buổi sáng ngày thứ ba. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="14"> Đức Chúa Trời phán: “Phải có các vì sáng trên bầu trời để phân biệt ngày và đêm, làm dấu cho thì tiết, ngày và năm,</VERS>
+      <VERS vnumber="15"> và hãy có những vì sáng trên bầu trời để soi sáng trái đất,” thì có như vậy.</VERS>
+      <VERS vnumber="16"> Đức Chúa Trời tạo hai vì sáng lớn, vì sáng lớn hơn cai quản ban ngày; vì sáng nhỏ hơn cai quản ban đêm, và các tinh tú.</VERS>
+      <VERS vnumber="17"> Đức Chúa Trời đặt các vì sáng trên bầu trời để soi sáng trái đất,</VERS>
+      <VERS vnumber="18"> cai quản ngày và đêm và phân rẽ ánh sáng với bóng tối. Đức Chúa Trời thấy điều đó là tốt.</VERS>
+      <VERS vnumber="19"> Đó là buổi chiều và buổi sáng ngày thứ tư. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="20"> Đức Chúa Trời phán: “Nước phải đầy dẫy sinh vật và phải có chim bay trên trời!”</VERS>
+      <VERS vnumber="21"> Đức Chúa Trời tạo các loài thủy quái, mọi loài sinh vật đầy dẫy dưới nước tùy theo loại, và các loài chim có cánh tùy theo loại. Đức Chúa Trời thấy điều đó là tốt.</VERS>
+      <VERS vnumber="22"> Đức Chúa Trời ban phước cho chúng và bảo: “Hãy sinh sản, tăng thêm; sinh đầy dẫy dưới biển. Các loài chim hãy gia tăng trên đất.”</VERS>
+      <VERS vnumber="23"> Đó là buổi chiều và buổi sáng ngày thứ năm.</VERS>
+      <VERS vnumber="24"> Đức Chúa Trời phán: “Đất phải sinh các sinh vật tùy theo loại, các súc vật, các loài bò sát và thú rừng tùy theo loại!” thì có như vậy.</VERS>
+      <VERS vnumber="25"> Đức Chúa Trời tạo nên các thú rừng tùy theo loại, súc vật tùy theo loại và mọi loài bò sát trên đất tùy theo loại. Đức Chúa Trời thấy điều đó là tốt đẹp. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="26">  Đức Chúa Trời phán: “Chúng ta hãy tạo nên loài người như hình thể Ta và giống như Ta, để quản trị các loài cá biển, chim trời, súc vật trên cả trái đất và các loài vật bò trên đất.”</VERS>
+      <VERS vnumber="27"> Đức Chúa Trời tạo loài người theo hình ảnh Ngài. Ngài sáng tạo loài người như hình ảnh Đức Chúa Trời. Ngài tạo nên người nam và người nữ.</VERS>
+      <VERS vnumber="28"> Đức Chúa Trời ban phước cho loài người và phán: “Hãy sinh sản gia tăng đầy dẫy mặt đất và thống trị đất. Hãy quản trị loài cá biển, chim trời và tất cả các loài vật bò trên đất.”</VERS>
+      <VERS vnumber="29"> Đức Chúa Trời phán: “Ta ban cho các ngươi mọi thứ rau cỏ kết hạt mọc trên đất và mọi thứ cây cối sinh quả kết hạt, để dùng làm thực phẩm cho các ngươi.</VERS>
+      <VERS vnumber="30"> Ta cũng ban tất cả cây cỏ xanh cho các thú vật, chim trời và mọi loài vật bò trên đất, mọi loài có sinh khí làm thực phẩm thì có như vậy.”</VERS>
+      <VERS vnumber="31"> Đức Chúa Trời nhìn mọi vật Ngài dựng nên và thấy là rất tốt. Đó là buổi chiều và buổi sáng ngày thứ sáu. <BR art="x-nl" /></VERS>
+    </CHAPTER>
+<CHAPTER cnumber="2">
+      <VERS vnumber="1"> Thế là hoàn thành trời, đất và tất cả vạn vật.</VERS>
+      <VERS vnumber="2"> Đức Chúa Trời hoàn tất công việc Ngài đã làm vào ngày thứ bảy, Ngài nghỉ mọi công việc Ngài đã làm.</VERS>
+      <VERS vnumber="3"> Đức Chúa Trời chúc phước cho ngày thứ bảy và thánh hóa nó vì vào ngày ấy Đức Đức Chúa Trời nghỉ ngơi mọi công việc sáng tạo. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="4"> Đó là gốc tích trời đất khi được sáng tạo, trong ngày CHÚA, Đức Chúa Trời dựng nên trời đất. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="5"> Bấy giờ chưa có cây cối và rau cỏ mọc lên ngoài đồng trên mặt đất, vì CHÚA, Đức Chúa Trời chưa cho mưa xuống đất, và cũng chưa có người cầy bừa đất đai.</VERS>
+      <VERS vnumber="6"> Một nguồn nước từ mặt đất dâng lên và tưới toàn thể mặt đất.</VERS>
+      <VERS vnumber="7"> CHÚA, Đức Chúa Trời nắn lên loài người từ bụi đất, hà sinh khí vào lỗ mũi và người trở nên một linh hồn sống. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="8">  CHÚA, Đức Chúa Trời trồng một khu vườn tại Ê-đen ở phía đông và đặt người Ngài đã dựng nên tại đó.</VERS>
+      <VERS vnumber="9"> CHÚA, Đức Chúa Trời khiến từ đất mọc lên mọi cây cối đẹp mắt và ăn ngon. Giữa vườn có Cây Sự Sống và Cây Biết Thiện Ác. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="10"> Một dòng sông chảy ra từ Ê-đen để tưới vườn và từ đó chia làm bốn nhánh.</VERS>
+      <VERS vnumber="11"> Nhánh thứ nhất tên Phi-song, chảy quanh đất Ha-vi-la là nơi có vàng,</VERS>
+      <VERS vnumber="12"> vàng xứ này rất tốt, cũng có nhũ hương và bích ngọc.</VERS>
+      <VERS vnumber="13"> Nhánh sông thứ hai tên Ghi-hôn chảy quanh xứ Cút.</VERS>
+      <VERS vnumber="14"> Nhánh sông thứ ba tên Ti-gơ chảy về phía đông A-si-ri. Nhánh sông thứ tư tên Ơ-phơ-rát. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="15"> CHÚA, Đức Chúa Trời đem người đặt vào vườn Ê-đen để canh tác và chăm sóc vườn.</VERS>
+      <VERS vnumber="16"> CHÚA, Đức Chúa Trời truyền lệnh cho người rằng: “Con có thể ăn bất cứ trái cây nào trong vườn,</VERS>
+      <VERS vnumber="17"> nhưng về ‘Cây Biết Thiện Ác’ thì không được ăn, vì ngày nào con ăn trái đó chắc chắn con sẽ chết.”<BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="18">  CHÚA, Đức Chúa Trời lại nói: “Con người ở một mình không tốt! Ta sẽ dựng nên cho người một kẻ giúp đỡ thích hợp.”<BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="19"> CHÚA, Đức Chúa Trời lấy đất nắn nên mọi thú đồng và mọi chim trời rồi đem đến cho người để xem người đặt tên chúng là gì; và bất cứ tên gì người gọi mỗi sinh vật đều thành tên riêng của nó.</VERS>
+      <VERS vnumber="20"> A-đam đặt tên cho tất cả các loài gia súc, chim trời và thú rừng.<BR art="x-nl" /><BR art="x-nl" />Nhưng về phần A-đam thì không tìm được một người giúp đỡ thích hợp với mình.</VERS>
+      <VERS vnumber="21"> CHÚA, Đức Chúa Trời khiến A-đam ngủ mê. Khi người đang ngủ, Ngài lấy một chiếc xương sườn của người rồi lấp chỗ thịt đó lại.</VERS>
+      <VERS vnumber="22"> Từ xương sườn lấy nơi A-đam, CHÚA, Đức Chúa Trời dựng nên một người nữ và đem đến cho người. <BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="23"> A-đam nói:“Bây giờ đây là xương từ xương tôi,Thịt từ thịt tôi,Người này được gọi là người nữVì từ người nam mà ra.<BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="24"> Vì thế, người nam sẽ rời cha mẹ để kết hiệp với vợ và hai người trở thành một thân.”<BR art="x-nl" /><BR art="x-nl" /></VERS>
+      <VERS vnumber="25"> A-đam và vợ, cả hai đều trần truồng nhưng không thấy xấu hổ. <BR art="x-nl" /></VERS>
+    </CHAPTER>
+</BIBLEBOOK>
+<BIBLEBOOK bnumber="19" bname="Psalm" bsname="Psa">
+<CHAPTER cnumber="23">
+      <VERS vnumber="1">CHÚA là Đấng chăn giữ tôi,Tôi sẽ không thiếu thốn gì.</VERS>
+      <VERS vnumber="2">Ngài giúp tôi an nghỉ nơi đồng cỏ xanh tươi,Dẫn tôi đến bên bờ suối yên tịnh.</VERS>
+      <VERS vnumber="3">Ngài phục hồi linh hồn tôi,Dẫn tôi vào đường lối công bìnhVì cớ danh Ngài.</VERS>
+      <VERS vnumber="4">Dù khi tôi đi quaThung lũng bóng chết,Tôi sẽ không sợ tai họa gì.Vì Ngài ở cùng tôi,Cây trượng và cây gậy của NgàiAn ủi tôi.</VERS>
+      <VERS vnumber="5">Ngài bầy tiệc đãi tôiTrước mặt kẻ thù nghịch tôi,Ngài xức dầu trên đầu tôi,Chén tôi đầy tràn.</VERS>
+      <VERS vnumber="6">Thật vậy, trọn đời tôi,Phúc lành và tình yêu thương sẽ theo tôi.Tôi sẽ ở trong nhà CHÚAĐến muôn đời.</VERS>
+    </CHAPTER>
+<CHAPTER cnumber="24">
+      <VERS vnumber="1">Quả đất và mọi vật trên đất,Thế giới và những người sống trên nó,Đều thuộc về CHÚA.</VERS>
+      <VERS vnumber="2">Vì Ngài đã lập nền quả đất trên biển,Và thiết lập nó trên các sông.</VERS>
+      <VERS vnumber="3">Ai sẽ lên núi của CHÚA?Ai sẽ đứng trong nơi thánh Ngài?</VERS>
+      <VERS vnumber="4">Ấy là người có tay trong sạch và lòng thanh khiết,Không hướng linh hồn mình vào điều sai lầm,Không thề nguyện giả dối.</VERS>
+      <VERS vnumber="5">Người ấy sẽ nhận được phước từ CHÚA,Và sự công chính từ Đức Chúa Trời, là Đấng cứu rỗi người.</VERS>
+      <VERS vnumber="6">Ấy là dòng dõi những người tìm kiếm Ngài,Tức là những người tìm kiếm mặt Đức Chúa Trời của Gia-cốp.Sê-la.</VERS>
+      <VERS vnumber="7">Hỡi các cổng, hãy nhấc đầu lên,Hỡi các cửa đời đời, hãy nâng cao lên,Để vua vinh hiển ngự vào.</VERS>
+      <VERS vnumber="8">Vua vinh hiển này là ai?Ấy là CHÚA dũng lực và quyền năng,CHÚA quyền năng nơi chiến trận.</VERS>
+      <VERS vnumber="9">Hỡi các cổng, hãy nhấc đầu lên,Hỡi các cửa đời đời, hãy nâng cao lên.Để vua vinh hiển ngự vào.</VERS>
+      <VERS vnumber="10">Vua vinh hiển này là ai?Ấy là CHÚA Vạn Quân.Chính Ngài là vua vinh hiển.Sê-la.</VERS>
+    </CHAPTER>
+</BIBLEBOOK>
+</XMLBIBLE>
