@@ -2066,6 +2066,24 @@ public partial class OperatorWindow : Window
 
         if (RenameGroupMenu != null) RenameGroupMenu.IsEnabled = isGroupHeader;
         if (DeleteGroupMenu != null) DeleteGroupMenu.IsEnabled = isGroupHeader;
+
+        // Đợt 2 T6: group reorder entries — only on a real group header, and disabled at
+        // the ends of the group sequence (first group cannot move up, last cannot move down).
+        if (MoveGroupUpMenu != null || MoveGroupDownMenu != null)
+        {
+            var groupIndex = -1;
+            var groupCount = 0;
+            var order2 = _serviceOrderManager?.CurrentServiceOrder;
+            if (isGroupHeader && order2 != null)
+            {
+                var sorted = order2.Groups.OrderBy(g => g.Order).ToList();
+                groupCount = sorted.Count;
+                groupIndex = sorted.FindIndex(g => g.Id == display!.Group!.Id);
+            }
+
+            if (MoveGroupUpMenu != null) MoveGroupUpMenu.IsEnabled = isGroupHeader && groupIndex > 0;
+            if (MoveGroupDownMenu != null) MoveGroupDownMenu.IsEnabled = isGroupHeader && groupIndex >= 0 && groupIndex < groupCount - 1;
+        }
     }
 
     /// <summary>
@@ -2137,6 +2155,41 @@ public partial class OperatorWindow : Window
         catch (Exception ex)
         {
             ShowToolError("Delete Group", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Context "Move Group Up" on a group-header row (đợt 2 T6): swap the group with the
+    /// one above it, persist, and re-render.
+    /// </summary>
+    private async void MoveGroupUp_Click(object sender, RoutedEventArgs e)
+        => await MoveSelectedGroupAsync(-1);
+
+    /// <summary>
+    /// Context "Move Group Down" on a group-header row (đợt 2 T6): swap the group with the
+    /// one below it, persist, and re-render.
+    /// </summary>
+    private async void MoveGroupDown_Click(object sender, RoutedEventArgs e)
+        => await MoveSelectedGroupAsync(+1);
+
+    private async Task MoveSelectedGroupAsync(int delta)
+    {
+        try
+        {
+            if (_serviceOrderManager?.CurrentServiceOrder == null) return;
+            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Group == null) return;
+
+            var sorted = _serviceOrderManager.CurrentServiceOrder.Groups.OrderBy(g => g.Order).ToList();
+            var index = sorted.FindIndex(g => g.Id == display.Group.Id);
+            if (index < 0) return;
+
+            _serviceOrderManager.MoveGroup(display.Group.Id, index + delta);
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Move Group", ex.Message);
         }
     }
 

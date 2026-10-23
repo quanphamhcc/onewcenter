@@ -351,6 +351,8 @@
                                 <MenuItem Header="Add Group…" Click="AddGroup_Click" />
                                 <MenuItem x:Name="RenameGroupMenu" Header="Rename Group…" Click="RenameGroup_Click" />
                                 <MenuItem x:Name="DeleteGroupMenu" Header="Delete Group" Click="DeleteGroup_Click" />
+                                <MenuItem x:Name="MoveGroupUpMenu" Header="Move Group Up" Click="MoveGroupUp_Click" />
+                                <MenuItem x:Name="MoveGroupDownMenu" Header="Move Group Down" Click="MoveGroupDown_Click" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
                     </ListBox>
