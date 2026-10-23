@@ -24,6 +24,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Real Zefania XML fixture for dot2-T11 import tests (excerpt of the New
+         Vietnamese Bible 2002 module VIETNVB: Genesis 1-2, Psalm 23-24) -->
+    <None Include="TestData\kinh-thanh-mau-zefania.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Include Presenter service sources directly for testing (Presenter project is net8.0-windows, can't be referenced) -->
     <Compile Include="..\WorshipPlayer.Presenter\Services\ThemeManager.cs" Link="ThemeManager.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Services\MusicianViewRenderer.cs" Link="MusicianViewRenderer.cs" />

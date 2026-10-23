@@ -305,6 +305,14 @@ public class BibleDatabaseService : IBibleProvider
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Parses the file with <see cref="ZefaniaBibleXmlParser"/> first (invalid
+    /// files throw <see cref="InvalidDataException"/> before the database is
+    /// touched), then writes the translation record, its book records and all
+    /// verses into bible.db inside ONE transaction: any failure rolls back so
+    /// no half-imported translation is left behind. Re-importing the same
+    /// translation replaces its previous data instead of duplicating verses.
+    /// </remarks>
     public async Task<BibleTranslation> ImportTranslationAsync(string xmlFilePath)
     {
         if (string.IsNullOrWhiteSpace(xmlFilePath))
@@ -313,31 +321,136 @@ public class BibleDatabaseService : IBibleProvider
         if (!File.Exists(xmlFilePath))
             throw new FileNotFoundException("Bible XML file not found.", xmlFilePath);
 
-        // Read XML and determine translation ID from the filename
-        var fileName = Path.GetFileNameWithoutExtension(xmlFilePath);
-        var translationId = fileName.ToUpperInvariant();
+        // Parse + validate the whole file before opening the database.
+        var document = new ZefaniaBibleXmlParser().Parse(xmlFilePath);
+
+        // Translation identity: prefer the file's own metadata (INFORMATION /
+        // biblename); fall back to the file name, as the previous stub did.
+        var translationId = !string.IsNullOrWhiteSpace(document.Identifier)
+            ? document.Identifier.Trim().ToUpperInvariant()
+            : Path.GetFileNameWithoutExtension(xmlFilePath).ToUpperInvariant();
+        var name = document.BibleName ?? document.Title ?? translationId;
+        var language = !string.IsNullOrWhiteSpace(document.Language)
+            ? document.Language.Trim()
+            : "en";
+
+        var canonicalBooks = BibleSeedData.GetBookData().ToDictionary(b => b.Id);
 
         using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
-        // Insert translation record
-        using var insertCmd = connection.CreateCommand();
-        insertCmd.CommandText = @"
-            INSERT OR IGNORE INTO Translations (Id, Name, Abbreviation, Language, IsDefault)
-            VALUES (@id, @name, @abbreviation, 'en', 0)";
-        insertCmd.Parameters.AddWithValue("@id", translationId);
-        insertCmd.Parameters.AddWithValue("@name", translationId);
-        insertCmd.Parameters.AddWithValue("@abbreviation", translationId);
-        await insertCmd.ExecuteNonQueryAsync();
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            // Re-import replaces this translation's previous data.
+            using (var deleteVerses = CreateCommand(connection, transaction,
+                "DELETE FROM Verses WHERE TranslationId = @id"))
+            {
+                deleteVerses.Parameters.AddWithValue("@id", translationId);
+                await deleteVerses.ExecuteNonQueryAsync();
+            }
+
+            using (var deleteBooks = CreateCommand(connection, transaction,
+                "DELETE FROM Books WHERE TranslationId = @id"))
+            {
+                deleteBooks.Parameters.AddWithValue("@id", translationId);
+                await deleteBooks.ExecuteNonQueryAsync();
+            }
+
+            using (var deleteTranslation = CreateCommand(connection, transaction,
+                "DELETE FROM Translations WHERE Id = @id"))
+            {
+                deleteTranslation.Parameters.AddWithValue("@id", translationId);
+                await deleteTranslation.ExecuteNonQueryAsync();
+            }
+
+            using (var insertTranslation = CreateCommand(connection, transaction, @"
+                INSERT INTO Translations (Id, Name, Abbreviation, Language, IsDefault)
+                VALUES (@id, @name, @abbreviation, @language, 0)"))
+            {
+                insertTranslation.Parameters.AddWithValue("@id", translationId);
+                insertTranslation.Parameters.AddWithValue("@name", name);
+                insertTranslation.Parameters.AddWithValue("@abbreviation", translationId);
+                insertTranslation.Parameters.AddWithValue("@language", language);
+                await insertTranslation.ExecuteNonQueryAsync();
+            }
+
+            // Book rows for the books present in the file, using the canonical
+            // 66-book metadata (name/abbreviation/testament/chapter count).
+            using var insertBook = CreateCommand(connection, transaction, @"
+                INSERT INTO Books (Id, Name, Abbreviation, Testament, ChapterCount, BookOrder, TranslationId)
+                VALUES (@id, @name, @abbreviation, @testament, @chapterCount, @bookOrder, @translationId)");
+            var bookIdParam = insertBook.Parameters.Add("@id", SqliteType.Integer);
+            var bookNameParam = insertBook.Parameters.Add("@name", SqliteType.Text);
+            var bookAbbrParam = insertBook.Parameters.Add("@abbreviation", SqliteType.Text);
+            var bookTestamentParam = insertBook.Parameters.Add("@testament", SqliteType.Text);
+            var bookChaptersParam = insertBook.Parameters.Add("@chapterCount", SqliteType.Integer);
+            var bookOrderParam = insertBook.Parameters.Add("@bookOrder", SqliteType.Integer);
+            var bookTranslationParam = insertBook.Parameters.Add("@translationId", SqliteType.Text);
+            bookTranslationParam.Value = translationId;
+
+            foreach (var book in document.Books)
+            {
+                var meta = canonicalBooks[book.BookId];
+                bookIdParam.Value = meta.Id;
+                bookNameParam.Value = meta.Name;
+                bookAbbrParam.Value = meta.Abbreviation;
+                bookTestamentParam.Value = meta.Testament;
+                bookChaptersParam.Value = meta.ChapterCount;
+                bookOrderParam.Value = meta.Id;
+                await insertBook.ExecuteNonQueryAsync();
+            }
+
+            // All verses, parameterized bulk insert inside the same transaction.
+            using var insertVerse = CreateCommand(connection, transaction, @"
+                INSERT INTO Verses (BookId, Chapter, Verse, Text, TranslationId)
+                VALUES (@bookId, @chapter, @verse, @text, @translationId)");
+            var verseBookParam = insertVerse.Parameters.Add("@bookId", SqliteType.Integer);
+            var verseChapterParam = insertVerse.Parameters.Add("@chapter", SqliteType.Integer);
+            var verseNumberParam = insertVerse.Parameters.Add("@verse", SqliteType.Integer);
+            var verseTextParam = insertVerse.Parameters.Add("@text", SqliteType.Text);
+            var verseTranslationParam = insertVerse.Parameters.Add("@translationId", SqliteType.Text);
+            verseTranslationParam.Value = translationId;
+
+            foreach (var book in document.Books)
+            {
+                verseBookParam.Value = book.BookId;
+                foreach (var chapter in book.Chapters)
+                {
+                    verseChapterParam.Value = chapter.ChapterNumber;
+                    foreach (var verse in chapter.Verses)
+                    {
+                        verseNumberParam.Value = verse.VerseNumber;
+                        verseTextParam.Value = verse.Text;
+                        await insertVerse.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
 
         return new BibleTranslation
         {
             Id = translationId,
-            Name = translationId,
+            Name = name,
             Abbreviation = translationId,
-            Language = "en",
+            Language = language,
             IsDefault = false,
             DatabasePath = _databasePath
         };
+    }
+
+    private static SqliteCommand CreateCommand(SqliteConnection connection, SqliteTransaction transaction, string sql)
+    {
+        var cmd = connection.CreateCommand();
+        cmd.Transaction = transaction;
+        cmd.CommandText = sql;
+        return cmd;
     }
 }
