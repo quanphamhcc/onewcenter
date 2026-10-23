@@ -143,6 +143,9 @@ public class QuickScriptureBuilderTests : IDisposable
     public async Task Build_FromSeededKjv_John316_SucceedsWithRealText()
     {
         await _service.InitializeAsync();
+        // InitializeAsync seeds schema/translations/books only; the KJV verse
+        // text is seeded separately (as in BibleDatabaseServiceTests).
+        await _service.SeedKjvVersesAsync();
 
         var reference = await _service.ParseReferenceAsync("John 3:16", "KJV");
         Assert.NotNull(reference);
