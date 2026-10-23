@@ -5,6 +5,7 @@
 - Spec đợt 2: `.kiro/specs/dot-2-trinh-chieu-chuan-worshiptools` (requirements R1–R9, tasks T1–T17, chế độ liên tục). Đường cơ sở đầu đợt 2: 856 test PASS, build 0 error (tại `375b532`). Chuẩn SQLite bắt buộc: comment 6355687580 trên Issue #4.
 - **[dot2-T1] XONG** (commit `3ca3275` trên kiro-current, Muse tự code): nền riêng theo item + ItemBackgroundResolver + nối render OutputWindow. Build 0 error / 8 warning, test **871/871 PASS** (856 cũ + 15 mới). Nghiệm thu ĐẠT tại Issue #4 (comment 6356585028).
 - **[dot2-T2] XONG** (commit `876b8e5` trên kiro-current, Muse tự code): Inherit Background — chuỗi kế thừa + bulk apply + nối render OutputWindow + icon ↩ trong danh sách service. Build 0 error / 8 warning, test **887/887 PASS** (871 cũ + 16 mới). Task tiếp theo: **T3** (Auto Advance: chốt điều kiện hợp lệ Lyrics/Scripture).
+- **[dot2-T3] XONG** (commit `d4d3b2c` trên kiro-current, Muse tự code): Auto Advance — chốt điều kiện hợp lệ Lyrics/Scripture (`IsEligible` ở Core + guard trong `AutoAdvanceResolver.Resolve` và `PresenterEngine` + ghi chú/vô hiệu hoá control ở `ItemSettingsPanel`). Build 0 error / 8 warning, test **898/898 PASS** (887 cũ + 11 mới). Task tiếp theo: **T4** (Auto Advance: trigger khi video nền chạy hết).
 - Spec đợt 1: `.kiro/specs/dot-1-khoa-bang-chung` (đợt 1 — "Khóa bằng chứng & nối mắt xích cuối của Slides")
 - Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật). **T3 XONG** (commit `0ddff03`, build sạch + 856/856 test PASS). **T4 XONG** (bảng 7 panel/dialog ở mục ĐỀ XUẤT; chỉ phân tích, không code). **T5 XONG** (commit `375b532`: gỡ track 25 mp3 + bật .gitignore + xóa latest-changes.patch; build sạch + 856/856 test PASS). **HẾT hàng đợi T3–T5** — không còn task nào trong chế độ liên tục (T2 hoãn).
 - NETSDK1100 đã được giải: **mọi lệnh build/test trên sandbox Linux luôn thêm cờ `-p:EnableWindowsTargeting=true`** (theo Issue #2). Việc 0 đã build sạch + 854/854 test PASS trên Linux (xem nhật ký Việc 0).
@@ -80,6 +81,35 @@
   - [x] `BulkEditInheritBackgroundTests` (4 test): áp Inherit chỉ đổi đúng item được chọn; các trường khác (transition, auto-advance, legacy BackgroundType, title) không đổi; Inherit thắng lựa chọn legacy trong cùng lần apply; không opt-in → BackgroundKind không đụng.
   - [x] Build 0 error; toàn bộ test (cũ + mới) pass: 887/887.
 - Commit: `876b8e5` (kiro-current) + commit PROGRESS này (main).
+
+### [dot2-T3] Auto Advance: chốt điều kiện hợp lệ Lyrics/Scripture (R3, phần 1) — 2026-10-23
+- **Người làm: Muse tự code (Kiro không làm việc được)** — chế độ CLAUDE-TỰ-CODE (Issue #4, comment 6356247276). Code hoàn thành tại commit local `dc4c90c`; vòng hoàn tất này Muse KIỂM CHỨNG ĐỘC LẬP lại toàn bộ (build + full test) tại đúng commit đó rồi mới đẩy lên remote.
+- Commit code (nhánh kiro-current): `d4d3b2c` — "[dot2-T3] Auto Advance: chot dieu kien hop le Lyrics/Scripture (R3 phan 1)...". 5 file sửa, không file mới.
+- **Đã làm:**
+  1. `WorshipPlayer.Core/Services/AutoAdvanceResolver.cs`: thêm hàm thuần `IsEligible(ServiceItem?)` — null → false; `Type == Slides` → true; `ForegroundType` Text/Media/Blank → true; Lyrics/Scripture → false. `Resolve` dùng guard này ngay sau khi lấy item hiện tại: item không hợp lệ → `Decision.None` dù `AutoAdvanceAfterCondition = Timer`.
+  2. `WorshipPlayer.Presenter/Services/PresenterEngine.cs` (`RestartAutoAdvanceTimer`): không khởi động timer cho item không hợp lệ (cùng quy tắc với resolver).
+  3. UI `ItemSettingsPanel` (xaml + code-behind): item không hợp lệ → hiện ghi chú Auto Advance không khả dụng (lý do: foreground Lyrics/Scripture) và vô hiệu hoá các control auto-advance (GoTo, AfterCondition, GoToTarget, Delay); Transition Fade Time vẫn sửa được (không thuộc auto-advance).
+  4. Ngoài phạm vi (đúng spec): KHÔNG đụng trigger VideoEnd (thuộc T4); KHÔNG sửa `SlideAutoAdvanceMap`; KHÔNG đổi hành vi Manual mặc định.
+- **Lệnh build:** `dotnet build WorshipBacktrackPlayer.sln -c Debug --nologo -p:EnableWindowsTargeting=true`
+- **Kết quả build (NGUYÊN VĂN, kiểm chứng độc lập):**
+  ```
+  Build succeeded.
+      8 Warning(s)
+      0 Error(s)
+  ```
+  (8 warning đã có sẵn từ trước đợt 2, không thuộc file T3.)
+- **Lệnh test:** build WorshipPlayer.Tests rồi chạy xUnit console runner (xunit.runner.console 2.9.2, `DOTNET_ROLL_FORWARD=LatestMajor`, `LD_LIBRARY_PATH` tới `runtimes/linux-x64/native` — xem AGENTS.md).
+- **Kết quả test (NGUYÊN VĂN, kiểm chứng độc lập):**
+  ```
+  === TEST EXECUTION SUMMARY ===
+     WorshipPlayer.Tests  Total: 898, Errors: 0, Failed: 0, Skipped: 0, Time: 241.010s
+  ```
+  → 887 test cũ + **11 test mới** đều PASS.
+- **Tiêu chí nghiệm thu T3:**
+  - [x] Test mới trong `AutoAdvanceResolverTests` (11 case): `IsEligible_NullItem_ReturnsFalse`; `IsEligible_LyricsOrScripture_ReturnsFalse` (Theory 2 case); `IsEligible_TextMediaBlank_ReturnsTrue` (Theory 3 case); `IsEligible_SlidesTypeWithLyricsForeground_ReturnsTrue`; `Timer_WithLyricsItem_ReturnsNone`; `Timer_WithScriptureItem_ReturnsNone_EvenSpecificTarget`; `Timer_WithTextItem_StillAdvancesNextItem`; `Timer_WithSlidesTypeItem_AdvancesNextItem`.
+  - [x] Không hồi quy: toàn bộ test AutoAdvance cũ (NullSettings, ManualCondition, Timer NextItem/NextSlide/SpecificItem/Loop, DeferredMediaConditions, UnknownCurrentId, NullOrder...) vẫn pass trong tổng 898/898.
+  - [x] Build 0 error; toàn bộ test (cũ + mới) pass: 898/898.
+- Commit: `d4d3b2c` (kiro-current) + commit PROGRESS này (main).
 
 ### [task T5] Vệ sinh repo: gỡ track file nhạc + dọn file patch ở gốc — 2026-10-23
 - Commit code (nhánh kiro-current): `375b532` — "[task T5] Ve sinh repo: go track 25 file .mp3 (giu tren dia), bat *.mp3/*.wav/*.flac trong .gitignore, xoa latest-changes.patch (noi dung da nam trong code)".
