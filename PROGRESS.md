@@ -6,6 +6,7 @@
 - **[dot2-T1] XONG** (commit `3ca3275` trên kiro-current, Muse tự code): nền riêng theo item + ItemBackgroundResolver + nối render OutputWindow. Build 0 error / 8 warning, test **871/871 PASS** (856 cũ + 15 mới). Nghiệm thu ĐẠT tại Issue #4 (comment 6356585028).
 - **[dot2-T2] XONG** (commit `876b8e5` trên kiro-current, Muse tự code): Inherit Background — chuỗi kế thừa + bulk apply + nối render OutputWindow + icon ↩ trong danh sách service. Build 0 error / 8 warning, test **887/887 PASS** (871 cũ + 16 mới). Task tiếp theo: **T3** (Auto Advance: chốt điều kiện hợp lệ Lyrics/Scripture).
 - **[dot2-T3] XONG** (commit `d4d3b2c` trên kiro-current, Muse tự code): Auto Advance — chốt điều kiện hợp lệ Lyrics/Scripture (`IsEligible` ở Core + guard trong `AutoAdvanceResolver.Resolve` và `PresenterEngine` + ghi chú/vô hiệu hoá control ở `ItemSettingsPanel`). Build 0 error / 8 warning, test **898/898 PASS** (887 cũ + 11 mới). Task tiếp theo: **T4** (Auto Advance: trigger khi video nền chạy hết).
+- **[dot2-T4] XONG** (commit `980ec01` trên kiro-current, Muse tự code): Auto Advance — trigger VideoEnd hoạt động thật (`AutoAdvanceTrigger` + overload `Resolve(trigger)` ở Core; `VideoBackgroundService.PlaybackEnded`; `OutputWindow.BackgroundVideoEnded` + item VideoEnd phát video 1 lần thay vì loop; `PresenterEngine.NotifyCurrentItemVideoEnded`; `PresenterIntegration` nối cả 2 tín hiệu video-hết vào engine). Build 0 error / 8 warning, test **908/908 PASS** (898 cũ + 10 mới). Kiểm chứng tay trên app Windows: HOÃN tới bước bàn giao (VM Linux không chạy được WPF/LibVLC) — xem nhật ký T4. Task tiếp theo: **T5** (Auto Advance: đếm ngược trên khung service).
 - Spec đợt 1: `.kiro/specs/dot-1-khoa-bang-chung` (đợt 1 — "Khóa bằng chứng & nối mắt xích cuối của Slides")
 - Chế độ: **LIÊN TỤC** (Muse ra lệnh ở Issue #3) — làm nối tiếp T3 → T4 → T5, không dừng chờ nghiệm thu giữa các task. T1 đã ĐẠT (Muse tự build sạch + 854/854 test PASS tại b245e07). T2 HOÃN (cần tay chủ sản phẩm trên phần cứng cảm ứng thật). **T3 XONG** (commit `0ddff03`, build sạch + 856/856 test PASS). **T4 XONG** (bảng 7 panel/dialog ở mục ĐỀ XUẤT; chỉ phân tích, không code). **T5 XONG** (commit `375b532`: gỡ track 25 mp3 + bật .gitignore + xóa latest-changes.patch; build sạch + 856/856 test PASS). **HẾT hàng đợi T3–T5** — không còn task nào trong chế độ liên tục (T2 hoãn).
 - NETSDK1100 đã được giải: **mọi lệnh build/test trên sandbox Linux luôn thêm cờ `-p:EnableWindowsTargeting=true`** (theo Issue #2). Việc 0 đã build sạch + 854/854 test PASS trên Linux (xem nhật ký Việc 0).
@@ -110,6 +111,39 @@
   - [x] Không hồi quy: toàn bộ test AutoAdvance cũ (NullSettings, ManualCondition, Timer NextItem/NextSlide/SpecificItem/Loop, DeferredMediaConditions, UnknownCurrentId, NullOrder...) vẫn pass trong tổng 898/898.
   - [x] Build 0 error; toàn bộ test (cũ + mới) pass: 898/898.
 - Commit: `d4d3b2c` (kiro-current) + commit PROGRESS này (main).
+
+### [dot2-T4] Auto Advance: trigger khi video nền chạy hết (R3, phần 2) — 2026-10-23
+- **Người làm: Muse tự code (Kiro không làm việc được)** — chế độ CLAUDE-TỰ-CODE (Issue #4, comment 6356247276).
+- Commit code (nhánh kiro-current): `980ec01` — "[dot2-T4] Auto Advance: trigger khi video nen chay het (R3 phan 2)...". 6 file sửa, không file mới.
+- **Đã làm:**
+  1. `WorshipPlayer.Core/Services/AutoAdvanceResolver.cs`: enum mới `AutoAdvanceTrigger { Timer, VideoEnd }` + overload `Resolve(order, currentItemId, trigger)`. Chữ ký cũ 2 tham số GIỮ NGUYÊN, uỷ thác `trigger = Timer` (không phá test cũ). Điều kiện của item phải KHỚP trigger mới được quyết định: Timer↔Timer, VideoEnd↔VideoEnd; `AudioEnd` giữ DEFERRED (None trên mọi trigger — thuộc R9/đợt sau); Manual không bao giờ kích hoạt. Guard `IsEligible` của T3 chạy trước cho cả hai trigger. Nhánh đích `AutoAdvanceGoTo` (NextItem/NextSlide, SpecificItem kèm fallback NextItem khi đích sai/thiếu, Loop về chính item, item cuối + NextItem → None) dùng chung cho VideoEnd như nhánh Timer.
+  2. `WorshipPlayer.Presenter/Services/VideoBackgroundService.cs`: event mới `PlaybackEnded` — chỉ bắn khi video KHÔNG loop chạy tới cuối (`EndReached` với `_shouldLoop = false`); video loop vẫn tự phát lại theo cơ chế cũ và không bắn event.
+  3. `WorshipPlayer.Presenter/Views/OutputWindow.xaml.cs`: event mới `BackgroundVideoEnded` (được nâng lên UI thread qua Dispatcher, cùng mẫu `VideoPlaybackEnded` hiện có); `StartMotionBackground` nay phát video 1 LẦN khi item hiện tại đặt điều kiện VideoEnd (`loop: !CurrentItemWaitsForVideoEnd`), mọi item khác giữ nguyên loop như trước T4. Huỷ đăng ký event trong `OnClosed`.
+  4. `WorshipPlayer.Presenter/Services/PresenterEngine.cs`: `FireAutoAdvance(AutoAdvanceTrigger)` — timer gọi với `Timer`; thêm `NotifyCurrentItemVideoEnded()` công khai cho trigger VideoEnd.
+  5. `WorshipPlayer.UI/Services/PresenterIntegration.cs`: tại cả 2 điểm tạo `OutputWindow` (ApplyDisplaySettings + HandleGoLiveSingleMonitor), đăng ký `VideoPlaybackEnded` (video toàn màn hình chạy hết — event này có sẵn từ trước nhưng CHƯA từng được ai nối vào engine) + `BackgroundVideoEnded` → `PresenterEngine.NotifyCurrentItemVideoEnded()`.
+  6. Hệ quả đúng spec: item đặt VideoEnd nhưng không chạy video nào → không có tín hiệu ended nào → không tự chuyển, KHÔNG rơi về Timer (`RestartAutoAdvanceTimer` chỉ nạp timer cho điều kiện Timer; resolver VideoEnd + trigger Timer → None, có test chốt).
+  7. Ngoài phạm vi (đúng spec): KHÔNG làm loop video (giữ nguyên cơ chế loop hiện có); KHÔNG dùng `AudioEnd` (giữ deferred).
+- **Lệnh build:** `dotnet build WorshipBacktrackPlayer.sln -c Debug --nologo -p:EnableWindowsTargeting=true`
+- **Kết quả build (NGUYÊN VĂN):**
+  ```
+  Build succeeded.
+      8 Warning(s)
+      0 Error(s)
+  ```
+  (8 warning đã có sẵn từ trước đợt 2, không thuộc file T4.)
+- **Lệnh test:** build WorshipPlayer.Tests rồi chạy xUnit console runner (xunit.runner.console 2.9.2, `DOTNET_ROLL_FORWARD=LatestMajor`, `LD_LIBRARY_PATH` tới `runtimes/linux-x64/native` — xem AGENTS.md).
+- **Kết quả test (NGUYÊN VĂN):**
+  ```
+  === TEST EXECUTION SUMMARY ===
+     WorshipPlayer.Tests  Total: 908, Errors: 0, Failed: 0, Skipped: 0, Time: 166.824s
+  ```
+  → 898 test cũ + **10 test mới** đều PASS.
+- **Tiêu chí nghiệm thu T4:**
+  - [x] Unit test resolver mới (10 case trong `AutoAdvanceResolverTests`): `VideoEnd_NextItem_WithVideoEndTrigger_ReturnsNextItem`; `VideoEnd_SpecificItem_WithVideoEndTrigger_ReturnsGoToTarget`; `VideoEnd_Loop_WithVideoEndTrigger_ReturnsGoToCurrentItem`; `VideoEnd_SpecificItem_InvalidTarget_WithVideoEndTrigger_FallsBackToNextItem`; `VideoEnd_NextItem_OnLastItem_WithVideoEndTrigger_ReturnsNone`; `VideoEnd_WithTimerTrigger_ReturnsNone_NoFallbackToTimer`; `Timer_WithVideoEndTrigger_ReturnsNone`; `AudioEnd_WithVideoEndTrigger_StillDeferred_ReturnsNone`; `VideoEnd_WithLyricsItem_ReturnsNone`; `VideoEnd_WithScriptureItem_ReturnsNone_EvenSpecificTarget`.
+  - [x] Test cũ pass nguyên vẹn: theory `DeferredMediaConditions_ReturnNone` cũ gọi chữ ký 2 tham số (đường Timer) — VideoEnd trên đường Timer vẫn → None như trước T4; toàn bộ test AutoAdvance/T3 giữ nguyên trong tổng 908/908.
+  - [x] Build 0 error; toàn bộ test (cũ + mới) pass: 908/908.
+  - [ ] **KIỂM CHỨNG TAY — CHƯA LÀM, HOÃN SANG MÁY WINDOWS:** spec yêu cầu dựng item nền video ngắn đặt VideoEnd → chiếu → quan sát tự chuyển khi video hết. Môi trường làm việc hiện tại là VM Linux (chỉ biên dịch được WPF qua EnableWindowsTargeting, không chạy được app WPF + LibVLC thật) nên KHÔNG thực hiện được và KHÔNG ghi kết quả quan sát nào. Việc này để lại cho máy Windows của chủ sản phẩm ở bước bàn giao đợt 2: tạo 1 item Media/Text gắn nền video ngắn (~5 giây), đặt Auto Advance After = VideoEnd, GoTo = Next Item, chiếu và xác nhận item tự chuyển đúng lúc video kết thúc; đồng thời xác nhận item VideoEnd nhưng không gắn video thì đứng yên.
+- Commit: `980ec01` (kiro-current) + commit PROGRESS này (main).
 
 ### [task T5] Vệ sinh repo: gỡ track file nhạc + dọn file patch ở gốc — 2026-10-23
 - Commit code (nhánh kiro-current): `375b532` — "[task T5] Ve sinh repo: go track 25 file .mp3 (giu tren dia), bat *.mp3/*.wav/*.flac trong .gitignore, xoa latest-changes.patch (noi dung da nam trong code)".
