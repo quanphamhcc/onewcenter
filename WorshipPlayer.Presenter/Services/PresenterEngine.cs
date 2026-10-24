@@ -642,38 +642,43 @@ public class PresenterEngine : IDisposable
             // independently, in section order — so when a chorus ends, the next
             // slide is the next section's first lines. A blank line still starts a
             // new block (and therefore a new slide) as before.
+            //
+            // Auto-advance (music playing => slides jump by themselves) runs on
+            // OnPlaybackPositionUpdate, which only sees slides WITH a timestamp —
+            // so chunks must carry timestamps too, or the music would stall on a
+            // block's first chunk. A chunk's time is interpolated evenly inside its
+            // block's window: the block's start (embedded {M:SS.mmm} timestamp, else
+            // its ChordChart start) to the block's end (ChordChart end, else the
+            // next timed slide's start, else the section's loop-out). Chunks of an
+            // untimed block stay untimed (section-change / MIDI / manual advance
+            // still work for them, exactly as before chunking).
             int linesPerSlide = Math.Clamp(
                 section.LinesPerSlideOverride ?? _settings.LinesPerSlide, 2, 4);
 
-            int slideIndexInSection = 0;
+            // ChordChart SlideIndex counts BLOCKS split by empty lines within the
+            // section — NOT 2-line chunks. Matching by chunk index would hand a
+            // block's second chunk the NEXT block's start time.
+            int blockIndexInSection = 0;
+            var chunkMeta = new List<(int slideIndex, double startMs, double? endMs, int chunkIndex, int chunkCount, double sectionLoopOutMs)>();
             foreach (var (timestampMs, text) in blocks)
             {
+                var matchingChartSlide = chartSlides?.FirstOrDefault(cs =>
+                    cs.SectionName.Equals(section.Name, StringComparison.OrdinalIgnoreCase) &&
+                    cs.SlideIndex == blockIndexInSection);
+
+                double? blockStart = timestampMs >= 0
+                    ? timestampMs
+                    : matchingChartSlide?.StartMs;
+                double? blockEnd = matchingChartSlide != null && matchingChartSlide.EndMs > 0
+                    ? matchingChartSlide.EndMs
+                    : null;
+
                 var lines = text.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
-                for (int chunkStart = 0; chunkStart < lines.Length; chunkStart += linesPerSlide)
+                int chunkCount = (lines.Length + linesPerSlide - 1) / linesPerSlide;
+                for (int chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++)
                 {
-                    string chunkText = string.Join("\n", lines.Skip(chunkStart).Take(linesPerSlide));
-
-                    // Try to get timing from ChordChartData. A block-level embedded
-                    // timestamp belongs to the block's FIRST chunk only — copying it
-                    // onto every chunk would fire the same auto-advance cue twice.
-                    double? slideTimestamp = null;
-                    if (chunkStart == 0 && timestampMs >= 0)
-                    {
-                        // Timestamp embedded in text: {M:SS.mmm}
-                        slideTimestamp = timestampMs;
-                    }
-                    else if (chartSlides != null)
-                    {
-                        // Find matching ChartSlide by section name + slide index
-                        var matchingChartSlide = chartSlides.FirstOrDefault(cs =>
-                            cs.SectionName.Equals(section.Name, StringComparison.OrdinalIgnoreCase) &&
-                            cs.SlideIndex == slideIndexInSection);
-
-                        if (matchingChartSlide != null)
-                        {
-                            slideTimestamp = matchingChartSlide.StartMs;
-                        }
-                    }
+                    string chunkText = string.Join("\n",
+                        lines.Skip(chunkIndex * linesPerSlide).Take(linesPerSlide));
 
                     generated.Add(new Slide
                     {
@@ -685,12 +690,57 @@ public class PresenterEngine : IDisposable
                         },
                         SectionName = section.Name,
                         Order = order++,
-                        TimestampMs = slideTimestamp,
+                        // First chunk: the block's start. Later chunks: interpolated
+                        // in the second pass below (their end boundary — the next
+                        // timed slide — is only known once generation finishes).
+                        TimestampMs = chunkIndex == 0 ? blockStart : null,
                         Transition = SlideTransition.Fade,
                         TransitionDurationMs = 500
                     });
 
-                    slideIndexInSection++;
+                    if (blockStart.HasValue)
+                    {
+                        chunkMeta.Add((generated.Count - 1, blockStart.Value, blockEnd,
+                            chunkIndex, chunkCount, section.LoopOutMs));
+                    }
+                }
+
+                blockIndexInSection++;
+            }
+
+            // Second pass: interpolate timestamps for chunks after the first in
+            // each timed block, evenly across [blockStart, blockEnd).
+            foreach (var meta in chunkMeta)
+            {
+                if (meta.chunkIndex == 0) continue;
+
+                double? end = meta.endMs;
+                if (end == null || end <= meta.startMs)
+                {
+                    // Next timed slide after this chunk: a later block's first
+                    // chunk in this same section (later sections are not
+                    // generated yet at this point; their boundary is covered by
+                    // the section loop-out fallback below).
+                    for (int i = meta.slideIndex + 1; i < generated.Count; i++)
+                    {
+                        var t = generated[i].TimestampMs;
+                        if (t.HasValue && t.Value > meta.startMs)
+                        {
+                            end = t.Value;
+                            break;
+                        }
+                    }
+                }
+                if ((end == null || end <= meta.startMs) &&
+                    meta.sectionLoopOutMs > meta.startMs)
+                {
+                    end = meta.sectionLoopOutMs;
+                }
+
+                if (end.HasValue && end.Value > meta.startMs)
+                {
+                    generated[meta.slideIndex].TimestampMs =
+                        meta.startMs + meta.chunkIndex * (end.Value - meta.startMs) / meta.chunkCount;
                 }
             }
         }

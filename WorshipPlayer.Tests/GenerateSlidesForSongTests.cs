@@ -214,4 +214,149 @@ public class GenerateSlidesForSongTests
         Assert.Single(slides);
         Assert.Equal("L1\nL2\nL3\nL4", slides[0].Content.Text);
     }
+
+    // Auto-advance fix 2026-10-24 (user correction: "nhac phat thi tu nhay,
+    // dau can cho bam"): OnPlaybackPositionUpdate only sees slides WITH a
+    // timestamp, so a timed block's later chunks must carry interpolated
+    // timestamps inside the block's window — otherwise the music would stall
+    // on the block's first chunk waiting for a tap that never comes.
+    [Fact]
+    public void GenerateSlidesForSong_ChartTimedBlock_ChunksGetInterpolatedTimestamps()
+    {
+        var engine = NewEngine();
+        var song = new Song
+        {
+            Title = "Timed Song",
+            OriginalKey = "C",
+            ChordChart = new ChordChartData
+            {
+                Slides = new List<ChartSlide>
+                {
+                    new ChartSlide { SectionName = "CHORUS", SlideIndex = 0, StartMs = 10000, EndMs = 18000 }
+                }
+            },
+            Sections = new List<Section>
+            {
+                new Section { Name = "CHORUS", Text = "L1\nL2\nL3\nL4" }
+            }
+        };
+
+        var slides = engine.GenerateSlidesForSong(song);
+
+        Assert.Equal(2, slides.Count);
+        Assert.Equal(10000, slides[0].TimestampMs);
+        Assert.Equal(14000, slides[1].TimestampMs);
+    }
+
+    // Chart SlideIndex counts BLOCKS, not chunks: a 4-line first block (2
+    // chunks) followed by a 2-line second block must NOT hand the first
+    // block's second chunk the second block's start time.
+    [Fact]
+    public void GenerateSlidesForSong_ChartIndexMatchesBlocksNotChunks()
+    {
+        var engine = NewEngine();
+        var song = new Song
+        {
+            Title = "Block Song",
+            OriginalKey = "C",
+            ChordChart = new ChordChartData
+            {
+                Slides = new List<ChartSlide>
+                {
+                    new ChartSlide { SectionName = "CHORUS", SlideIndex = 0, StartMs = 10000, EndMs = 18000 },
+                    new ChartSlide { SectionName = "CHORUS", SlideIndex = 1, StartMs = 20000, EndMs = 24000 }
+                }
+            },
+            Sections = new List<Section>
+            {
+                new Section { Name = "CHORUS", Text = "L1\nL2\nL3\nL4\n\nL5\nL6" }
+            }
+        };
+
+        var slides = engine.GenerateSlidesForSong(song);
+
+        Assert.Equal(3, slides.Count);
+        Assert.Equal(10000, slides[0].TimestampMs);
+        Assert.Equal(14000, slides[1].TimestampMs);
+        Assert.Equal(20000, slides[2].TimestampMs);
+    }
+
+    // Embedded {M:SS.mmm} block timestamps interpolate to the next timed
+    // block's start when there is no ChordChart end.
+    [Fact]
+    public void GenerateSlidesForSong_EmbeddedTimestampBlock_InterpolatesToNextBlockStart()
+    {
+        var engine = NewEngine();
+        var song = new Song
+        {
+            Title = "Embedded Song",
+            OriginalKey = "C",
+            Sections = new List<Section>
+            {
+                new Section { Name = "CHORUS", Text = "{0:10.000}L1\nL2\nL3\nL4\n\n{0:20.000}L5\nL6" }
+            }
+        };
+
+        var slides = engine.GenerateSlidesForSong(song);
+
+        Assert.Equal(3, slides.Count);
+        Assert.Equal(10000, slides[0].TimestampMs);
+        Assert.Equal(15000, slides[1].TimestampMs);
+        Assert.Equal(20000, slides[2].TimestampMs);
+    }
+
+    // Untimed blocks keep untimed chunks (no invented timing): section-change
+    // / MIDI / manual advance still work for them, exactly as before chunking.
+    [Fact]
+    public void GenerateSlidesForSong_UntimedBlock_ChunksStayUntimed()
+    {
+        var engine = NewEngine();
+        var song = new Song
+        {
+            Title = "Untimed Song",
+            OriginalKey = "C",
+            Sections = new List<Section>
+            {
+                new Section { Name = "CHORUS", Text = "L1\nL2\nL3\nL4" }
+            }
+        };
+
+        var slides = engine.GenerateSlidesForSong(song);
+
+        Assert.Equal(2, slides.Count);
+        Assert.All(slides, s => Assert.Null(s.TimestampMs));
+    }
+
+    // End-to-end at engine level: with interpolated chunk timestamps, the
+    // position-update path (the "music playing" path) moves through chunks
+    // by itself — no tap needed.
+    [Fact]
+    public void GenerateSlidesForSong_PositionUpdate_AutoAdvancesThroughChunks()
+    {
+        var engine = NewEngine();
+        var song = new Song
+        {
+            Title = "Auto Song",
+            OriginalKey = "C",
+            ChordChart = new ChordChartData
+            {
+                Slides = new List<ChartSlide>
+                {
+                    new ChartSlide { SectionName = "CHORUS", SlideIndex = 0, StartMs = 10000, EndMs = 18000 }
+                }
+            },
+            Sections = new List<Section>
+            {
+                new Section { Name = "CHORUS", Text = "L1\nL2\nL3\nL4" }
+            }
+        };
+
+        var slides = engine.GenerateSlidesForSong(song);
+        engine.LoadItemSlides(slides);
+        Assert.Equal(0, engine.CurrentSlideIndex);
+
+        engine.OnPlaybackPositionUpdate(14500);
+
+        Assert.Equal(1, engine.CurrentSlideIndex);
+    }
 }
