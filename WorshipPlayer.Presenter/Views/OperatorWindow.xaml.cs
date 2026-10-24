@@ -1616,6 +1616,48 @@ public partial class OperatorWindow : Window
         }
     }
 
+    // The display row the service-order context menu was opened on, captured when the right
+    // mouse button goes down (a touch press-and-hold surfaces as the same event). WPF does
+    // NOT move ListBox selection on right-click, so resolving menu actions from SelectedItem
+    // alone can act on a stale row — or silently no-op when the selection is not the clicked
+    // row — even though the user clicked a perfectly valid row (field report 2026-10-24:
+    // context-menu "Remove" on a service item did nothing). The capture is consumed via
+    // ResolveContextTarget and cleared when the menu closes. Selection is deliberately NOT
+    // moved on right-click: right-clicking a row mid-service must not fire it to the output.
+    private ServiceItemDisplay? _contextMenuTarget;
+
+    private void ServiceOrderList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _contextMenuTarget = null;
+        var source = e.OriginalSource as DependencyObject;
+        while (source != null)
+        {
+            if (source is ListBoxItem row)
+            {
+                _contextMenuTarget = row.DataContext as ServiceItemDisplay;
+                return;
+            }
+            source = VisualTreeHelper.GetParent(source);
+        }
+    }
+
+    private void ServiceOrderContextMenu_Closed(object sender, RoutedEventArgs e)
+    {
+        _contextMenuTarget = null;
+    }
+
+    /// <summary>
+    /// The row a service-order action applies to: the captured right-clicked row while it is
+    /// still part of the rendered list, otherwise the current selection (the toolbar-button
+    /// path, where no right-click capture exists).
+    /// </summary>
+    private ServiceItemDisplay? ResolveContextTarget()
+    {
+        if (_contextMenuTarget != null && _serviceOrderItems.Contains(_contextMenuTarget))
+            return _contextMenuTarget;
+        return ServiceOrderList.SelectedItem as ServiceItemDisplay;
+    }
+
     // BUG B: guards the SelectionChanged handler against selection changes that we cause
     // ourselves while rebuilding the list (RefreshServiceOrderList clears the ItemsSource, which
     // raises SelectionChanged). Without this a refresh would re-enter GoToItem and fight the
@@ -1766,7 +1808,7 @@ public partial class OperatorWindow : Window
         try
         {
             if (_serviceOrderManager == null) return;
-            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display) return;
+            if (ResolveContextTarget() is not ServiceItemDisplay display) return;
             if (display.Item == null) return; // C2: ignore group-header rows.
 
             // FEAT-003: Slides items open the dedicated editor; every other type falls through
@@ -1808,7 +1850,7 @@ public partial class OperatorWindow : Window
         try
         {
             if (_serviceOrderManager?.CurrentServiceOrder == null) return;
-            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display) return;
+            if (ResolveContextTarget() is not ServiceItemDisplay display) return;
             if (display.Item == null) return; // C2: ignore group-header rows.
 
             var window = new ItemSettingsWindow(display.Item, _serviceOrderManager.CurrentServiceOrder.Items)
@@ -1915,13 +1957,31 @@ public partial class OperatorWindow : Window
         {
             if (_serviceOrderManager?.CurrentServiceOrder == null) return;
             // C2: group-header rows are interleaved in the list, so SelectedIndex no longer maps
-            // 1:1 to Items. Resolve the target item from the selected display row instead.
-            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Item == null) return;
+            // 1:1 to Items. Resolve the target item from the display row instead — the row the
+            // context menu was opened on when there is one (see _contextMenuTarget), else the
+            // selected row (toolbar "Remove" button).
+            if (ResolveContextTarget() is not ServiceItemDisplay display || display.Item == null) return;
 
-            int index = _serviceOrderManager.CurrentServiceOrder.Items.IndexOf(display.Item);
+            var order = _serviceOrderManager.CurrentServiceOrder;
+            var item = display.Item;
+
+            // Reference lookup first; fall back to the item Id so a reloaded/deserialized copy
+            // of the same item can never make the removal silently miss its target.
+            int index = order.Items.IndexOf(item);
+            if (index < 0) index = order.Items.FindIndex(i => i.Id == item.Id);
             if (index < 0) return;
 
             _serviceOrderManager.RemoveItem(index);
+
+            // Never fail silently: if the item is somehow still in the order, say so out loud
+            // instead of leaving the operator clicking Remove with no visible effect.
+            if (order.Items.Any(i => i.Id == item.Id))
+            {
+                ShowToolError("Remove Service Item",
+                    $"\"{display.Title}\" could not be removed from the service order.");
+                return;
+            }
+
             await SaveServiceOrderAsync();
             RefreshServiceOrderList();
         }
@@ -2106,7 +2166,7 @@ public partial class OperatorWindow : Window
     /// </summary>
     private void ServiceOrderContextMenu_Opened(object sender, RoutedEventArgs e)
     {
-        var display = ServiceOrderList.SelectedItem as ServiceItemDisplay;
+        var display = ResolveContextTarget();
         var isItem = display?.Item != null;
         var isGroupHeader = display?.IsGroupHeader == true && display.Group != null;
 
@@ -2165,7 +2225,7 @@ public partial class OperatorWindow : Window
         try
         {
             if (_serviceOrderManager == null) return;
-            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Item == null) return;
+            if (ResolveContextTarget() is not ServiceItemDisplay display || display.Item == null) return;
             if (sender is not MenuItem mi) return;
 
             var targetGroupId = mi.Tag as string; // null => ungroup
@@ -2187,7 +2247,7 @@ public partial class OperatorWindow : Window
         try
         {
             if (_serviceOrderManager == null) return;
-            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Group == null) return;
+            if (ResolveContextTarget() is not ServiceItemDisplay display || display.Group == null) return;
 
             var name = PromptForText("Rename Group", "Group name:", display.Group.Name);
             if (string.IsNullOrWhiteSpace(name)) return;
@@ -2211,7 +2271,7 @@ public partial class OperatorWindow : Window
         try
         {
             if (_serviceOrderManager == null) return;
-            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Group == null) return;
+            if (ResolveContextTarget() is not ServiceItemDisplay display || display.Group == null) return;
 
             var result = MessageBox.Show(
                 $"Delete group '{display.Group.Name}'? Its items stay in the service and become ungrouped.",
@@ -2247,7 +2307,7 @@ public partial class OperatorWindow : Window
         try
         {
             if (_serviceOrderManager?.CurrentServiceOrder == null) return;
-            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Group == null) return;
+            if (ResolveContextTarget() is not ServiceItemDisplay display || display.Group == null) return;
 
             var sorted = _serviceOrderManager.CurrentServiceOrder.Groups.OrderBy(g => g.Order).ToList();
             var index = sorted.FindIndex(g => g.Id == display.Group.Id);

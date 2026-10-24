@@ -299,6 +299,7 @@
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.PanningMode="VerticalOnly"
                              IsManipulationEnabled="True"
+                             PreviewMouseRightButtonDown="ServiceOrderList_PreviewMouseRightButtonDown"
                              SelectionChanged="ServiceOrderList_SelectionChanged"
                              MouseDoubleClick="ServiceOrderList_MouseDoubleClick">
                         <ListBox.ItemTemplate>
@@ -342,7 +343,7 @@
                         <ListBox.ContextMenu>
                             <!-- Opened handler rebuilds the "Move to Group" submenu from the
                                  current groups and enables item actions only for item rows. -->
-                            <ContextMenu Opened="ServiceOrderContextMenu_Opened">
+                            <ContextMenu Opened="ServiceOrderContextMenu_Opened" Closed="ServiceOrderContextMenu_Closed">
                                 <MenuItem Header="Edit" Click="EditServiceItem_Click" />
                                 <MenuItem Header="Item Settings…" Click="ItemSettings_Click" />
                                 <MenuItem x:Name="MoveToGroupMenu" Header="Move to Group" />
