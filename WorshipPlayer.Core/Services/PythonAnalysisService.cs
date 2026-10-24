@@ -68,7 +68,7 @@ public class PythonAnalysisService
         List<string>? sectionHints = null,
         Dictionary<string, string>? sectionLyrics = null,
         int linesPerSlide = 4, int slideLeadMs = 500,
-        string? gridMode = null)
+        string? gridMode = null, bool skipDownbeatDetect = false)
     {
         if (!File.Exists(_scriptPath))
             return (null, $"Analysis script not found: {_scriptPath}");
@@ -106,6 +106,11 @@ public class PythonAnalysisService
             // Grid mode override (auto/even/following) for the click grid, when the user chose one.
             if (!string.IsNullOrEmpty(gridMode))
                 args += $" --grid-mode {gridMode}";
+            // Skip the (slow) music-driven downbeat correction in this pass when the caller will
+            // run the authoritative DetectDownbeat afterward (Create Multi-Track) — avoids doing
+            // the downbeat/grid correction twice and the two passes disagreeing.
+            if (skipDownbeatDetect)
+                args += " --no-downbeat-detect";
 
             var result = await RunCommandWithProgressAsync(_pythonPath, args,
                 timeoutSeconds: 600, onProgress: onProgress);

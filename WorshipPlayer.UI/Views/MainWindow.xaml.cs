@@ -718,8 +718,12 @@ public partial class MainWindow : Window
             // ── STEP 1: Demucs separation (runs the full analyzer on the single-track song). ──
             StatusText.Text = "Separating stems with Demucs (this can take a few minutes)…";
             UpdateTaskProgress(-1, "Separating stems with Demucs (this can take a few minutes)…");
+            // skipDownbeatDetect: the dialog/DetectDownbeat step below is the SINGLE authoritative
+            // downbeat+grid detection whose result drives the click, so don't correct the downbeat
+            // here too (that was a redundant second detection that could disagree with the dialog).
             var (analyzed, analyzeMsg) = await service.AnalyzeSongAsync(
-                songFolder, llmMode: "none", onProgress: onProgress, quality: "default");
+                songFolder, llmMode: "none", onProgress: onProgress, quality: "default",
+                skipDownbeatDetect: true);
             if (analyzed == null)
             {
                 MessageBox.Show($"Stem separation failed:\n\n{analyzeMsg}",
