@@ -238,4 +238,60 @@ public class PresenterEngineSlideSourceTests
         Assert.Equal(1, engine.TotalSlides);
         Assert.Equal(1, slideChangedCount);
     }
+
+    // Field feature 2026-10-24: editing a section's lyrics while its item is live
+    // must replace the engine's slides IN PLACE — the slide on screen stays on
+    // screen with its new words. No jump to slide 0, no flash, exactly one emit.
+    [Fact]
+    public void ReplaceSlidesPreservingIndex_KeepsPreferredSlide_AndFiresOnce()
+    {
+        var engine = EngineWithCurrentItem(SongItemWithSlides());
+        engine.GoToSlide(1);
+        Assert.Equal(1, engine.CurrentSlideIndex);
+
+        Slide? emitted = null;
+        int slideChangedCount = 0;
+        engine.SlideChanged += (_, e) => { slideChangedCount++; emitted = e.NewSlide; };
+
+        var edited = new List<Slide>
+        {
+            new Slide { SectionName = "VERSE 1", Content = new SlideContent { Text = "[C]Verse one line" } },
+            new Slide { SectionName = "CHORUS 1", Content = new SlideContent { Text = "[G]Chorus EDITED line" } },
+            new Slide { SectionName = "BRIDGE", Content = new SlideContent { Text = "[Am]Bridge line" } }
+        };
+        engine.ReplaceSlidesPreservingIndex(edited, 1);
+
+        Assert.Equal(1, engine.CurrentSlideIndex);
+        Assert.Equal("[G]Chorus EDITED line", engine.CurrentSlides[1].Content.Text);
+        Assert.Equal(1, slideChangedCount);
+        Assert.Equal("[G]Chorus EDITED line", emitted?.Content.Text);
+    }
+
+    [Fact]
+    public void ReplaceSlidesPreservingIndex_ClampsOutOfRangeIndex()
+    {
+        var engine = EngineWithCurrentItem(SongItemWithSlides());
+
+        engine.ReplaceSlidesPreservingIndex(new List<Slide>
+        {
+            new Slide { SectionName = "VERSE 1", Content = new SlideContent { Text = "Only slide" } }
+        }, 99);
+
+        Assert.Equal(0, engine.CurrentSlideIndex);
+        Assert.Equal(1, engine.TotalSlides);
+    }
+
+    [Fact]
+    public void ReplaceSlidesPreservingIndex_EmptyList_ClearsIndex_AndFiresNothing()
+    {
+        var engine = EngineWithCurrentItem(SongItemWithSlides());
+        int slideChangedCount = 0;
+        engine.SlideChanged += (_, _) => slideChangedCount++;
+
+        engine.ReplaceSlidesPreservingIndex(new List<Slide>(), 0);
+
+        Assert.Equal(-1, engine.CurrentSlideIndex);
+        Assert.Equal(0, engine.TotalSlides);
+        Assert.Equal(0, slideChangedCount);
+    }
 }
