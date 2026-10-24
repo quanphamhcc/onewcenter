@@ -40,6 +40,13 @@ public interface IBibleProvider
     Task<List<BibleTranslation>> GetTranslationsAsync();
 
     /// <summary>
+    /// Count the verses stored for a translation (0 when the translation is
+    /// unknown or has no verse data). Used to report concrete import results.
+    /// </summary>
+    /// <param name="translationId">Translation to count verses for.</param>
+    Task<int> GetVerseCountAsync(string translationId);
+
+    /// <summary>
     /// Parse a scripture reference string (e.g., "John 3:16-18") into a ScriptureReference object.
     /// </summary>
     /// <param name="referenceText">The reference string to parse.</param>

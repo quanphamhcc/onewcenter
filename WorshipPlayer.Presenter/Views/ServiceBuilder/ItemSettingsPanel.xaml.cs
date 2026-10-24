@@ -1,21 +1,39 @@
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
 using WorshipPlayer.Core.Models;
+using WorshipPlayer.Core.Services;
 
 namespace WorshipPlayer.Presenter.Views.ServiceBuilder;
 
 /// <summary>
 /// Panel showing per-item settings: auto-advance "Go To" target, the "After" trigger
-/// condition + delay, and transition fade time. Edits the Core
-/// <see cref="ServiceItemSettings"/> for the selected <see cref="ServiceItem"/> and
-/// raises <see cref="SettingsSaved"/> with the resulting Core settings (roadmap C4).
+/// condition + delay, transition fade time, and attached audio (đợt 2 T17 / R9).
+/// Edits the Core <see cref="ServiceItemSettings"/> for the selected
+/// <see cref="ServiceItem"/> and raises <see cref="SettingsSaved"/> with the
+/// resulting Core settings (roadmap C4); the audio list + loop flag are exposed
+/// via <see cref="EditedAudioFiles"/> / <see cref="EditedLoopAudio"/> (applied by
+/// the host only when <see cref="AudioEdited"/> is true, so untouched items keep
+/// their legacy <c>AudioAttachmentPath</c> untouched).
 /// </summary>
 public partial class ItemSettingsPanel : UserControl
 {
     /// <summary>Raised on Save with the edited Core settings for the current item.</summary>
     public event EventHandler<ServiceItemSettings>? SettingsSaved;
+
+    /// <summary>Audio list as edited in the panel, captured at Save.</summary>
+    public IReadOnlyList<string> EditedAudioFiles { get; private set; } = new List<string>();
+
+    /// <summary>Loop flag as edited in the panel, captured at Save.</summary>
+    public bool EditedLoopAudio { get; private set; }
+
+    /// <summary>True when the user touched any audio control this session.</summary>
+    public bool AudioEdited { get; private set; }
+
+    private List<string> _audioFiles = new();
 
     public ItemSettingsPanel()
     {
@@ -34,6 +52,16 @@ public partial class ItemSettingsPanel : UserControl
         ItemTitleText.Text = $"{item.Type}: {item.Title}";
         EmptyStateText.Visibility = Visibility.Collapsed;
         SettingsPanel.Visibility = Visibility.Visible;
+
+        // Đợt 2 T3: lyrics/scripture items can never auto-advance — show a note and
+        // disable the auto-advance controls (guard ở Core là bắt buộc, UI là hỗ trợ).
+        // Transition Fade Time stays editable: it is not auto-advance.
+        bool eligible = WorshipPlayer.Core.Services.AutoAdvanceResolver.IsEligible(item);
+        AutoAdvanceNotAvailableNote.Visibility = eligible ? Visibility.Collapsed : Visibility.Visible;
+        GoToComboBox.IsEnabled = eligible;
+        AfterConditionComboBox.IsEnabled = eligible;
+        GoToTargetComboBox.IsEnabled = eligible;
+        DelayTextBox.IsEnabled = eligible;
 
         var settings = item.AutoAdvanceSettings ?? new ServiceItemSettings();
 
@@ -60,6 +88,13 @@ public partial class ItemSettingsPanel : UserControl
         DelayTextBox.Text = settings.AutoAdvanceDelayMs.ToString(CultureInfo.InvariantCulture);
         FadeTimeSlider.Value = settings.TransitionFadeTimeMs;
 
+        // Đợt 2 T17 (R9): load the item's attached audio (legacy single path is
+        // surfaced as a one-element list by Resolve, not written back).
+        _audioFiles = ServiceItemAudio.Resolve(item);
+        LoopAudioCheckBox.IsChecked = item.Loop;
+        AudioEdited = false;
+        RefreshAudioList();
+
         UpdateConditionalVisibility();
     }
 
@@ -69,6 +104,9 @@ public partial class ItemSettingsPanel : UserControl
         EmptyStateText.Visibility = Visibility.Visible;
         SettingsPanel.Visibility = Visibility.Collapsed;
         GoToTargetComboBox.ItemsSource = null;
+        _audioFiles = new List<string>();
+        AudioFilesListBox.ItemsSource = null;
+        AudioEdited = false;
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -87,7 +125,76 @@ public partial class ItemSettingsPanel : UserControl
                 : null
         };
 
+        // Đợt 2 T17 (R9): capture the edited audio list + loop flag for the host.
+        EditedAudioFiles = new List<string>(_audioFiles);
+        EditedLoopAudio = LoopAudioCheckBox.IsChecked == true;
+
         SettingsSaved?.Invoke(this, settings);
+    }
+
+    // ─── Đợt 2 T17 (R9): attached audio editing ─────────────────────────
+
+    private void RefreshAudioList()
+    {
+        var display = new List<string>(_audioFiles.Count);
+        foreach (var path in _audioFiles)
+            display.Add(Path.GetFileName(path));
+        AudioFilesListBox.ItemsSource = display;
+    }
+
+    private void AddAudio_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Add audio files",
+            Multiselect = true,
+            Filter = "Audio files (*.mp3;*.wav;*.m4a;*.wma;*.ogg;*.flac)|*.mp3;*.wav;*.m4a;*.wma;*.ogg;*.flac|All files (*.*)|*.*"
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        foreach (var file in dialog.FileNames)
+        {
+            if (!_audioFiles.Contains(file))
+                _audioFiles.Add(file);
+        }
+        AudioEdited = true;
+        RefreshAudioList();
+    }
+
+    private void RemoveAudio_Click(object sender, RoutedEventArgs e)
+    {
+        int index = AudioFilesListBox.SelectedIndex;
+        if (index < 0 || index >= _audioFiles.Count) return;
+        _audioFiles.RemoveAt(index);
+        AudioEdited = true;
+        RefreshAudioList();
+    }
+
+    private void MoveAudioUp_Click(object sender, RoutedEventArgs e)
+    {
+        int index = AudioFilesListBox.SelectedIndex;
+        if (index <= 0 || index >= _audioFiles.Count) return;
+        (_audioFiles[index - 1], _audioFiles[index]) = (_audioFiles[index], _audioFiles[index - 1]);
+        AudioEdited = true;
+        RefreshAudioList();
+        AudioFilesListBox.SelectedIndex = index - 1;
+    }
+
+    private void MoveAudioDown_Click(object sender, RoutedEventArgs e)
+    {
+        int index = AudioFilesListBox.SelectedIndex;
+        if (index < 0 || index >= _audioFiles.Count - 1) return;
+        (_audioFiles[index + 1], _audioFiles[index]) = (_audioFiles[index], _audioFiles[index + 1]);
+        AudioEdited = true;
+        RefreshAudioList();
+        AudioFilesListBox.SelectedIndex = index + 1;
+    }
+
+    private void LoopAudioCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        // Click fires on user interaction only (not on programmatic IsChecked sets
+        // in LoadSettings), so this marks a genuine edit.
+        AudioEdited = true;
     }
 
     private void FadeTimeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

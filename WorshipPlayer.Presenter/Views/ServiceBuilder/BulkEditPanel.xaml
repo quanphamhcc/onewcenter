@@ -57,6 +57,7 @@
                                     <ComboBoxItem Content="Solid Color"/>
                                     <ComboBoxItem Content="Image"/>
                                     <ComboBoxItem Content="Video"/>
+                                    <ComboBoxItem Content="Inherit Background"/>
                                 </ComboBox>
                             </StackPanel>
                         </CheckBox>

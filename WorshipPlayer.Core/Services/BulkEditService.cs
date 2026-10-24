@@ -19,6 +19,17 @@ public class BulkEditOptions
     /// </summary>
     public BackgroundType? BackgroundType { get; set; }
 
+    /// <summary>
+    /// Đợt 2 T2 (R2): when true, each selected item's
+    /// <see cref="ServiceItem.BackgroundKind"/> is set to
+    /// <see cref="ItemBackgroundKind.Inherit"/> (inherit the background of the item
+    /// above at render time). Takes precedence over <see cref="ApplyBackground"/>
+    /// for the same run (the panel only allows one background choice at a time).
+    /// Legacy <see cref="ServiceItem.BackgroundType"/> is left untouched so it
+    /// can be restored if the item later leaves Inherit mode.
+    /// </summary>
+    public bool ApplyBackgroundInherit { get; set; }
+
     /// <summary>When true, each item's <see cref="ServiceItem.TransitionTimeMs"/> is set to <see cref="TransitionTimeMs"/>.</summary>
     public bool ApplyTransition { get; set; }
 
@@ -55,9 +66,13 @@ public static class BulkEditService
         {
             if (item == null) continue;
 
-            // Background: only touch when opted in AND a real enum value was chosen.
-            // A null BackgroundType (panel "None"/unmapped) is treated as "leave as-is".
-            if (options.ApplyBackground && options.BackgroundType.HasValue)
+            // Background (đợt 2 T2): Inherit wins over the legacy BackgroundType choice —
+            // the panel exposes one background combo, so they never combine from the UI.
+            if (options.ApplyBackgroundInherit)
+            {
+                item.BackgroundKind = ItemBackgroundKind.Inherit;
+            }
+            else if (options.ApplyBackground && options.BackgroundType.HasValue)
             {
                 item.BackgroundType = options.BackgroundType.Value;
             }

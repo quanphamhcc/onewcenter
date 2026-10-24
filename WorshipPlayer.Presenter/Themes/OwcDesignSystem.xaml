@@ -265,12 +265,25 @@
     </Style>
 
     <!-- Compact Button (sidebar/toolbar actions). Small surface chip, light text,
-         rounded via OwcButtonBase template. Keyed — apply explicitly. -->
+         rounded via OwcButtonBase template. Keyed — apply explicitly.
+         MinHeight raises the touch target to ~34px so a finger tap reliably lands on the
+         button's hit-test Border (not the gap around it) without enlarging the visual chip. -->
     <Style x:Key="OwcCompactButton" TargetType="Button" BasedOn="{StaticResource OwcButtonBase}">
         <Setter Property="Background" Value="{StaticResource OwcSurfaceBrush}" />
         <Setter Property="Foreground" Value="{StaticResource OwcTextPrimaryBrush}" />
         <Setter Property="Padding" Value="8,5" />
         <Setter Property="FontSize" Value="11" />
+        <Setter Property="MinHeight" Value="34" />
+    </Style>
+
+    <!-- Touch-friendly Button (primary header/footer actions in the Slides editors: Close,
+         Cancel, etc.). Same surface look as OwcButtonBase but with a comfortable >=36px touch
+         target so a finger tap lands on the first try. Keyed — apply explicitly. Introduced
+         instead of changing OwcButtonBase (used app-wide) or adding a global/implicit Button
+         style (the file note above documents a crash a global Button style caused). -->
+    <Style x:Key="OwcTouchButton" TargetType="Button" BasedOn="{StaticResource OwcButtonBase}">
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="MinWidth" Value="44" />
     </Style>
 
     <!-- Accent Button Style (Primary action) -->

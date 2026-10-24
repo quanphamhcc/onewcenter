@@ -161,9 +161,43 @@ public class ServiceItem
 
     /// <summary>
     /// Background type for this item (overrides theme).
+    /// LEGACY (pre đợt 2): kept for backward compatibility. When the explicit
+    /// <see cref="BackgroundKind"/> is not set, this value is mapped to the
+    /// equivalent kind by <see cref="Services.ItemBackgroundResolver"/>
+    /// (SolidColor→Color, Image→Image, Video→Video, Gradient→Theme); loading an
+    /// old file never overwrites it.
     /// </summary>
     [JsonPropertyName("backgroundType")]
     public BackgroundType? BackgroundType { get; set; }
+
+    /// <summary>
+    /// Explicit per-item background kind (đợt 2 T1 / R1): the item carries its OWN
+    /// background configuration, layered under its foreground. Null = not set on the
+    /// item — the effective kind is then derived from the legacy
+    /// <see cref="BackgroundType"/> when present, otherwise the item follows the
+    /// theme (pre-T1 behaviour). Plain nullable with only [JsonPropertyName] —
+    /// omitted from JSON when null (the manager's global WhenWritingNull convention,
+    /// same as <see cref="BackgroundType"/>), so old service files are unaffected.
+    /// </summary>
+    [JsonPropertyName("backgroundKind")]
+    public ItemBackgroundKind? BackgroundKind { get; set; }
+
+    /// <summary>
+    /// Per-item background color (hex, e.g. "#1A2B3C"), used when the effective
+    /// background kind is Color. Null/empty = fall back to the effective theme's
+    /// background color at resolve time. Omitted from JSON when null.
+    /// </summary>
+    [JsonPropertyName("backgroundColor")]
+    public string? BackgroundColor { get; set; }
+
+    /// <summary>
+    /// Per-item background media file (image or video path), used when the effective
+    /// background kind is Image or Video. Null/empty = fall back to the legacy
+    /// <see cref="MediaPath"/> (pre-T1 items stored their background file there —
+    /// see SlideServiceItemEditorWindow.ApplyBackgroundSource). Omitted from JSON when null.
+    /// </summary>
+    [JsonPropertyName("backgroundFilePath")]
+    public string? BackgroundFilePath { get; set; }
 
     /// <summary>
     /// Foreground type for this item.
@@ -196,12 +230,39 @@ public class ServiceItem
     public List<string>? AudioAttachments { get; set; }
 
     /// <summary>
+    /// Loop the item's attached audio: when the resolved audio list finishes, start
+    /// again from the first file instead of stopping (đợt 2 T17 / R9). Plain bool —
+    /// JSON files written before T17 have no such key, and System.Text.Json leaves a
+    /// missing bool at its default (false), so old files load unchanged.
+    /// </summary>
+    [JsonPropertyName("loop")]
+    public bool Loop { get; set; } = false;
+
+    /// <summary>
     /// Id of the stage-display template this item uses, or null to inherit the service default.
     /// Plain nullable with only [JsonPropertyName] — the manager's global WhenWritingNull
     /// serialization condition omits it from JSON when null (older files have no such key).
     /// </summary>
     [JsonPropertyName("stageTemplateId")]
     public string? StageTemplateId { get; set; }
+
+    /// <summary>
+    /// Per-item slide order for THIS service only (đợt 2 T10 / R6.2): the ids of the
+    /// item's slides in the order the operator wants them shown, overriding the
+    /// song-level Custom Slide Order (T9) for this item alone. Editing it never
+    /// touches the linked <see cref="Song"/> or any other item. Null = not set —
+    /// the item resolves exactly as before T10 (song custom order → original
+    /// section order). Applied at render time by
+    /// <see cref="Services.ServiceItemSlideOrder"/>: ids that no longer exist are
+    /// skipped, slides missing from the list append at the end in source order.
+    /// Plain nullable with only [JsonPropertyName] — omitted from JSON when null
+    /// (the manager's global WhenWritingNull convention, same as
+    /// <see cref="StageTemplateId"/>), so old service files are unaffected.
+    /// NOT used for live-linked Slides items (Type = Slides with
+    /// <see cref="SlidePresentationId"/>) — those follow their presentation.
+    /// </summary>
+    [JsonPropertyName("slideOrder")]
+    public List<string>? SlideOrder { get; set; }
 }
 
 /// <summary>
@@ -248,4 +309,30 @@ public enum ForegroundType
     Text,
     Media,
     Blank
+}
+
+/// <summary>
+/// Explicit per-item background kind (đợt 2 T1 / R1). Theme = follow the effective
+/// <see cref="SlideTheme"/> (the pre-T1 behaviour and the default); None = no
+/// background (black); Color / Image / Video use the item's own
+/// <see cref="ServiceItem.BackgroundColor"/> / <see cref="ServiceItem.BackgroundFilePath"/>.
+/// (Inherit is added by đợt 2 T2.)
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ItemBackgroundKind
+{
+    Theme,
+    None,
+    Color,
+    Image,
+    Video,
+    /// <summary>
+    /// Đợt 2 T2 (R2): use the background of the item immediately above in the
+    /// service list (walk up past other Inherit items to the first item with a
+    /// real background; the list's first item or an empty chain falls back to the
+    /// theme). Resolved at call time by
+    /// <see cref="Services.InheritBackgroundResolver"/> — never persisted into
+    /// child items. (Appended last: pre-T2 files never carry this value.)
+    /// </summary>
+    Inherit
 }

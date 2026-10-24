@@ -18,17 +18,24 @@
                        Foreground="{StaticResource OwcTextPrimaryBrush}"
                        Margin="0,0,0,16"/>
 
-            <!-- Audience Display Selection -->
+            <!-- Audience Outputs (đợt 2 T16 / R8 — nhiều outputs) -->
             <Border Style="{StaticResource OwcSurfaceBorder}" Padding="16" Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="AUDIENCE / CONGREGATION OUTPUT"
+                    <TextBlock Text="AUDIENCE OUTPUTS"
                                FontSize="12" FontWeight="Bold"
                                Foreground="#F5A623" Margin="0,0,0,4"/>
-                    <TextBlock Text="Select the monitor for lyrics projection:"
+                    <TextBlock Text="Each enabled output opens its own window on the selected monitor. All outputs show the same content; each can use its own foreground template."
                                FontSize="12" Foreground="{StaticResource OwcTextSecondaryBrush}"
-                               Margin="0,0,0,8"/>
-                    <ComboBox x:Name="AudienceMonitorCombo" Margin="0,0,0,0"
-                              SelectionChanged="AudienceMonitor_Changed"/>
+                               Margin="0,0,0,8" TextWrapping="Wrap"/>
+                    <StackPanel x:Name="OutputsStack" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="AddOutputButton" Content="Add output"
+                                Style="{StaticResource OwcButtonBase}"
+                                FontSize="11" Padding="10,4" Click="AddOutputButton_Click"/>
+                        <Button x:Name="RemoveOutputButton" Content="Remove selected"
+                                Style="{StaticResource OwcButtonBase}"
+                                FontSize="11" Padding="10,4" Margin="8,0,0,0" Click="RemoveOutputButton_Click"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

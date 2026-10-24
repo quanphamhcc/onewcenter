@@ -5,6 +5,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WorshipPlayer.Core.Models;
 using WorshipPlayer.Core.Services;
+using WorshipPlayer.Core.Services.Interfaces;
 using WorshipPlayer.Presenter.Services;
 
 namespace WorshipPlayer.Presenter.Views;
@@ -26,6 +27,12 @@ public partial class OutputWindow : Window
 {
     private bool _isSlideAActive = true; // Which buffer is currently showing
     private SlideTheme _currentTheme = new();
+    // The item currently being presented (đợt 2 T1 / R1): its per-item background,
+    // when set to anything other than Theme, overrides the theme background.
+    private ServiceItem? _currentItem;
+    // The live service list the current item belongs to (đợt 2 T2 / R2): used to
+    // resolve Inherit chains at render time. Null = item-level resolution only.
+    private IList<ServiceItem>? _currentServiceItems;
     private bool _isBlacked = false;
     private bool _showChords = false;
     private readonly ChordProParserService _chordParser = new();
@@ -55,6 +62,14 @@ public partial class OutputWindow : Window
     /// Fired when full-screen video playback ends (for auto-advance to next service item).
     /// </summary>
     public event EventHandler? VideoPlaybackEnded;
+
+    /// <summary>
+    /// Fired when the current item's background video plays to its end (đợt 2 T4 / R3).
+    /// Only raised for items configured with the VideoEnd auto-advance condition —
+    /// those play their background video once instead of looping (see ApplyBackground).
+    /// Raised on the UI thread.
+    /// </summary>
+    public event EventHandler? BackgroundVideoEnded;
 
     /// <summary>
     /// Whether to show inline chord notation on the output.
@@ -90,6 +105,7 @@ public partial class OutputWindow : Window
         }
 
         _videoPlaybackService.PlaybackEnded += OnVideoPlaybackEnded;
+        _videoBackgroundService.PlaybackEnded += OnBackgroundVideoEnded;
     }
 
     /// <summary>
@@ -124,6 +140,7 @@ public partial class OutputWindow : Window
 
         _alertTimer?.Stop();
         _videoPlaybackService.PlaybackEnded -= OnVideoPlaybackEnded;
+        _videoBackgroundService.PlaybackEnded -= OnBackgroundVideoEnded;
 
         // Detach the MediaPlayers from the real VideoView surfaces BEFORE disposing the services,
         // so the VideoView does not touch a MediaPlayer that is about to be released (native-handle race).
@@ -141,6 +158,139 @@ public partial class OutputWindow : Window
     public void SetChordDisplay(bool show)
     {
         _showChords = show;
+    }
+
+    // ─── Đợt 2 T16 / R8: per-output foreground template ───────────────────
+    // This window renders for exactly one audience output (bound via SetOutputConfig).
+    // Its foreground text styling follows the 3-layer resolution of T15
+    // (OutputTemplateResolver): the output's template override → the current item's
+    // template → default (null = keep the theme styling, i.e. pre-T16 behavior).
+    // Every window shows the SAME slide content; only the foreground presentation
+    // may differ per output (hard R8 requirement: outputs never diverge in content).
+    private OutputConfig? _outputConfig;
+    private ITemplateService? _templateService;
+    private string? _itemTemplateId;
+    private SlideTemplate? _effectiveTemplate;
+    private string? _effectiveTemplateId;
+
+    /// <summary>
+    /// Bind this window to the audience output it renders. Null = legacy single-window
+    /// behavior (theme styling only, no template resolution).
+    /// </summary>
+    public void SetOutputConfig(OutputConfig? config)
+    {
+        _outputConfig = config;
+        _ = RefreshEffectiveTemplateAsync();
+    }
+
+    /// <summary>
+    /// Provide the template service used to fetch the resolved template's styling.
+    /// </summary>
+    public void SetTemplateService(ITemplateService? templateService)
+    {
+        _templateService = templateService;
+        _ = RefreshEffectiveTemplateAsync();
+    }
+
+    /// <summary>
+    /// The current item's own template id (e.g. the current song's TemplateId) — the
+    /// middle layer of the T15 resolution. Null = the item sets none.
+    /// </summary>
+    public void SetItemTemplateId(string? templateId)
+    {
+        if (_itemTemplateId == templateId) return;
+        _itemTemplateId = templateId;
+        _ = RefreshEffectiveTemplateAsync();
+    }
+
+    /// <summary>
+    /// Re-resolve the effective foreground template and re-render the current slide
+    /// with its styling. Best-effort: a missing/deleted template falls back to the
+    /// theme styling; failures never break the output.
+    /// </summary>
+    private async Task RefreshEffectiveTemplateAsync()
+    {
+        try
+        {
+            string? templateId = null;
+            if (_outputConfig != null && _templateService != null)
+            {
+                // R8.2: default layer = null → theme styling preserved (pre-T16 look)
+                // for outputs without an override and items without a template.
+                templateId = OutputTemplateResolver.Resolve(_outputConfig, _itemTemplateId, defaultTemplateId: null);
+            }
+
+            if (templateId == _effectiveTemplateId) return;
+            _effectiveTemplateId = templateId;
+            _effectiveTemplate = string.IsNullOrWhiteSpace(templateId)
+                ? null
+                : await _templateService!.GetByIdAsync(templateId);
+
+            // Re-render the showing slide so the new styling takes effect immediately.
+            if (_currentSlide != null && !_isBlacked && !_isVideoMode)
+            {
+                if (_isSlideAActive)
+                    LoadSlideIntoBuffer(_currentSlide, SlideAText, SlideAHeader, SlideAFooter, SlideAChords);
+                else
+                    LoadSlideIntoBuffer(_currentSlide, SlideBText, SlideBHeader, SlideBFooter, SlideBChords);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[OutputWindow] RefreshEffectiveTemplate failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Parse a template's font-weight name ("Bold", "Normal", ...) to a WPF FontWeight.
+    /// Unknown values fall back to Normal — never throws.
+    /// </summary>
+    private static FontWeight ParseTemplateFontWeight(string? name)
+    {
+        return name?.Trim().ToLowerInvariant() switch
+        {
+            "bold" => FontWeights.Bold,
+            "semibold" => FontWeights.SemiBold,
+            "light" => FontWeights.Light,
+            "medium" => FontWeights.Medium,
+            "black" => FontWeights.Black,
+            "thin" => FontWeights.Thin,
+            _ => FontWeights.Normal,
+        };
+    }
+
+    /// <summary>
+    /// Apply a resolved foreground template's text styling to a slide text block.
+    /// Called at the end of LoadSlideIntoBuffer; the theme remains the base and the
+    /// template only overrides the foreground text presentation.
+    /// </summary>
+    private void ApplyForegroundTemplate(System.Windows.Controls.TextBlock textBlock, SlideTemplate template)
+    {
+        try
+        {
+            textBlock.FontFamily = new FontFamily(template.FontFamily);
+            textBlock.FontSize = template.FontSize;
+            textBlock.FontWeight = ParseTemplateFontWeight(template.FontWeight);
+            textBlock.FontStyle = template.FontItalic ? FontStyles.Italic : FontStyles.Normal;
+            textBlock.Foreground = new SolidColorBrush(
+                (Color)ColorConverter.ConvertFromString(template.FontColor));
+            textBlock.TextAlignment = template.HorizontalAlignment switch
+            {
+                Core.Models.TextAlignment.Left => System.Windows.TextAlignment.Left,
+                Core.Models.TextAlignment.Right => System.Windows.TextAlignment.Right,
+                _ => System.Windows.TextAlignment.Center,
+            };
+            textBlock.VerticalAlignment = template.VerticalAlignment switch
+            {
+                Core.Models.VerticalAlignment.Top => System.Windows.VerticalAlignment.Top,
+                Core.Models.VerticalAlignment.Bottom => System.Windows.VerticalAlignment.Bottom,
+                _ => System.Windows.VerticalAlignment.Center,
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[OutputWindow] ApplyForegroundTemplate failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -191,49 +341,67 @@ public partial class OutputWindow : Window
     }
 
     /// <summary>
+    /// Set the item currently being presented (đợt 2 T1 / R1). When the item carries
+    /// its own background, the background layer is re-resolved and re-applied
+    /// immediately; Theme-kind items keep the theme background untouched.
+    /// </summary>
+    public void SetCurrentItem(ServiceItem? item)
+    {
+        SetCurrentItem(item, null);
+    }
+
+    /// <summary>
+    /// Set the item currently being presented together with the live service list
+    /// it belongs to (đợt 2 T2 / R2). The background is resolved through the
+    /// inherit chain at render time — Inherit items render their source item's
+    /// background; the resolved value is never written back into the item.
+    /// </summary>
+    public void SetCurrentItem(ServiceItem? item, IList<ServiceItem>? serviceItems)
+    {
+        _currentItem = item;
+        _currentServiceItems = serviceItems;
+        ApplyBackground(_currentTheme);
+    }
+
+    /// <summary>
+    /// Resolve the effective background for the current item: through the inherit
+    /// chain (đợt 2 T2) when the live list is known and the item is in it, plain
+    /// per-item resolution (đợt 2 T1) otherwise.
+    /// </summary>
+    private ResolvedItemBackground ResolveCurrentBackground(SlideTheme theme)
+    {
+        if (_currentItem != null && _currentServiceItems != null)
+        {
+            var index = -1;
+            for (var i = 0; i < _currentServiceItems.Count; i++)
+            {
+                var candidate = _currentServiceItems[i];
+                if (ReferenceEquals(candidate, _currentItem)
+                    || (candidate?.Id != null && candidate.Id == _currentItem.Id))
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index >= 0)
+            {
+                return InheritBackgroundResolver.ResolveItem(_currentServiceItems, index, theme);
+            }
+        }
+
+        return ItemBackgroundResolver.Resolve(_currentItem, theme);
+    }
+
+    /// <summary>
     /// Apply a theme to the output window.
     /// </summary>
     public void ApplyTheme(SlideTheme theme)
     {
         _currentTheme = theme;
 
-        // Apply background
-        switch (theme.BackgroundType)
-        {
-            case BackgroundType.SolidColor:
-                BackgroundImage.Visibility = Visibility.Collapsed;
-                StopMotionBackground();
-                RootGrid.Background = new SolidColorBrush(
-                    (Color)ColorConverter.ConvertFromString(theme.BackgroundColor));
-                break;
-
-            case BackgroundType.Image:
-                StopMotionBackground();
-                var backgroundPath = ResolveImagePath(theme.BackgroundImage);
-                if (!string.IsNullOrEmpty(backgroundPath) && System.IO.File.Exists(backgroundPath))
-                {
-                    try
-                    {
-                        BackgroundImage.Source = new BitmapImage(new Uri(backgroundPath));
-                        BackgroundImage.Opacity = theme.BackgroundImageOpacity;
-                        BackgroundImage.Visibility = Visibility.Visible;
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[OutputWindow] Background image load failed: {ex.Message}");
-                        BackgroundImage.Visibility = Visibility.Collapsed;
-                    }
-                }
-                break;
-
-            case BackgroundType.Video:
-                BackgroundImage.Visibility = Visibility.Collapsed;
-                if (!string.IsNullOrEmpty(theme.MotionBackgroundPath))
-                {
-                    StartMotionBackground(theme.MotionBackgroundPath, theme.MotionBackgroundOpacity);
-                }
-                break;
-        }
+        // Apply background (per-item background wins over the theme — đợt 2 T1 / R1)
+        ApplyBackground(theme);
 
         // Gradient overlay
         GradientOverlay.Visibility = theme.UseGradientOverlay
@@ -275,6 +443,143 @@ public partial class OutputWindow : Window
         {
             LogoWatermark.Visibility = Visibility.Collapsed;
         }
+    }
+
+    /// <summary>
+    /// Apply the effective background layer for the current item + theme
+    /// (đợt 2 T1 / R1, chains đợt 2 T2 / R2).
+    /// The decision of WHAT the background is lives in the pure Core resolvers
+    /// (<see cref="ItemBackgroundResolver"/>, <see cref="InheritBackgroundResolver"/>),
+    /// both unit-tested; this method only renders the resolved description.
+    /// Source = Theme renders the theme exactly as before T1. A per-item background
+    /// file that is missing/unreadable falls back to black with a log line — the
+    /// foreground layers are untouched and keep showing.
+    /// </summary>
+    private void ApplyBackground(SlideTheme theme)
+    {
+        // Đợt 2 T1/T2: the decision of WHAT the background is lives in the pure
+        // Core resolvers (unit-tested); this method only renders the description.
+        var resolved = ResolveCurrentBackground(theme);
+
+        if (resolved.Source == ItemBackgroundSource.Theme)
+        {
+            switch (theme.BackgroundType)
+            {
+                case BackgroundType.SolidColor:
+                    BackgroundImage.Visibility = Visibility.Collapsed;
+                    StopMotionBackground();
+                    RootGrid.Background = new SolidColorBrush(
+                        (Color)ColorConverter.ConvertFromString(theme.BackgroundColor));
+                    break;
+
+                case BackgroundType.Image:
+                    StopMotionBackground();
+                    var backgroundPath = ResolveImagePath(theme.BackgroundImage);
+                    if (!string.IsNullOrEmpty(backgroundPath) && System.IO.File.Exists(backgroundPath))
+                    {
+                        try
+                        {
+                            BackgroundImage.Source = new BitmapImage(new Uri(backgroundPath));
+                            BackgroundImage.Opacity = theme.BackgroundImageOpacity;
+                            BackgroundImage.Visibility = Visibility.Visible;
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[OutputWindow] Background image load failed: {ex.Message}");
+                            BackgroundImage.Visibility = Visibility.Collapsed;
+                        }
+                    }
+                    break;
+
+                case BackgroundType.Video:
+                    BackgroundImage.Visibility = Visibility.Collapsed;
+                    if (!string.IsNullOrEmpty(theme.MotionBackgroundPath))
+                    {
+                        StartMotionBackground(theme.MotionBackgroundPath, theme.MotionBackgroundOpacity);
+                    }
+                    break;
+            }
+            return;
+        }
+
+        // Per-item background (đợt 2 T1 / R1): render the resolved kind + value.
+        switch (resolved.Kind)
+        {
+            case ItemBackgroundKind.None:
+                BackgroundImage.Visibility = Visibility.Collapsed;
+                StopMotionBackground();
+                RootGrid.Background = Brushes.Black;
+                break;
+
+            case ItemBackgroundKind.Color:
+                BackgroundImage.Visibility = Visibility.Collapsed;
+                StopMotionBackground();
+                RootGrid.Background = ParseItemColorOrBlack(resolved.Color);
+                break;
+
+            case ItemBackgroundKind.Image:
+                StopMotionBackground();
+                RootGrid.Background = Brushes.Black;
+                BackgroundImage.Visibility = Visibility.Collapsed;
+                var itemImagePath = ResolveImagePath(resolved.FilePath);
+                if (!string.IsNullOrEmpty(itemImagePath) && System.IO.File.Exists(itemImagePath))
+                {
+                    try
+                    {
+                        BackgroundImage.Source = new BitmapImage(new Uri(itemImagePath));
+                        BackgroundImage.Opacity = theme.BackgroundImageOpacity;
+                        BackgroundImage.Visibility = Visibility.Visible;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[OutputWindow] Item background image load failed: {ex.Message}");
+                        BackgroundImage.Visibility = Visibility.Collapsed;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(resolved.FilePath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[OutputWindow] Item background image missing: {resolved.FilePath} — falling back to black.");
+                }
+                break;
+
+            case ItemBackgroundKind.Video:
+                BackgroundImage.Visibility = Visibility.Collapsed;
+                RootGrid.Background = Brushes.Black;
+                var itemVideoPath = ResolveImagePath(resolved.FilePath);
+                if (!string.IsNullOrEmpty(itemVideoPath) && System.IO.File.Exists(itemVideoPath))
+                {
+                    StartMotionBackground(itemVideoPath, theme.MotionBackgroundOpacity);
+                }
+                else
+                {
+                    StopMotionBackground();
+                    if (!string.IsNullOrEmpty(resolved.FilePath))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[OutputWindow] Item background video missing: {resolved.FilePath} — falling back to black.");
+                    }
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Parse a per-item background color; an invalid value logs and falls back to
+    /// black instead of throwing (R1 edge case: never crash the output).
+    /// </summary>
+    private static Brush ParseItemColorOrBlack(string? color)
+    {
+        if (!string.IsNullOrWhiteSpace(color))
+        {
+            try
+            {
+                return new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[OutputWindow] Invalid item background color '{color}': {ex.Message}");
+            }
+        }
+        return Brushes.Black;
     }
 
     /// <summary>
@@ -494,7 +799,18 @@ public partial class OutputWindow : Window
     // ─── Video Private Methods ────────────────────────────────────
 
     /// <summary>
-    /// Start a motion background video (looping behind lyrics).
+    /// Whether the current item waits for its background video to end
+    /// (AutoAdvance VideoEnd condition — đợt 2 T4 / R3). Such an item's video must
+    /// play ONCE so the end can actually fire the advance; every other item keeps
+    /// the historical looping motion-background behaviour.
+    /// </summary>
+    private bool CurrentItemWaitsForVideoEnd =>
+        _currentItem?.AutoAdvanceSettings?.AutoAdvanceAfterCondition
+            == AutoAdvanceAfterCondition.VideoEnd;
+
+    /// <summary>
+    /// Start a motion background video (looping behind lyrics, unless the current
+    /// item is configured for the VideoEnd auto-advance condition — then play once).
     /// </summary>
     private void StartMotionBackground(string videoPath, double opacity)
     {
@@ -510,7 +826,7 @@ public partial class OutputWindow : Window
         BackgroundVideoView.Opacity = opacity;
         BackgroundVideoView.Visibility = Visibility.Visible;
 
-        _videoBackgroundService.PlayBackground(videoPath, loop: true);
+        _videoBackgroundService.PlayBackground(videoPath, loop: !CurrentItemWaitsForVideoEnd);
     }
 
     /// <summary>
@@ -531,6 +847,20 @@ public partial class OutputWindow : Window
         {
             StopVideo();
             VideoPlaybackEnded?.Invoke(this, EventArgs.Empty);
+        });
+    }
+
+    /// <summary>
+    /// Handle the background video reaching its end (đợt 2 T4): re-raise as
+    /// BackgroundVideoEnded on the UI thread so the engine can fire the VideoEnd
+    /// auto-advance trigger. The video is NOT stopped here — the advance it causes
+    /// changes the item, which re-applies the background through the normal path.
+    /// </summary>
+    private void OnBackgroundVideoEnded(object? sender, EventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            BackgroundVideoEnded?.Invoke(this, EventArgs.Empty);
         });
     }
 
@@ -590,6 +920,12 @@ public partial class OutputWindow : Window
         footerBlock.FontSize = _currentTheme.FooterFontSize;
         footerBlock.Foreground = new SolidColorBrush(
             (Color)ColorConverter.ConvertFromString(_currentTheme.FooterFontColor));
+
+        // Đợt 2 T16 / R8: when this window is bound to an output whose effective
+        // template resolved (override → item template), the template's foreground
+        // styling wins over the theme for the main text. Null = theme look kept.
+        if (_effectiveTemplate != null)
+            ApplyForegroundTemplate(textBlock, _effectiveTemplate);
 
         // Foreground image (QR code etc.) — resolve relative paths against the app base dir and
         // never let a missing/corrupt image throw during render (F9/F10).

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using WorshipPlayer.Core.Services.Interfaces;
 
 namespace WorshipPlayer.Presenter.Views.Settings;
 
@@ -17,6 +18,7 @@ public partial class SettingsWindow : Window
     private StageDisplaySection? _stageDisplaySection;
     private LibrarySection? _librarySection;
     private MidiSection? _midiSection;
+    private SlideLabelsSection? _slideLabelsSection;
     private UpdatesCacheSection? _updatesCacheSection;
 
     /// <summary>
@@ -29,6 +31,20 @@ public partial class SettingsWindow : Window
     /// Set this before showing the window so ScreenConfig can update it.
     /// </summary>
     public WorshipPlayer.Core.Models.PresenterSettings? PresenterSettings { get; set; }
+
+    /// <summary>
+    /// The shared Bible provider, forwarded to the Bibles section so its
+    /// translation list and XML import run against the live Bible database
+    /// (dot2-T12). Set this before showing the window.
+    /// </summary>
+    public IBibleProvider? BibleProvider { get; set; }
+
+    /// <summary>
+    /// The shared template service, forwarded to the Screen Config section so its
+    /// per-output template-override dropdown lists the real templates (dot2-T16).
+    /// Set this before showing the window.
+    /// </summary>
+    public ITemplateService? TemplateService { get; set; }
 
     public SettingsWindow()
     {
@@ -63,11 +79,12 @@ public partial class SettingsWindow : Window
                 "Defaults" => GetDefaultsSection(),
                 "Footer" => GetFooterSection(),
                 "Interface" => _interfaceSection ??= new InterfaceSection(),
-                "Bibles" => _biblesSection ??= new BiblesSection(),
+                "Bibles" => GetBiblesSection(),
                 "Screen Config" => GetScreenConfigSection(),
                 "Stage Display" => _stageDisplaySection ??= new StageDisplaySection(),
                 "Library" => _librarySection ??= new LibrarySection(),
                 "MIDI" => _midiSection ??= new MidiSection(),
+                "Slide Labels" => GetSlideLabelsSection(),
                 "Updates" => _updatesCacheSection ??= new UpdatesCacheSection(),
                 _ => GetDefaultsSection()
             };
@@ -94,7 +111,16 @@ public partial class SettingsWindow : Window
             // Read values from ScreenConfigSection if it's been loaded
             if (_screenConfigSection != null && PresenterSettings != null)
             {
-                PresenterSettings.OutputDisplay = _screenConfigSection.AudienceDisplayIndex;
+                // Đợt 2 T16 / R8: persist the edited outputs list; keep the legacy
+                // OutputDisplay field in sync (first enabled audience output's display,
+                // or -1) so legacy readers (single-monitor Go-Live, DisplayManager)
+                // keep working.
+                var outputs = _screenConfigSection.GetOutputs();
+                PresenterSettings.Outputs = outputs;
+                PresenterSettings.OutputDisplay = outputs
+                    .Where(o => o.Purpose == WorshipPlayer.Core.Models.ScreenPurpose.Audience && o.IsEnabled)
+                    .Select(o => (int?)o.DisplayIndex)
+                    .FirstOrDefault() ?? -1;
                 PresenterSettings.StageDisplay = _screenConfigSection.StageDisplayIndex;
             }
 
@@ -110,6 +136,25 @@ public partial class SettingsWindow : Window
             {
                 PresenterSettings.LinesPerSlide = _defaultsSection.LinesPerSlide;
                 PresenterSettings.SlideLeadMs = _defaultsSection.SlideLeadMs;
+            }
+
+            // Persist the slide-label catalog from the Slide Labels section if it's been
+            // loaded (đợt 2 T8 / R5.2). A duplicated hotkey BLOCKS the save: report the
+            // exact hotkey and abort before anything is persisted.
+            if (_slideLabelsSection != null && PresenterSettings != null)
+            {
+                // Commit any in-progress grid edit so the check sees the latest text.
+                var dup = _slideLabelsSection.DuplicateHotkey;
+                if (dup != null)
+                {
+                    MessageBox.Show(
+                        $"Two slide labels share the hotkey \"{dup}\". " +
+                        "Give each label its own hotkey (or clear one) before saving.",
+                        "Duplicate Slide Label Hotkey",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                PresenterSettings.SlideLabels = _slideLabelsSection.GetLabels();
             }
 
             OnSaveRequested?.Invoke();
@@ -155,16 +200,54 @@ public partial class SettingsWindow : Window
         return _footerSection;
     }
 
+    private SlideLabelsSection GetSlideLabelsSection()
+    {
+        if (_slideLabelsSection == null)
+        {
+            _slideLabelsSection = new SlideLabelsSection();
+            if (PresenterSettings != null)
+            {
+                // Seed the editor from the live catalog; a settings file that predates
+                // slide labels (null) shows the seeded defaults (T7 EnsureLabels semantics)
+                // without mutating the settings until the user actually saves.
+                var labels = PresenterSettings.SlideLabels
+                    ?? WorshipPlayer.Core.Services.SlideLabelService.CreateDefaults();
+                _slideLabelsSection.SetLabels(labels);
+            }
+        }
+        return _slideLabelsSection;
+    }
+
+    private BiblesSection GetBiblesSection()
+    {
+        if (_biblesSection == null)
+        {
+            _biblesSection = new BiblesSection();
+            if (BibleProvider != null)
+            {
+                _biblesSection.BibleProvider = BibleProvider;
+            }
+        }
+        return _biblesSection;
+    }
+
     private ScreenConfigSection GetScreenConfigSection()
     {
         if (_screenConfigSection == null)
         {
             _screenConfigSection = new ScreenConfigSection();
+            if (TemplateService != null)
+            {
+                _screenConfigSection.TemplateService = TemplateService;
+            }
             if (PresenterSettings != null)
             {
+                // Đợt 2 T16 / R8: the outputs list (T15, migrated at LoadAsync) is the
+                // source of truth for audience windows; the legacy OutputDisplay field
+                // is re-derived on Save.
                 _screenConfigSection.SetCurrentConfig(
-                    PresenterSettings.OutputDisplay,
-                    PresenterSettings.StageDisplay);
+                    PresenterSettings.StageDisplay,
+                    PresenterSettings.Outputs ?? new List<WorshipPlayer.Core.Models.OutputConfig>());
             }
         }
         return _screenConfigSection;

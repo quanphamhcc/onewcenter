@@ -14,6 +14,15 @@ public partial class ItemSettingsWindow : Window
     /// <summary>The settings produced by the panel's Save, available after a true DialogResult.</summary>
     public ServiceItemSettings? Result { get; private set; }
 
+    /// <summary>True when the user edited any audio control (đợt 2 T17 / R9).</summary>
+    public bool AudioEdited => SettingsPanelControl.AudioEdited;
+
+    /// <summary>Edited audio file list, valid when <see cref="AudioEdited"/>.</summary>
+    public IReadOnlyList<string> AudioFilesEdited => SettingsPanelControl.EditedAudioFiles;
+
+    /// <summary>Edited loop flag, valid when <see cref="AudioEdited"/>.</summary>
+    public bool LoopAudioEdited => SettingsPanelControl.EditedLoopAudio;
+
     public ItemSettingsWindow(ServiceItem item, IReadOnlyList<ServiceItem> allItems)
     {
         InitializeComponent();

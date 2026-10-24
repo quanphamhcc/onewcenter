@@ -24,6 +24,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Real Zefania XML fixture for dot2-T11 import tests (excerpt of the New
+         Vietnamese Bible 2002 module VIETNVB: Genesis 1-2, Psalm 23-24) -->
+    <None Include="TestData\kinh-thanh-mau-zefania.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Include Presenter service sources directly for testing (Presenter project is net8.0-windows, can't be referenced) -->
     <Compile Include="..\WorshipPlayer.Presenter\Services\ThemeManager.cs" Link="ThemeManager.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Services\MusicianViewRenderer.cs" Link="MusicianViewRenderer.cs" />
@@ -37,6 +43,8 @@
     <Compile Include="..\WorshipPlayer.Presenter\Services\TemplateService.cs" Link="TemplateService.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Services\AlertService.cs" Link="AlertService.cs" />
     <Compile Include="..\WorshipPlayer.Presenter\Services\CountdownService.cs" Link="CountdownService.cs" />
+    <!-- Đợt 2 T17 (R9): item audio playback service; tests inject a fake IItemAudioPlayer (NAudio is Windows-only) -->
+    <Compile Include="..\WorshipPlayer.Presenter\Services\ItemAudioPlaybackService.cs" Link="ItemAudioPlaybackService.cs" />
     <!-- Audio DSP is net8.0-windows; link the source to unit-test the pure click-track logic -->
     <Compile Include="..\WorshipPlayer.Audio\DSP\BeatDetectionService.cs" Link="BeatDetectionService.cs" />
     <!-- Pure Play-with-Click alignment math (FEAT-003) — no NAudio dependency, link for unit tests -->

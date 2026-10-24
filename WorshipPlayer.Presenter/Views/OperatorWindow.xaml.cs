@@ -36,7 +36,10 @@ namespace WorshipPlayer.Presenter.Views;
 public partial class OperatorWindow : Window
 {
     private PresenterEngine? _engine;
-    private OutputWindow? _outputWindow;
+    // Đợt 2 T16 / R8 — nhiều outputs: every audience output gets its own window.
+    // All windows show the SAME content (hard requirement); each renders its own
+    // foreground template (see OutputWindow.SetOutputConfig).
+    private readonly List<OutputWindow> _outputWindows = new();
     private ThemeManager? _themeManager;
     private NdiOutputService? _ndiOutputService;
     private OutputCaptureService? _outputCaptureService;
@@ -158,6 +161,7 @@ public partial class OperatorWindow : Window
         {
             _engine.SlideChanged -= OnSlideChanged;
             _engine.ItemChanged -= OnItemChanged;
+            _engine.AutoAdvanceCountdownChanged -= OnAutoAdvanceCountdownChanged;
             _engine.DisplayStateChanged -= OnDisplayStateChanged;
             _engine.PitchShiftChanged -= OnPitchShiftChanged;
             _engine.TempoChanged -= OnTempoChanged;
@@ -223,7 +227,8 @@ public partial class OperatorWindow : Window
         DisplayManager? displayManager, Action<PresenterSettings>? onSaveSettings)
     {
         _engine = engine;
-        _outputWindow = outputWindow;
+        _outputWindows.Clear();
+        if (outputWindow != null) _outputWindows.Add(outputWindow);
         _themeManager = themeManager;
         _displayManager = displayManager;
         _onSaveSettings = onSaveSettings;
@@ -231,6 +236,7 @@ public partial class OperatorWindow : Window
         // Subscribe to engine events
         _engine.SlideChanged += OnSlideChanged;
         _engine.ItemChanged += OnItemChanged;
+        _engine.AutoAdvanceCountdownChanged += OnAutoAdvanceCountdownChanged;
         _engine.DisplayStateChanged += OnDisplayStateChanged;
         _engine.PitchShiftChanged += OnPitchShiftChanged;
         _engine.TempoChanged += OnTempoChanged;
@@ -530,12 +536,52 @@ public partial class OperatorWindow : Window
     }
 
     /// <summary>
-    /// Update the OutputWindow reference (called when Display Settings creates/moves the output window).
-    /// Ensures slides are forwarded to the correct output.
+    /// Replace the output window list (đợt 2 T16 / R8 — nhiều outputs). Called when
+    /// Display Settings creates/moves/closes output windows. Ensures slides are
+    /// forwarded to every audience output.
     /// </summary>
-    public void SetOutputWindow(OutputWindow? outputWindow)
+    public void SetOutputWindows(IEnumerable<OutputWindow> windows)
     {
-        _outputWindow = outputWindow;
+        _outputWindows.Clear();
+        if (windows != null) _outputWindows.AddRange(windows);
+    }
+
+    /// <summary>
+    /// Đợt 2 T16 / R8: fan-out an action to every audience output window. A failure on
+    /// one window never breaks the others.
+    /// </summary>
+    private void ForEachOutputWindow(Action<OutputWindow> action)
+    {
+        foreach (var w in _outputWindows.ToList())
+        {
+            try { action(w); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[OperatorWindow] output fan-out failed: {ex.Message}"); }
+        }
+    }
+
+    /// <summary>
+    /// Forward a slide to every output window, stamping each window with the template
+    /// id of the song section being shown (the middle layer of the T15
+    /// OutputTemplateResolver). Sections without a template fall back through the
+    /// resolver to the theme, exactly as before T16.
+    /// </summary>
+    private void ShowSlideOnOutputs(Slide slide, SlideTransition transition, int durationMs)
+    {
+        var song = _engine?.CurrentSong;
+        var itemTemplateId = song?.Sections
+            .FirstOrDefault(s => string.Equals(s.Name, slide.SectionName, StringComparison.OrdinalIgnoreCase))
+            ?.TemplateId;
+        ForEachOutputWindow(w => { w.SetItemTemplateId(itemTemplateId); w.ShowSlide(slide, transition, durationMs); });
+    }
+
+    /// <summary>
+    /// Forward the current item to every output window (per-item background, T1/T2),
+    /// clearing the per-section item template stamp — the next ShowSlide sets it
+    /// for the section being shown.
+    /// </summary>
+    private void SetCurrentItemOnOutputs(ServiceItem? item, IList<ServiceItem>? serviceItems)
+    {
+        ForEachOutputWindow(w => { w.SetItemTemplateId(null); w.SetCurrentItem(item, serviceItems); });
     }
 
     /// <summary>
@@ -595,7 +641,7 @@ public partial class OperatorWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            _outputWindow?.ShowAlert(template, 5000);
+            ForEachOutputWindow(w => w.ShowAlert(template, 5000));
         });
     }
 
@@ -603,7 +649,7 @@ public partial class OperatorWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            _outputWindow?.HideAlert();
+            ForEachOutputWindow(w => w.HideAlert());
         });
     }
 
@@ -615,7 +661,7 @@ public partial class OperatorWindow : Window
             var timeText = ts.TotalHours >= 1
                 ? $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}"
                 : $"{ts.Minutes:D2}:{ts.Seconds:D2}";
-            _outputWindow?.ShowCountdown(timeText);
+            ForEachOutputWindow(w => w.ShowCountdown(timeText));
         });
     }
 
@@ -623,7 +669,7 @@ public partial class OperatorWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            _outputWindow?.HideCountdown();
+            ForEachOutputWindow(w => w.HideCountdown());
         });
     }
 
@@ -638,10 +684,37 @@ public partial class OperatorWindow : Window
             UpdateLiveSectionHighlights();
 
             // Forward to output window
-            if (e.NewSlide != null && _outputWindow != null)
+            if (e.NewSlide != null)
             {
-                _outputWindow.ShowSlide(e.NewSlide, e.Transition, e.TransitionDurationMs);
+                ShowSlideOnOutputs(e.NewSlide, e.Transition, e.TransitionDurationMs);
             }
+        });
+    }
+
+    /// <summary>
+    /// Đợt 2 T5 (R3.4/R3.5): reflect the engine's auto-advance countdown — a bar with
+    /// the remaining time at the TOP of the service list frame, plus a clock marker
+    /// on the counting item's row. The engine cancels the countdown the moment the
+    /// current item changes (including manual navigation) or becomes ineligible, so
+    /// an inactive event hides the bar and clears every marker immediately.
+    /// </summary>
+    private void OnAutoAdvanceCountdownChanged(object? sender, AutoAdvanceCountdownEventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (!e.IsActive)
+            {
+                AutoAdvanceCountdownBar.Visibility = Visibility.Collapsed;
+                foreach (var row in _serviceOrderItems)
+                    row.IsAutoAdvanceCountingDown = false;
+                return;
+            }
+
+            AutoAdvanceCountdownText.Text =
+                $"Auto-advance in {AutoAdvanceCountdown.Format(e.RemainingMs)}";
+            AutoAdvanceCountdownBar.Visibility = Visibility.Visible;
+            foreach (var row in _serviceOrderItems)
+                row.IsAutoAdvanceCountingDown = row.Item?.Id == e.ItemId;
         });
     }
 
@@ -649,7 +722,14 @@ public partial class OperatorWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            CurrentItemTitle.Text = e.NewItem?.Title ?? "";
+            // Show the LIVE display name for the current item: for a live-linked Slides item this
+            // resolves the linked presentation's current name from the primed cache (so a rename is
+            // reflected), falling back to the stored Title for every other item. Mirrors the sidebar
+            // row (MakeItemRow) and section header (BuildSectionHeader). The cache may not be primed
+            // yet on first load; the deferred prime below re-applies this via RefreshCurrentItemTitle.
+            CurrentItemTitle.Text = e.NewItem != null
+                ? ServiceItemDisplayName.ResolveDisplayName(e.NewItem, ResolveLinkedPresentation(e.NewItem))
+                : "";
             CurrentItemSubtitle.Text = e.NewItem?.Type.ToString() ?? "";
 
             // 7.2: route a Video service item to full-screen playback on the output. The pure
@@ -659,12 +739,19 @@ public partial class OperatorWindow : Window
             var videoRoute = VideoRouteResolver.Resolve(e.NewItem);
             if (videoRoute.PlayVideo)
             {
-                _outputWindow?.ShowVideo(videoRoute.VideoPath);
+                ForEachOutputWindow(w => w.ShowVideo(videoRoute.VideoPath));
             }
-            else if (_outputWindow?.IsVideoMode == true)
+            else if (_outputWindows.Any(w => w.IsVideoMode))
             {
-                _outputWindow.StopVideo();
+                ForEachOutputWindow(w => w.StopVideo());
             }
+
+            // Đợt 2 T1 (R1) + T2 (R2): hand the new current item to the output window
+            // together with the live service list, so its per-item background
+            // (including Inherit chains, resolved at render time) is applied under
+            // the item's foreground; Theme-kind items are a no-op visually (the
+            // theme background is re-applied as before).
+            SetCurrentItemOnOutputs(e.NewItem, _engine?.CurrentServiceOrder?.Items);
 
             // BUG A: ensure the sidebar reflects the loaded service. On startup the service order
             // is auto-loaded asynchronously (ServiceOrderManager.LoadAsync) AFTER the operator
@@ -694,7 +781,18 @@ public partial class OperatorWindow : Window
             _ = Dispatcher.InvokeAsync(async () =>
             {
                 await PrimeSlidePresentationCacheAsync();
+
+                // The cache is now populated, so a live-linked Slides item's renamed name can
+                // resolve. Rebuild the SIDEBAR (RefreshServiceOrderList) and the center grid
+                // (RefreshSlideSections), and re-apply the current-item header — on first load /
+                // navigation the sidebar + header were built before the cache was primed and would
+                // otherwise keep showing the stale stored Title.
+                RefreshServiceOrderList();
                 RefreshSlideSections();
+                var headerItem = _engine?.CurrentItem;
+                if (headerItem != null)
+                    CurrentItemTitle.Text = ServiceItemDisplayName.ResolveDisplayName(
+                        headerItem, ResolveLinkedPresentation(headerItem));
 
                 // This async rebuild clears + rebuilds SlideSectionsPanel and resets scroll to
                 // the top, clobbering any earlier selection scroll (and for Slides items the
@@ -723,7 +821,7 @@ public partial class OperatorWindow : Window
                 LiveButton.Background = new SolidColorBrush(LivePink);
                 LiveBadge.Visibility = Visibility.Collapsed;
                 AudiencePreviewBorder.BorderBrush = new SolidColorBrush(BorderColor);
-                _outputWindow?.ShowBlack();
+                ForEachOutputWindow(w => w.ShowBlack());
                 UpdateLiveTabDot(false);
             }
             else if (e.IsLive)
@@ -745,11 +843,11 @@ public partial class OperatorWindow : Window
 
             // F5: push the new pitch offset to the congregation output and re-render the current
             // slide so shown chords transpose live.
-            _outputWindow?.SetPitchShift(e.Semitones);
+            ForEachOutputWindow(w => w.SetPitchShift(e.Semitones));
             var current = _engine?.CurrentSlide;
             if (current != null)
             {
-                _outputWindow?.ShowSlide(current, SlideTransition.Cut, 0);
+                ShowSlideOnOutputs(current, SlideTransition.Cut, 0);
             }
         });
     }
@@ -775,7 +873,7 @@ public partial class OperatorWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            _outputWindow?.ApplyTheme(theme);
+            ForEachOutputWindow(w => w.ApplyTheme(theme));
         });
     }
 
@@ -792,7 +890,7 @@ public partial class OperatorWindow : Window
 
         // Always (re)create/re-show the single-monitor output first. The hook is a no-op on a
         // dual-monitor rig and when the window already exists & is loaded; it recreates/reshows the
-        // window and refreshes this window's _outputWindow reference via SetOutputWindow. Running it
+        // window and refreshes this window's output window list via SetOutputWindows. Running it
         // unconditionally is what fixes "GO LIVE does nothing after the output was closed while LIVE"
         // (IsLive stays true, so the old IsBlacked||!IsLive guard never reached the hook).
         _onGoLive?.Invoke();
@@ -801,7 +899,7 @@ public partial class OperatorWindow : Window
         {
             _engine.GoLive();
         }
-        _outputWindow?.Unblack();
+        ForEachOutputWindow(w => w.Unblack());
     }
 
     private void GoBlack_Click(object sender, RoutedEventArgs e)
@@ -812,7 +910,7 @@ public partial class OperatorWindow : Window
     private void ShowLogo_Click(object sender, RoutedEventArgs e)
     {
         _engine?.ShowLogo();
-        _outputWindow?.ShowLogo();
+        ForEachOutputWindow(w => w.ShowLogo());
     }
 
     private void ToggleChords_Click(object sender, RoutedEventArgs e)
@@ -823,7 +921,7 @@ public partial class OperatorWindow : Window
         settings.CongregationShowChords = !settings.CongregationShowChords;
 
         // Apply to output window if it exists
-        _outputWindow?.SetChordDisplay(settings.CongregationShowChords);
+        ForEachOutputWindow(w => w.SetChordDisplay(settings.CongregationShowChords));
 
         if (settings.CongregationShowChords)
         {
@@ -841,9 +939,9 @@ public partial class OperatorWindow : Window
 
         // Re-render output if window exists
         var currentSlide = _engine.CurrentSlide;
-        if (currentSlide != null && _outputWindow != null)
+        if (currentSlide != null)
         {
-            _outputWindow.ShowSlide(currentSlide, SlideTransition.Cut, 0);
+            ShowSlideOnOutputs(currentSlide, SlideTransition.Cut, 0);
         }
 
         // Update the audience preview to reflect the chord toggle immediately
@@ -933,6 +1031,12 @@ public partial class OperatorWindow : Window
             var settingsWindow = new SettingsWindow();
             settingsWindow.Owner = this;
             settingsWindow.PresenterSettings = _engine?.Settings;
+            // dot2-T12: the Bibles section lists/imports translations against
+            // the same shared Bible database the Scripture panel reads.
+            settingsWindow.BibleProvider = _bibleProvider;
+            // dot2-T16: the Screen Config section lists per-output template overrides
+            // from the real template catalog.
+            settingsWindow.TemplateService = _templateService;
             settingsWindow.OnSaveRequested = () =>
             {
                 // Save presenter settings to disk and apply display changes
@@ -961,7 +1065,8 @@ public partial class OperatorWindow : Window
 
     private void StartNdiOutput()
     {
-        if (_outputWindow == null) return;
+        var primaryOutput = _outputWindows.FirstOrDefault();
+        if (primaryOutput == null) return;
 
         if (_ndiOutputService == null)
         {
@@ -982,7 +1087,7 @@ public partial class OperatorWindow : Window
         _ndiOutputService.Initialize();
         _ndiOutputService.Start();
 
-        var target = _outputWindow.Content as FrameworkElement;
+        var target = primaryOutput.Content as FrameworkElement;
         if (target != null)
         {
             _outputCaptureService.Start(
@@ -1036,7 +1141,7 @@ public partial class OperatorWindow : Window
     private void ChordToggle_Changed(object sender, RoutedEventArgs e)
     {
         var isChecked = ChordToggleCheckBox.IsChecked == true;
-        _outputWindow?.SetChordDisplay(isChecked);
+        ForEachOutputWindow(w => w.SetChordDisplay(isChecked));
     }
 
     private void ThemeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1147,6 +1252,15 @@ public partial class OperatorWindow : Window
         // Don't intercept if a text-editable input has focus
         if (e.OriginalSource is TextBoxBase || e.OriginalSource is ComboBox) return;
 
+        // Slide-label hotkeys (đợt 2 T8 / R5.4): a plain letter key bound to a label jumps
+        // to that label's first section in the live song. When it doesn't match, every
+        // built-in key below keeps its exact existing behaviour.
+        if (Keyboard.Modifiers == ModifierKeys.None && TryHandleSlideLabelHotkey(e.Key))
+        {
+            e.Handled = true;
+            return;
+        }
+
         switch (e.Key)
         {
             case Key.Right:
@@ -1179,7 +1293,7 @@ public partial class OperatorWindow : Window
 
             case Key.F1:
                 _engine?.ShowLogo();
-                _outputWindow?.ShowLogo();
+                ForEachOutputWindow(w => w.ShowLogo());
                 e.Handled = true;
                 break;
 
@@ -1187,9 +1301,9 @@ public partial class OperatorWindow : Window
                 // F6: on a single-monitor full-screen output, Esc reclaims the screen by exiting
                 // full-screen (restores window chrome) rather than only content-blacking. On a
                 // dual-monitor rig Esc keeps its current content-black meaning.
-                if (_isSingleMonitorOutput?.Invoke() == true && _outputWindow != null)
+                if (_isSingleMonitorOutput?.Invoke() == true)
                 {
-                    _outputWindow.ExitFullScreen();
+                    _outputWindows.FirstOrDefault()?.ExitFullScreen();
                 }
                 else if (_engine?.IsBlacked == false)
                 {
@@ -1203,13 +1317,13 @@ public partial class OperatorWindow : Window
                 {
                     // Always (re)create/re-show the single-monitor output first (same as the GO LIVE
                     // button); the hook recreates/reshows a closed-while-live output and refreshes
-                    // the _outputWindow reference. Keep GoLive() behind the state guard.
+                    // the output window list. Keep GoLive() behind the state guard.
                     _onGoLive?.Invoke();
                     if (_engine.IsBlacked || !_engine.IsLive)
                     {
                         _engine.GoLive();
                     }
-                    _outputWindow?.Unblack();
+                    ForEachOutputWindow(w => w.Unblack());
                 }
                 e.Handled = true;
                 break;
@@ -1240,7 +1354,7 @@ public partial class OperatorWindow : Window
     /// keeping a reference back to the underlying ServiceItem (selected index maps to
     /// CurrentServiceOrder.Items[i]).
     /// </summary>
-    private sealed class ServiceItemDisplay
+    private sealed class ServiceItemDisplay : System.ComponentModel.INotifyPropertyChanged
     {
         public string Icon { get; set; } = "";
         public string Title { get; set; } = "";
@@ -1259,6 +1373,33 @@ public partial class OperatorWindow : Window
         // ▼ expanded, ► collapsed. The "Ungrouped" header (Group == null) is not collapsible,
         // so it shows no chevron.
         public string CollapseGlyph => Group == null ? "" : (Group.IsCollapsed ? "\u25BA" : "\u25BC");
+
+        // Đợt 2 T2 (R2): items in Inherit background mode show a small marker next to
+        // their name so the operator can see the inheritance at a glance.
+        public Visibility InheritBadgeVisibility => Item?.BackgroundKind == ItemBackgroundKind.Inherit
+            ? Visibility.Visible : Visibility.Collapsed;
+
+        // Đợt 2 T5 (R3.4/R3.5): live clock marker shown only while THIS item's
+        // auto-advance countdown is running. Set from the engine's countdown events
+        // (and at row creation, from the engine's current countdown item), so it
+        // needs change notification unlike the static badges above.
+        private bool _isAutoAdvanceCountingDown;
+        public bool IsAutoAdvanceCountingDown
+        {
+            get => _isAutoAdvanceCountingDown;
+            set
+            {
+                if (_isAutoAdvanceCountingDown == value) return;
+                _isAutoAdvanceCountingDown = value;
+                PropertyChanged?.Invoke(this,
+                    new System.ComponentModel.PropertyChangedEventArgs(nameof(CountdownBadgeVisibility)));
+            }
+        }
+
+        public Visibility CountdownBadgeVisibility => _isAutoAdvanceCountingDown
+            ? Visibility.Visible : Visibility.Collapsed;
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
     }
 
     private readonly System.Collections.ObjectModel.ObservableCollection<ServiceItemDisplay> _serviceOrderItems = new();
@@ -1433,7 +1574,12 @@ public partial class OperatorWindow : Window
         {
             Icon = icon,
             Title = ServiceItemDisplayName.ResolveDisplayName(item, ResolveLinkedPresentation(item)),
-            Item = item
+            Item = item,
+            // Đợt 2 T5 (R3.4): a rebuilt list must keep the clock marker on the item
+            // whose countdown is currently running.
+            IsAutoAdvanceCountingDown =
+                _engine?.AutoAdvanceCountdownItemId != null &&
+                item.Id == _engine.AutoAdvanceCountdownItemId
         };
     }
 
@@ -1562,6 +1708,26 @@ public partial class OperatorWindow : Window
             win.Close();
         };
 
+        // When the user edits slide CONTENT via the inner SlideEditorWindow, re-prime the host cache
+        // and refresh the sidebar/center grid through the EXISTING flow so added slides show now,
+        // even if the user later Closes (discards) the service-item editor.
+        win.LinkedPresentationSlidesEdited += (_, __) =>
+        {
+            _ = Dispatcher.InvokeAsync(async () =>
+            {
+                try
+                {
+                    await PrimeSlidePresentationCacheAsync();
+                    RefreshServiceOrderList();
+                    RefreshSlideSections();
+                }
+                catch (Exception ex)
+                {
+                    ShowToolError("Edit Service Item", ex.Message);
+                }
+            });
+        };
+
         bool saved = win.ShowDialog() == true;
 
         // removed and saved are mutually exclusive. Run the persistence/refresh flow on the
@@ -1653,6 +1819,16 @@ public partial class OperatorWindow : Window
             if (window.ShowDialog() == true && window.Result != null)
             {
                 display.Item.AutoAdvanceSettings = window.Result;
+                // Đợt 2 T17 (R9): apply the edited audio list + loop flag only when
+                // the user actually touched the audio controls; an empty list is
+                // stored as null (same nullable convention as AudioAttachments).
+                if (window.AudioEdited)
+                {
+                    display.Item.AudioAttachments = window.AudioFilesEdited.Count > 0
+                        ? new List<string>(window.AudioFilesEdited)
+                        : null;
+                    display.Item.Loop = window.LoopAudioEdited;
+                }
                 await SaveServiceOrderAsync();
                 RefreshServiceOrderList();
             }
@@ -1960,6 +2136,24 @@ public partial class OperatorWindow : Window
 
         if (RenameGroupMenu != null) RenameGroupMenu.IsEnabled = isGroupHeader;
         if (DeleteGroupMenu != null) DeleteGroupMenu.IsEnabled = isGroupHeader;
+
+        // Đợt 2 T6: group reorder entries — only on a real group header, and disabled at
+        // the ends of the group sequence (first group cannot move up, last cannot move down).
+        if (MoveGroupUpMenu != null || MoveGroupDownMenu != null)
+        {
+            var groupIndex = -1;
+            var groupCount = 0;
+            var order2 = _serviceOrderManager?.CurrentServiceOrder;
+            if (isGroupHeader && order2 != null)
+            {
+                var sorted = order2.Groups.OrderBy(g => g.Order).ToList();
+                groupCount = sorted.Count;
+                groupIndex = sorted.FindIndex(g => g.Id == display!.Group!.Id);
+            }
+
+            if (MoveGroupUpMenu != null) MoveGroupUpMenu.IsEnabled = isGroupHeader && groupIndex > 0;
+            if (MoveGroupDownMenu != null) MoveGroupDownMenu.IsEnabled = isGroupHeader && groupIndex >= 0 && groupIndex < groupCount - 1;
+        }
     }
 
     /// <summary>
@@ -2031,6 +2225,41 @@ public partial class OperatorWindow : Window
         catch (Exception ex)
         {
             ShowToolError("Delete Group", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Context "Move Group Up" on a group-header row (đợt 2 T6): swap the group with the
+    /// one above it, persist, and re-render.
+    /// </summary>
+    private async void MoveGroupUp_Click(object sender, RoutedEventArgs e)
+        => await MoveSelectedGroupAsync(-1);
+
+    /// <summary>
+    /// Context "Move Group Down" on a group-header row (đợt 2 T6): swap the group with the
+    /// one below it, persist, and re-render.
+    /// </summary>
+    private async void MoveGroupDown_Click(object sender, RoutedEventArgs e)
+        => await MoveSelectedGroupAsync(+1);
+
+    private async Task MoveSelectedGroupAsync(int delta)
+    {
+        try
+        {
+            if (_serviceOrderManager?.CurrentServiceOrder == null) return;
+            if (ServiceOrderList.SelectedItem is not ServiceItemDisplay display || display.Group == null) return;
+
+            var sorted = _serviceOrderManager.CurrentServiceOrder.Groups.OrderBy(g => g.Order).ToList();
+            var index = sorted.FindIndex(g => g.Id == display.Group.Id);
+            if (index < 0) return;
+
+            _serviceOrderManager.MoveGroup(display.Group.Id, index + delta);
+            await SaveServiceOrderAsync();
+            RefreshServiceOrderList();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Move Group", ex.Message);
         }
     }
 
@@ -2161,15 +2390,33 @@ public partial class OperatorWindow : Window
 
                 var grid = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
 
+                // The item's song (for slide-label resolution, đợt 2 T8 / R5.4): the same
+                // resolver GetSlidesForItem uses. Null when the song isn't in the library —
+                // label resolution then falls back to the section-name rule.
+                var itemSong = _songManager != null
+                    ? SongPathResolver.Resolve(_songManager.Songs, item.SongFolder, item.Title)
+                    : null;
+
                 var slides = GetSlidesForItem(item);
                 if (slides.Count == 0)
                 {
                     // No slides to render. For a Song this almost always means the song has
                     // no lyrics yet (its sections carry no text) rather than a real load
                     // failure, so say so clearly instead of the misleading "could not load".
-                    var note = item.Type == ServiceItemType.Song
-                        ? "This song has no lyrics yet. Add lyrics in the song editor to see slides here."
-                        : "No slides to show for this item.";
+                    string note;
+                    if (item.Type == ServiceItemType.Song)
+                    {
+                        note = "This song has no lyrics yet. Add lyrics in the song editor to see slides here.";
+                    }
+                    else if (item.Type == ServiceItemType.Slides && !string.IsNullOrEmpty(item.SlidePresentationId))
+                    {
+                        // Linked Slides item with zero slides: point the user at where to add them.
+                        note = "This presentation has no slides yet. Open Edit and click + Add slides to create one.";
+                    }
+                    else
+                    {
+                        note = "No slides to show for this item.";
+                    }
                     grid.Children.Add(new TextBlock
                     {
                         Text = note,
@@ -2189,7 +2436,7 @@ public partial class OperatorWindow : Window
                         bool isSelected = isLiveSection && _isEditMode && slideIndex == _selectedSlideIndex;
 
                         var thumb = BuildSlideThumbnail(
-                            slides[slideIndex], slideIndex + 1, isActive, isSelected, thumbWidth,
+                            slides[slideIndex], slideIndex + 1, isActive, isSelected, thumbWidth, itemSong,
                             idx =>
                             {
                                 if (_isEditMode && isLiveSection)
@@ -2205,6 +2452,14 @@ public partial class OperatorWindow : Window
                                     _engine?.GoToSlide(idx);
                                 }
                             });
+
+                        // Đợt 2 T10 / R6.2: right-click a thumbnail to edit THIS item's
+                        // own slide order (move / duplicate / reset). Live-linked Slides
+                        // items are excluded — they follow their presentation.
+                        if (SupportsItemSlideOrder(item))
+                        {
+                            thumb.ContextMenu = BuildSlideOrderContextMenu(item, slides, capturedSlideIndex);
+                        }
 
                         grid.Children.Add(thumb);
                     }
@@ -2281,10 +2536,12 @@ public partial class OperatorWindow : Window
         Grid.SetColumn(titleStack, 0);
         grid.Children.Add(titleStack);
 
-        // Middle: non-functional "ORDER [Original]" chip (matches reference).
+        // Middle: "ORDER" chip (matches reference). Đợt 2 T10 / R6.2: the chip now
+        // tells the truth — [Custom] when this item carries its own slide order
+        // (ServiceItem.SlideOrder), [Original] when it follows the song/default order.
         var orderChip = new TextBlock
         {
-            Text = "ORDER [Original]",
+            Text = ServiceItemSlideOrder.HasCustomOrder(item) ? "ORDER [Custom]" : "ORDER [Original]",
             FontSize = 9,
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8B92A5")),
             VerticalAlignment = System.Windows.VerticalAlignment.Center,
@@ -2365,21 +2622,35 @@ public partial class OperatorWindow : Window
 
         if (item.Type == ServiceItemType.Song)
         {
+            List<Slide> songSlides;
+
             // Pre-baked slides win if present (F2/F3: item slides are the source of truth).
-            if (item.Slides != null && item.Slides.Count > 0) return item.Slides;
-
-            if (_engine == null || _songManager == null) return new List<Slide>();
-
-            var song = SongPathResolver.Resolve(_songManager.Songs, item.SongFolder, item.Title);
-            if (song == null)
+            if (item.Slides != null && item.Slides.Count > 0)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"GetSlidesForItem: could not resolve Song item " +
-                    $"(SongFolder='{item.SongFolder}', Title='{item.Title}').");
+                songSlides = item.Slides;
+            }
+            else if (_engine == null || _songManager == null)
+            {
                 return new List<Slide>();
             }
+            else
+            {
+                var song = SongPathResolver.Resolve(_songManager.Songs, item.SongFolder, item.Title);
+                if (song == null)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"GetSlidesForItem: could not resolve Song item " +
+                        $"(SongFolder='{item.SongFolder}', Title='{item.Title}').");
+                    return new List<Slide>();
+                }
 
-            return _engine.GenerateSlidesForSong(song);
+                songSlides = _engine.GenerateSlidesForSong(song);
+            }
+
+            // Đợt 2 T10 / R6.2: the item's own slide order layers on top of whatever
+            // the pipeline resolved (baked slides, or T9 custom order via generation);
+            // a null order leaves the sequence untouched.
+            return ServiceItemSlideOrder.Apply(songSlides, item.SlideOrder);
         }
 
         // Live-linked Slides item: resolve the presentation's CURRENT slides on demand from the
@@ -2401,8 +2672,119 @@ public partial class OperatorWindow : Window
         }
 
         // Backward compat: a Slides item with no SlidePresentationId (legacy snapshot) renders its
-        // stored item.Slides unchanged.
-        return item.Slides ?? new List<Slide>();
+        // stored item.Slides. (The live-link branch above deliberately returns WITHOUT the
+        // per-item order — T10 scope exclusion: linked items follow their presentation.)
+        // Đợt 2 T10 / R6.2: every other item type honors its own stored slide order here.
+        return ServiceItemSlideOrder.Apply(item.Slides, item.SlideOrder);
+    }
+
+    /// <summary>
+    /// Đợt 2 T10 / R6.2: items that support a per-item slide order. Live-linked Slides
+    /// items are excluded by spec — they follow their presentation, never an item order.
+    /// </summary>
+    private static bool SupportsItemSlideOrder(ServiceItem item) =>
+        !(item.Type == ServiceItemType.Slides && !string.IsNullOrEmpty(item.SlidePresentationId));
+
+    private enum ItemSlideOrderEdit { MoveLeft, MoveRight, Duplicate, Reset }
+
+    /// <summary>
+    /// Build the right-click menu for one slide thumbnail: move the slide within THIS
+    /// item's own order, duplicate it (the copy gets a new id and a place in the item's
+    /// order), or reset the item's order back to the song/default sequence. The menu
+    /// captures the item's currently displayed (already order-applied) slide list.
+    /// </summary>
+    private ContextMenu BuildSlideOrderContextMenu(ServiceItem item, List<Slide> displayedSlides, int slideIndex)
+    {
+        var menu = new ContextMenu();
+
+        var moveLeft = new MenuItem { Header = "Move Slide Left", IsEnabled = slideIndex > 0 };
+        moveLeft.Click += async (s, ev) =>
+            await EditItemSlideOrderAsync(item, displayedSlides, slideIndex, ItemSlideOrderEdit.MoveLeft);
+        menu.Items.Add(moveLeft);
+
+        var moveRight = new MenuItem
+        {
+            Header = "Move Slide Right",
+            IsEnabled = slideIndex >= 0 && slideIndex < displayedSlides.Count - 1
+        };
+        moveRight.Click += async (s, ev) =>
+            await EditItemSlideOrderAsync(item, displayedSlides, slideIndex, ItemSlideOrderEdit.MoveRight);
+        menu.Items.Add(moveRight);
+
+        var duplicate = new MenuItem { Header = "Duplicate Slide" };
+        duplicate.Click += async (s, ev) =>
+            await EditItemSlideOrderAsync(item, displayedSlides, slideIndex, ItemSlideOrderEdit.Duplicate);
+        menu.Items.Add(duplicate);
+
+        menu.Items.Add(new Separator());
+
+        var reset = new MenuItem
+        {
+            Header = "Reset Item Slide Order",
+            IsEnabled = ServiceItemSlideOrder.HasCustomOrder(item)
+        };
+        reset.Click += async (s, ev) =>
+            await EditItemSlideOrderAsync(item, displayedSlides, slideIndex, ItemSlideOrderEdit.Reset);
+        menu.Items.Add(reset);
+
+        return menu;
+    }
+
+    /// <summary>
+    /// Apply one per-item slide-order edit. Every action writes ONLY to the item — its
+    /// baked <see cref="ServiceItem.Slides"/> and its <see cref="ServiceItem.SlideOrder"/>
+    /// — then saves the service order. The linked Song and sibling items are never
+    /// touched (R6.2 isolation). The pure reorder math lives in
+    /// <see cref="ServiceItemSlideOrder"/> (Core) so it is unit-tested.
+    /// </summary>
+    private async Task EditItemSlideOrderAsync(
+        ServiceItem item, List<Slide> displayedSlides, int slideIndex, ItemSlideOrderEdit edit)
+    {
+        try
+        {
+            if (edit == ItemSlideOrderEdit.Reset)
+            {
+                // Back to the song/default order: drop the override only. The item's
+                // baked slide list stays as it is (F2/F3: item slides are the truth).
+                item.SlideOrder = null;
+            }
+            else if (edit == ItemSlideOrderEdit.Duplicate)
+            {
+                if (slideIndex < 0 || slideIndex >= displayedSlides.Count) return;
+                var (newSlides, newOrder) = ServiceItemSlideOrder.Duplicate(
+                    displayedSlides, item.SlideOrder, displayedSlides[slideIndex].Id);
+                item.Slides = newSlides;
+                item.SlideOrder = newOrder;
+            }
+            else
+            {
+                if (slideIndex < 0 || slideIndex >= displayedSlides.Count) return;
+                int delta = edit == ItemSlideOrderEdit.MoveLeft ? -1 : 1;
+                var newOrder = ServiceItemSlideOrder.Move(
+                    ServiceItemSlideOrder.CaptureOrder(displayedSlides), slideIndex, delta);
+                // Bake the reordered display sequence as the item's slide list so the
+                // stored order and the baked slides can never drift apart.
+                item.Slides = ServiceItemSlideOrder.Apply(displayedSlides, newOrder);
+                item.SlideOrder = newOrder;
+            }
+
+            await SaveServiceOrderAsync();
+
+            // If this item is live, reload the engine's slides in the new order
+            // (GoToItem re-fires ItemChanged even for the same index).
+            var order = _serviceOrderManager?.CurrentServiceOrder;
+            int itemIndex = order?.Items.IndexOf(item) ?? -1;
+            if (itemIndex >= 0 && _engine != null && itemIndex == _engine.CurrentItemIndex)
+            {
+                _serviceOrderManager?.GoToItem(itemIndex);
+            }
+
+            RefreshSlideSections();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Edit Slide Order", ex.Message);
+        }
     }
 
     /// <summary>
@@ -2413,7 +2795,7 @@ public partial class OperatorWindow : Window
     /// invokes <paramref name="onClick"/> with the zero-based slide index.
     /// </summary>
     private Border BuildSlideThumbnail(Slide slide, int slideNumber, bool isActive, bool isSelected,
-        double thumbWidth, Action<int> onClick)
+        double thumbWidth, Song? labelSong, Action<int> onClick)
     {
         double thumbHeight = thumbWidth * 0.6;
 
@@ -2491,24 +2873,40 @@ public partial class OperatorWindow : Window
         };
 
         // ── Layer 3: label chip (bottom-left) — e.g. "Verse 1" / "Chorus"; RED when live ──
+        // Đợt 2 T8 / R5.4: when the slide's section carries a slide label, the chip shows
+        // the LABEL's name on the LABEL's color; otherwise it keeps the plain section-name
+        // treatment. The label color hex rides in the chip's Tag ("labelChip|<hex>") so
+        // UpdateLabelChipLiveState can restore it after a live highlight pass.
+        var slideLabel = SlideLabelNavigation.ResolveLabelForSlide(
+            slide, labelSong?.Sections, EffectiveSlideLabels());
+        Color? labelColor = null;
+        if (slideLabel != null)
+        {
+            try
+            {
+                labelColor = (Color)ColorConverter.ConvertFromString(slideLabel.Color.Trim());
+            }
+            catch (FormatException) { labelColor = null; /* bad hex in catalog: plain chip */ }
+        }
+
         var labelChip = new Border
         {
             Background = new SolidColorBrush(isActive
                 ? LivePink
-                : Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
+                : labelColor ?? Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(5, 1, 5, 1),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
             Margin = new Thickness(5, 0, 0, 5),
             // Tagged so UpdateLiveSectionHighlights can recolor it on live changes.
-            Tag = "labelChip",
+            Tag = labelColor.HasValue ? $"labelChip|{slideLabel!.Color.Trim()}" : "labelChip",
             Child = new TextBlock
             {
-                Text = (slide.SectionName ?? "").Trim(),
+                Text = slideLabel?.Name ?? (slide.SectionName ?? "").Trim(),
                 FontSize = sectionFontSize,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(isActive ? Colors.White : AccentCyan)
+                Foreground = new SolidColorBrush(isActive || labelColor.HasValue ? Colors.White : AccentCyan)
             }
         };
         // Hide the chip entirely when a slide has no section label.
@@ -2621,8 +3019,10 @@ public partial class OperatorWindow : Window
     }
 
     /// <summary>
-    /// Recolor a thumbnail's label chip (tagged "labelChip") to match its live state:
-    /// RED fill + white text when live, otherwise a dark chip with the cyan section label.
+    /// Recolor a thumbnail's label chip (tagged "labelChip", or "labelChip|&lt;hex&gt;" when
+    /// the slide's section carries a slide label — đợt 2 T8) to match its live state:
+    /// RED fill + white text when live; otherwise the label's own color with white text,
+    /// or a dark chip with the cyan section label when no label applies.
     /// Walks the thumbnail's inner Grid; no-op if the chip isn't present.
     /// </summary>
     private void UpdateLabelChipLiveState(Border thumbnail, bool isActive)
@@ -2631,18 +3031,63 @@ public partial class OperatorWindow : Window
 
         foreach (var child in grid.Children)
         {
-            if (child is Border chip && (chip.Tag as string) == "labelChip")
+            if (child is Border chip && chip.Tag is string tag &&
+                (tag == "labelChip" || tag.StartsWith("labelChip|", StringComparison.Ordinal)))
             {
+                Color? labelColor = null;
+                if (!isActive && tag.Length > "labelChip|".Length)
+                {
+                    try
+                    {
+                        labelColor = (Color)ColorConverter.ConvertFromString(tag["labelChip|".Length..]);
+                    }
+                    catch (FormatException) { labelColor = null; }
+                }
+
                 chip.Background = new SolidColorBrush(isActive
                     ? LivePink
-                    : Color.FromArgb(0xC0, 0x00, 0x00, 0x00));
+                    : labelColor ?? Color.FromArgb(0xC0, 0x00, 0x00, 0x00));
                 if (chip.Child is TextBlock chipText)
                 {
-                    chipText.Foreground = new SolidColorBrush(isActive ? Colors.White : AccentCyan);
+                    chipText.Foreground = new SolidColorBrush(
+                        isActive || labelColor.HasValue ? Colors.White : AccentCyan);
                 }
                 return;
             }
         }
+    }
+
+    /// <summary>
+    /// The effective slide-label catalog for display/hotkeys (đợt 2 T8): the live settings
+    /// catalog, or the seeded defaults when the settings predate slide labels (the T7
+    /// null-catalog case) — display-only fallback, never mutates the settings.
+    /// </summary>
+    private List<SlideLabelDefinition> EffectiveSlideLabels()
+        => _engine?.Settings?.SlideLabels ?? SlideLabelService.CreateDefaults();
+
+    /// <summary>
+    /// Slide-label hotkey jump (đợt 2 T8 / R5.4): when the live item is a song and the
+    /// pressed letter matches a label hotkey, go to the first slide of the first section
+    /// carrying that label (see <see cref="SlideLabelNavigation.FindFirstSlideIndexByHotkey"/>)
+    /// and report the keystroke as handled. Behaviour choices, kept conservative so no
+    /// existing Operator shortcut changes: only plain letter keys A–Z with no modifiers;
+    /// digits stay reserved for the built-in jump-to-slide; "B" always stays GoBlack.
+    /// Returns false when the keystroke is not a label jump (the caller's normal handling
+    /// then applies unchanged).
+    /// </summary>
+    private bool TryHandleSlideLabelHotkey(Key key)
+    {
+        if (_engine?.CurrentSong == null) return false;
+        if (_engine.CurrentItem?.Type != ServiceItemType.Song) return false;
+        if (key is < Key.A or > Key.Z) return false;
+        if (key == Key.B) return false; // B is the built-in GoBlack key — never repurposed.
+
+        int target = SlideLabelNavigation.FindFirstSlideIndexByHotkey(
+            _engine.CurrentSlides, _engine.CurrentSong.Sections, EffectiveSlideLabels(), key.ToString());
+        if (target < 0) return false;
+
+        _engine.GoToSlide(target);
+        return true;
     }
 
     /// <summary>
@@ -2913,6 +3358,10 @@ public partial class OperatorWindow : Window
                         // raises these and the host shows a "coming soon" notice.
                         _slidesLibraryPanel.EditPresentationRequested += OnEditPresentationRequested;
                         _slidesLibraryPanel.AddPresentationToServiceRequested += OnAddPresentationToServiceRequested;
+                        // Delete is routed through the host so it can warn about and remove the
+                        // CURRENT-service items that live-link the deleted presentation (otherwise
+                        // they would dangle). See OnDeletePresentationRequested.
+                        _slidesLibraryPanel.DeletePresentationRequested += OnDeletePresentationRequested;
                     }
                     SlidesPanelContent.Content = _slidesLibraryPanel;
                     SlidesPanel.Visibility = Visibility.Visible;
@@ -2925,12 +3374,22 @@ public partial class OperatorWindow : Window
                         _scriptureBrowserPanel = new ScriptureBrowserPanel();
                         if (_bibleProvider != null)
                             _scriptureBrowserPanel.BibleProvider = _bibleProvider;
+                        // dot2-T14: Create Slides needs the Slides library service.
+                        if (_slidePresentationService != null)
+                            _scriptureBrowserPanel.SlidePresentationService = _slidePresentationService;
                         // E5: seed/persist the display-option defaults via the Presenter
                         // settings (reachable here; AppSettings/SettingsService are not).
                         _scriptureBrowserPanel.Settings = _engine?.Settings;
                         // E3: generated scripture slides reach the live output via the engine.
                         _scriptureBrowserPanel.PresentSlidesRequested += OnScripturePresentRequested;
                     }
+                    // dot2-T12: reload the translation list from the database on
+                    // every show, so a translation imported via Settings appears
+                    // here without restarting the app.
+                    _ = _scriptureBrowserPanel.RefreshTranslationsAsync();
+                    // dot2-T14: reload the Create-Slides target list as well, so a
+                    // presentation created elsewhere shows up immediately.
+                    _ = _scriptureBrowserPanel.RefreshTargetPresentationsAsync();
                     ScripturePanelContent.Content = _scriptureBrowserPanel;
                     ScripturePanel.Visibility = Visibility.Visible;
                     SetTabActive(TabScripture);
@@ -3285,7 +3744,7 @@ public partial class OperatorWindow : Window
                 dialog.AlertService = _alertService;
             dialog.AlertFired += (s, template) =>
             {
-                _outputWindow?.ShowAlert(template, 5000);
+                ForEachOutputWindow(w => w.ShowAlert(template, 5000));
             };
             dialog.ShowDialog();
         }
@@ -3508,6 +3967,75 @@ public partial class OperatorWindow : Window
         }
     }
 
+    // Host-owned delete of a Slides-library presentation. A Slides service item is a LIVE LINK by
+    // SlidePresentationId, so deleting the presentation would leave every current-service item that
+    // points at it dangling (resolves to nothing → sidebar/center keep the stale stored Title
+    // forever). This handler warns when N ≥ 1 current-service items link the presentation, deletes
+    // the presentation, removes those now-dangling items from the open service, then re-primes the
+    // cache and refreshes the sidebar/center + the library grid. Mirrors
+    // OnAddPresentationToServiceRequested's guard/try-catch + manager → SaveServiceOrderAsync →
+    // prime → refresh pattern. On "No" (or no service loaded and the user cancels) nothing changes.
+    private async void OnDeletePresentationRequested(object? sender, SlidePresentationListItem item)
+    {
+        try
+        {
+            if (_slidePresentationService == null) return;
+
+            var order = _serviceOrderManager?.CurrentServiceOrder;
+            int linkedCount = SlideLinkReconciler.CountItemsLinkingPresentation(order, item.Id);
+
+            var message = linkedCount > 0
+                ? $"Delete the presentation \"{item.Name}\"? This presentation is used by {linkedCount} item(s) " +
+                  "in the current service. Deleting it will also remove those item(s) from the service. " +
+                  "This cannot be undone."
+                : $"Delete the presentation \"{item.Name}\"? This cannot be undone.";
+
+            var result = MessageBox.Show(
+                this,
+                message,
+                "Delete Slides",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            await _slidePresentationService.DeleteAsync(item.Id);
+
+            // Remove the now-dangling current-service items (Type == Slides &&
+            // SlidePresentationId == deleted id). Remove by DESCENDING index so earlier removals do
+            // not shift the indices of later ones. RemoveItem also purges the id from its group and
+            // reorders (see ServiceOrderManager.RemoveItem).
+            if (order != null && _serviceOrderManager != null)
+            {
+                var indices = new List<int>();
+                for (int i = 0; i < order.Items.Count; i++)
+                {
+                    var si = order.Items[i];
+                    if (si.Type == ServiceItemType.Slides && si.SlidePresentationId == item.Id)
+                        indices.Add(i);
+                }
+
+                if (indices.Count > 0)
+                {
+                    for (int i = indices.Count - 1; i >= 0; i--)
+                        _serviceOrderManager.RemoveItem(indices[i]);
+                    await SaveServiceOrderAsync();
+                }
+            }
+
+            // Re-resolve linked presentations and rebuild the sidebar + center so the removed rows
+            // disappear immediately, then refresh the library grid so the deleted card is gone.
+            await PrimeSlidePresentationCacheAsync();
+            RefreshServiceOrderList();
+            RefreshSlideSections();
+            _slidesLibraryPanel?.RefreshGrid();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Delete Slides", ex.Message);
+        }
+    }
+
     /// <summary>
     /// Resolve (into <see cref="_slidePresentationCache"/>) the current library presentation for
     /// every live-linked Slides item in the open service, so the synchronous
@@ -3543,6 +4071,29 @@ public partial class OperatorWindow : Window
                 // DISPLAY name (sidebar row + center section header) is resolved at render time from
                 // this cache via ServiceItemDisplayName.ResolveDisplayName, so a rename shows live
                 // without mutating stored data.
+            }
+
+            // LOAD-TIME reconciliation: the cache now maps every live link to its presentation (or
+            // null when it was deleted elsewhere). A non-null entry means the presentation still
+            // exists; the set of those ids is exactly the "still exists" set. Any Slides item whose
+            // non-empty link id is NOT in that set is an ORPHAN (dangling live link) — drop it from
+            // the open service and persist the cleaned order so already-orphaned items (e.g. from a
+            // prior out-of-app delete) disappear on the next service open. The pure
+            // SlideLinkReconciler guarantees unlinked Slides items, resolvable Slides items, and all
+            // non-Slides items are never touched. This removal is terminal for this pass — it does
+            // NOT re-prime, so there is no recursion.
+            if (_serviceOrderManager != null)
+            {
+                var existingIds = new HashSet<string>(
+                    _slidePresentationCache.Where(kvp => kvp.Value != null).Select(kvp => kvp.Key));
+
+                var orphanIndices = SlideLinkReconciler.FindOrphanedSlideItemIndices(order, existingIds);
+                if (orphanIndices.Count > 0)
+                {
+                    for (int i = orphanIndices.Count - 1; i >= 0; i--)
+                        _serviceOrderManager.RemoveItem(orphanIndices[i]);
+                    await _serviceOrderManager.SaveAsync();
+                }
             }
         }
         catch (Exception ex)

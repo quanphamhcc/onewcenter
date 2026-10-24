@@ -226,6 +226,7 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
@@ -274,10 +275,25 @@
                         </StackPanel>
                     </Grid>
 
+                    <!-- Đợt 2 T5 (R3.4): auto-advance countdown bar at the TOP of the service
+                         list frame. Visible only while an item's Timer countdown is running;
+                         the code-behind updates the text from the engine's countdown events. -->
+                    <Border x:Name="AutoAdvanceCountdownBar" Grid.Row="1" Visibility="Collapsed"
+                            Background="#252A36" BorderBrush="#2A2E3A" BorderThickness="0,1,0,1"
+                            Padding="10,5" Margin="0,4,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x23F1;" FontSize="12" Foreground="#FFAB00"
+                                       VerticalAlignment="Center" />
+                            <TextBlock x:Name="AutoAdvanceCountdownText" Text="Auto-advance in 0:00"
+                                       FontSize="11" FontWeight="SemiBold" Foreground="#FFAB00"
+                                       VerticalAlignment="Center" Margin="6,0,0,0" />
+                        </StackPanel>
+                    </Border>
+
                     <!-- Service order list - selectable ListBox. OperatorWindow uses NO resource
                          dictionaries (see note at top of file), so all brushes are hardcoded inline
                          here instead of referencing a StaticResource style, which would throw at load. -->
-                    <ListBox x:Name="ServiceOrderList" Grid.Row="1"
+                    <ListBox x:Name="ServiceOrderList" Grid.Row="2"
                              Background="Transparent" BorderThickness="0"
                              Foreground="#F0F2F5"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -302,13 +318,23 @@
                                                    Foreground="#4A5068" VerticalAlignment="Center"
                                                    Padding="0,4,10,4" />
                                     </StackPanel>
-                                    <!-- Item row: icon + title (unchanged layout). -->
+                                    <!-- Item row: icon + title (unchanged layout) + inherit marker (đợt 2 T2). -->
                                     <StackPanel Orientation="Horizontal" Cursor="Hand"
                                                 Visibility="{Binding ItemVisibility}">
                                         <TextBlock Text="{Binding Icon}" FontSize="12" Foreground="#F0F2F5"
                                                    Padding="10,5,4,5" />
                                         <TextBlock Text="{Binding Title}" FontSize="12" Foreground="#F0F2F5"
                                                    Padding="0,5,10,5" />
+                                        <TextBlock Text="&#x21A9;" FontSize="11" Foreground="#8B92A5"
+                                                   ToolTip="Inherits background from the item above"
+                                                   Visibility="{Binding InheritBadgeVisibility}"
+                                                   VerticalAlignment="Center" Padding="0,5,10,5" />
+                                        <!-- Đợt 2 T5 (R3.4/R3.5): clock marker while this item's
+                                             auto-advance countdown is running. -->
+                                        <TextBlock Text="&#x23F1;" FontSize="11" Foreground="#FFAB00"
+                                                   ToolTip="Auto-advance countdown running for this item"
+                                                   Visibility="{Binding CountdownBadgeVisibility}"
+                                                   VerticalAlignment="Center" Padding="0,5,10,5" />
                                     </StackPanel>
                                 </Grid>
                             </DataTemplate>
@@ -325,6 +351,8 @@
                                 <MenuItem Header="Add Group…" Click="AddGroup_Click" />
                                 <MenuItem x:Name="RenameGroupMenu" Header="Rename Group…" Click="RenameGroup_Click" />
                                 <MenuItem x:Name="DeleteGroupMenu" Header="Delete Group" Click="DeleteGroup_Click" />
+                                <MenuItem x:Name="MoveGroupUpMenu" Header="Move Group Up" Click="MoveGroupUp_Click" />
+                                <MenuItem x:Name="MoveGroupDownMenu" Header="Move Group Down" Click="MoveGroupDown_Click" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
                     </ListBox>
@@ -332,7 +360,7 @@
                     <!-- Sidebar empty-state: dashed box + helper text, overlaid on the (empty)
                          service-order list. Stretched to the cell (NO fixed width) so a sidebar
                          collapse/expand does not misalign it. Inline brushes only. -->
-                    <Grid x:Name="SidebarEmptyState" Grid.Row="1"
+                    <Grid x:Name="SidebarEmptyState" Grid.Row="2"
                           HorizontalAlignment="Stretch" VerticalAlignment="Top"
                           Margin="10,8,10,8">
                         <Rectangle Stroke="#2A2E3A" StrokeDashArray="4 3" StrokeThickness="1"
@@ -348,7 +376,7 @@
                          item-level actions are also available via the ServiceOrderList context menu.
                          "+ Add" is the primary action (cyan); ApplyToSelectedBtn stays Collapsed and
                          the Bulk toggle flips its Visibility in code-behind. -->
-                    <WrapPanel Grid.Row="2" Margin="8,6,8,8">
+                    <WrapPanel Grid.Row="3" Margin="8,6,8,8">
                         <Button Content="+ Add" Padding="8,5" Margin="0,0,4,4" FontSize="11" FontWeight="SemiBold"
                                 Background="#252A36" Foreground="#00D4FF" BorderBrush="Transparent" BorderThickness="0"
                                 Click="NewService_Click" Cursor="Hand" ToolTip="Add item" />

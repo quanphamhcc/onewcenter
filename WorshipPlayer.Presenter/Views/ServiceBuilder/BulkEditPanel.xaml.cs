@@ -53,6 +53,10 @@ public partial class BulkEditPanel : UserControl
         {
             ApplyBackground = ApplyBackgroundCheck.IsChecked == true,
             BackgroundType = BulkEditService.ParseBackground(GetComboBoxText(BackgroundComboBox)),
+            // Đợt 2 T2 (R2): "Inherit Background" choice → set BackgroundKind=Inherit
+            // on the selected items (legacy BackgroundType left untouched).
+            ApplyBackgroundInherit = ApplyBackgroundCheck.IsChecked == true
+                && GetComboBoxText(BackgroundComboBox) == "Inherit Background",
             ApplyTransition = ApplyTransitionCheck.IsChecked == true,
             TransitionTimeMs = (int)BatchTransitionSlider.Value,
             ApplyAutoAdvance = ApplyAutoAdvanceCheck.IsChecked == true,

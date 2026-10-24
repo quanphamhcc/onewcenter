@@ -100,6 +100,11 @@ CREATE TABLE IF NOT EXISTS ServiceOrders (
 
             if (serviceOrder != null)
             {
+                // Đợt 2 T6: heal group data that came from outside the manager's own
+                // mutations (hand-edited file, older build): drop orphan/duplicate group
+                // item ids and re-densify group Order before anyone renders or saves it.
+                ServiceGroupAssignment.Normalize(serviceOrder);
+
                 CurrentServiceOrder = serviceOrder;
                 CurrentItemIndex = serviceOrder.Items.Count > 0 ? 0 : -1;
 
@@ -216,8 +221,7 @@ CREATE TABLE IF NOT EXISTS ServiceOrders (
         CurrentServiceOrder.Items.RemoveAt(index);
 
         // Purge the removed item's id from every group so no group keeps a dangling reference.
-        foreach (var group in CurrentServiceOrder.Groups)
-            group.Items.RemoveAll(id => id == removedId);
+        ServiceGroupAssignment.RemoveItemFromAllGroups(CurrentServiceOrder, removedId);
 
         // Reorder remaining items
         for (int i = index; i < CurrentServiceOrder.Items.Count; i++)
@@ -254,10 +258,12 @@ CREATE TABLE IF NOT EXISTS ServiceOrders (
             CurrentItemIndex++;
     }
 
-    // ─── Service group operations (roadmap C2) ────────────────────
+    // ─── Service group operations (roadmap C2, đợt 2 T6) ──────────
     // Groups own an ordered list of ServiceItem.Id values (ServiceGroup.Items). An item whose
     // Id is in no group's Items list is "ungrouped". There is a single source of truth (the
-    // group side); ServiceItem has no group reference. All mutations happen in place on
+    // group side); ServiceItem has no group reference. Membership mutations are delegated to
+    // the pure ServiceGroupAssignment helpers (one invariant-keeping implementation); the
+    // manager adds the loaded-order guard. All mutations happen in place on
     // CurrentServiceOrder.Groups / .Items and are persisted by the existing SaveAsync path.
 
     /// <summary>
@@ -300,17 +306,19 @@ CREATE TABLE IF NOT EXISTS ServiceOrders (
     {
         if (CurrentServiceOrder == null) return false;
 
-        var group = CurrentServiceOrder.Groups.FirstOrDefault(g => g.Id == groupId);
-        if (group == null) return false;
+        return ServiceGroupAssignment.DeleteGroup(CurrentServiceOrder, groupId);
+    }
 
-        CurrentServiceOrder.Groups.Remove(group);
+    /// <summary>
+    /// Move a group (header) to a new position among the groups. The index is clamped to
+    /// the valid range and group Order values are rewritten as a dense 0..n-1 sequence.
+    /// Returns false on unloaded order / unknown id. (Đợt 2 T6 — header reorder.)
+    /// </summary>
+    public bool MoveGroup(string groupId, int newIndex)
+    {
+        if (CurrentServiceOrder == null) return false;
 
-        // Compact Order so it stays a dense 0..n-1 sequence.
-        var ordered = CurrentServiceOrder.Groups.OrderBy(g => g.Order).ToList();
-        for (int i = 0; i < ordered.Count; i++)
-            ordered[i].Order = i;
-
-        return true;
+        return ServiceGroupAssignment.MoveGroup(CurrentServiceOrder, groupId, newIndex);
     }
 
     /// <summary>
@@ -322,21 +330,8 @@ CREATE TABLE IF NOT EXISTS ServiceOrders (
     public bool AssignItemToGroup(string itemId, string? targetGroupId)
     {
         if (CurrentServiceOrder == null) return false;
-        if (!CurrentServiceOrder.Items.Any(i => i.Id == itemId)) return false;
 
-        ServiceGroup? target = null;
-        if (targetGroupId != null)
-        {
-            target = CurrentServiceOrder.Groups.FirstOrDefault(g => g.Id == targetGroupId);
-            if (target == null) return false;
-        }
-
-        // Remove from any current group (single source of truth).
-        foreach (var group in CurrentServiceOrder.Groups)
-            group.Items.RemoveAll(id => id == itemId);
-
-        target?.Items.Add(itemId);
-        return true;
+        return ServiceGroupAssignment.AssignItem(CurrentServiceOrder, itemId, targetGroupId);
     }
 
     /// <summary>

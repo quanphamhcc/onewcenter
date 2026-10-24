@@ -21,6 +21,9 @@
          proven with the LibVLCSharp 3.8.x line. Without this the native core is absent and
          new LibVLC(...) throws, so no video renders. -->
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
+    <!-- Đợt 2 T17 (R9): per-item attached audio playback. Same NAudio version as
+         WorshipPlayer.Audio so the two pipelines share one audio dependency line. -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
   <ItemGroup>

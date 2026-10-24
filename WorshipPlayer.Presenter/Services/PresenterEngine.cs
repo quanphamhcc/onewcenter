@@ -43,6 +43,21 @@ public class PresenterEngine : IDisposable
     // becomes current and only when that item is configured with the Timer condition.
     private System.Timers.Timer? _autoAdvanceTimer;
 
+    // Đợt 2 T17 (R9): per-item attached audio. Exactly one stream at a time —
+    // switching items stops the old item's audio before the new item's starts.
+    // Settable so tests can inject a fake-player service on Linux (NAudio is
+    // Windows-only).
+    public ItemAudioPlaybackService ItemAudio { get; set; } = new();
+
+    // Đợt 2 T5 (R3.4): countdown reporting for the armed Timer auto-advance, so the
+    // operator UI can show the remaining time at the top of the service list. The
+    // ticker only REPORTS — the one-shot timer above still performs the advance.
+    // Pure remaining-time math lives in Core's AutoAdvanceCountdown.
+    private System.Timers.Timer? _autoAdvanceCountdownTicker;
+    private string? _autoAdvanceCountdownItemId;
+    private DateTimeOffset _autoAdvanceCountdownStartedAtUtc;
+    private int _autoAdvanceCountdownDelayMs;
+
     // ─── Public State ──────────────────────────────────────────────
     public ServiceItem? CurrentItem => _serviceOrderManager.CurrentItem;
     public Slide? CurrentSlide => _currentSlideIndex >= 0 && _currentSlideIndex < _currentSlides.Count
@@ -73,6 +88,15 @@ public class PresenterEngine : IDisposable
     /// Fired when the service item changes (new song, scripture, etc.).
     /// </summary>
     public event EventHandler<ServiceItemChangedEventArgs>? ItemChanged;
+
+    /// <summary>
+    /// Fired when the per-item auto-advance countdown starts, ticks (about four
+    /// times per second), or ends (đợt 2 T5 / R3.4). The args carry the item id and
+    /// the remaining milliseconds; <see cref="AutoAdvanceCountdownEventArgs.IsActive"/>
+    /// is false when no countdown is running anymore (item changed, item became
+    /// ineligible, or the countdown ran out).
+    /// </summary>
+    public event EventHandler<AutoAdvanceCountdownEventArgs>? AutoAdvanceCountdownChanged;
 
     /// <summary>
     /// Fired when live/blank state changes.
@@ -416,6 +440,11 @@ public class PresenterEngine : IDisposable
     /// </summary>
     public void LoadScriptureSlides(List<Slide> slides)
     {
+        // Đợt 2 T17 (R9): quick present takes the output away from the current
+        // service item, so the item's attached audio stops. Re-selecting the item
+        // later re-fires ItemChanged and restarts its audio from the top.
+        ItemAudio.Stop();
+
         Slide? firstSlide;
         lock (_stateLock)
         {
@@ -467,7 +496,7 @@ public class PresenterEngine : IDisposable
     {
         var generated = new List<Slide>();
 
-        if (song.Sections == null || song.Sections.Count == 0)
+        if (song.Sections == null)
         {
             return generated;
         }
@@ -477,8 +506,26 @@ public class PresenterEngine : IDisposable
         // Use ChordChartData slide timing if available
         var chartSlides = song.ChordChart?.Slides;
 
-        foreach (var section in song.Sections)
+        // Walk the song's slide-generation units (đợt 2 T9 / R6.1): without a custom
+        // slide order this is exactly the original section order; with one, sections
+        // repeat/skip per the order and Blank units become one blank slide each.
+        foreach (var unit in SongSlideOrderResolver.ResolveUnits(song))
         {
+            if (unit.IsBlank)
+            {
+                generated.Add(new Slide
+                {
+                    Type = SlideType.Blank,
+                    Content = new SlideContent(),
+                    SectionName = "",
+                    Order = order++,
+                    Transition = SlideTransition.Fade,
+                    TransitionDurationMs = 500
+                });
+                continue;
+            }
+
+            var section = unit.Section!;
             string sectionText = section.Text;
             if (string.IsNullOrWhiteSpace(sectionText)) continue;
 
@@ -705,10 +752,39 @@ public class PresenterEngine : IDisposable
     /// </summary>
     public bool IsManualAdvanceMode => _isManualAdvanceMode;
 
+    /// <summary>
+    /// Id of the item whose auto-advance countdown is currently running, or null
+    /// when no countdown is active (đợt 2 T5 / R3.4).
+    /// </summary>
+    public string? AutoAdvanceCountdownItemId => _autoAdvanceCountdownItemId;
+
+    /// <summary>
+    /// Milliseconds remaining on the running auto-advance countdown, computed live
+    /// from its start timestamp; 0 when no countdown is active or it has finished
+    /// (đợt 2 T5 / R3.4).
+    /// </summary>
+    public long AutoAdvanceCountdownRemainingMs => _autoAdvanceCountdownItemId == null
+        ? 0
+        : AutoAdvanceCountdown.RemainingMs(
+            _autoAdvanceCountdownDelayMs, _autoAdvanceCountdownStartedAtUtc, DateTimeOffset.UtcNow);
+
     // ─── Internal ──────────────────────────────────────────────────
 
     private void OnServiceItemChanged(object? sender, ServiceItemChangedEventArgs e)
     {
+        // Đợt 2 T17 (R9): item audio — stop the previous item's audio immediately,
+        // then start the new item's attached audio. R9.4: a Song item with
+        // UseBacktrack = true never plays its attached audio (no overlap with the
+        // backtrack). This is the single choke point for every current-item change
+        // (manual click, auto-advance, service reload), so no path can leak audio.
+        ItemAudio.Stop();
+        if (e.NewItem != null && ServiceItemAudio.ShouldPlayAttachedAudio(e.NewItem))
+        {
+            var audio = ServiceItemAudio.ResolvePlayback(e.NewItem);
+            if (audio.Files.Count > 0)
+                ItemAudio.PlayForItem(audio);
+        }
+
         // Per-item auto-advance: cancel any pending timer from the previous item, then
         // re-arm only if the NEW item opts in via the Timer condition. Items with no
         // settings or Manual/AudioEnd/VideoEnd never start a timer, so they behave
@@ -721,7 +797,11 @@ public class PresenterEngine : IDisposable
             Slide? firstSlide;
             lock (_stateLock)
             {
-                _currentSlides = e.NewItem.Slides ?? new List<Slide>();
+                // Đợt 2 T10 / R6.2: the item's OWN slide order (when set) is applied
+                // on top of its baked slides — priority T10 > T9 > original (R6.3).
+                // A null order makes Apply an identity, so pre-T10 items load
+                // byte-for-byte as before.
+                _currentSlides = ServiceItemSlideOrder.Apply(e.NewItem.Slides, e.NewItem.SlideOrder);
                 _currentSlideIndex = _currentSlides.Count > 0 ? 0 : -1;
                 firstSlide = _currentSlideIndex >= 0 ? _currentSlides[0] : null;
             }
@@ -786,32 +866,123 @@ public class PresenterEngine : IDisposable
             _autoAdvanceTimer = null;
         }
 
+        // Đợt 2 T5 (R3.4): this method runs on EVERY current-item change (including
+        // manual navigation), so cancelling the previous item's countdown here is
+        // what makes the on-screen countdown disappear/restart exactly on change.
+        CancelAutoAdvanceCountdown();
+
         var settings = newItem?.AutoAdvanceSettings;
+
+        // Đợt 2 T3: lyrics/scripture items never auto-advance — don't even arm the
+        // timer. The pure resolver enforces the same rule at fire time.
+        if (!AutoAdvanceResolver.IsEligible(newItem))
+            return;
+
         if (settings == null || settings.AutoAdvanceAfterCondition != AutoAdvanceAfterCondition.Timer)
             return;
 
         // Guard against a non-positive delay (treat as default) so the timer is valid.
-        double delay = settings.AutoAdvanceDelayMs > 0 ? settings.AutoAdvanceDelayMs : 5000;
+        // AutoAdvanceCountdown.EffectiveDelayMs is that same default rule, shared with
+        // the countdown display so the two can never disagree (đợt 2 T5).
+        double delay = AutoAdvanceCountdown.EffectiveDelayMs(settings.AutoAdvanceDelayMs);
 
         var timer = new System.Timers.Timer(delay) { AutoReset = false };
-        timer.Elapsed += (_, _) => FireAutoAdvance();
+        timer.Elapsed += (_, _) => FireAutoAdvance(AutoAdvanceTrigger.Timer);
         _autoAdvanceTimer = timer;
         timer.Start();
+
+        // Đợt 2 T5 (R3.4): start reporting the countdown for this item. The ticker
+        // only publishes remaining-time updates; the one-shot timer above remains
+        // the single mechanism that actually advances.
+        _autoAdvanceCountdownItemId = newItem?.Id;
+        _autoAdvanceCountdownDelayMs = settings.AutoAdvanceDelayMs;
+        _autoAdvanceCountdownStartedAtUtc = DateTimeOffset.UtcNow;
+        var ticker = new System.Timers.Timer(250) { AutoReset = true };
+        ticker.Elapsed += OnAutoAdvanceCountdownTick;
+        _autoAdvanceCountdownTicker = ticker;
+        ticker.Start();
+        RaiseAutoAdvanceCountdownChanged();
     }
 
     /// <summary>
-    /// Invoked when a per-item auto-advance timer elapses. Asks the pure
-    /// <see cref="AutoAdvanceResolver"/> what to do for the current item, then executes
-    /// the decision via the manager (which raises ItemChanged for the UI to render).
+    /// Countdown ticker (đợt 2 T5): publish the latest remaining time, or end the
+    /// countdown when it has run out. The one-shot auto-advance timer fires at the
+    /// same moment and normally moves to the next item — which cancels this
+    /// countdown via <see cref="RestartAutoAdvanceTimer"/> — but when the advance
+    /// decision is None (e.g. last item in the service) nothing else would clear
+    /// the display, so the ticker closes the countdown itself here.
     /// </summary>
-    private void FireAutoAdvance()
+    private void OnAutoAdvanceCountdownTick(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        if (_autoAdvanceCountdownItemId == null)
+            return;
+
+        if (AutoAdvanceCountdown.IsFinished(
+                _autoAdvanceCountdownDelayMs, _autoAdvanceCountdownStartedAtUtc, DateTimeOffset.UtcNow))
+        {
+            CancelAutoAdvanceCountdown();
+            return;
+        }
+
+        RaiseAutoAdvanceCountdownChanged();
+    }
+
+    /// <summary>
+    /// Stop countdown reporting and notify listeners that no countdown is active.
+    /// Safe to call when no countdown is running (no event is raised then).
+    /// </summary>
+    private void CancelAutoAdvanceCountdown()
+    {
+        if (_autoAdvanceCountdownTicker != null)
+        {
+            _autoAdvanceCountdownTicker.Stop();
+            _autoAdvanceCountdownTicker.Dispose();
+            _autoAdvanceCountdownTicker = null;
+        }
+
+        if (_autoAdvanceCountdownItemId != null)
+        {
+            _autoAdvanceCountdownItemId = null;
+            RaiseAutoAdvanceCountdownChanged();
+        }
+    }
+
+    private void RaiseAutoAdvanceCountdownChanged()
+    {
+        AutoAdvanceCountdownChanged?.Invoke(this, new AutoAdvanceCountdownEventArgs
+        {
+            ItemId = _autoAdvanceCountdownItemId,
+            RemainingMs = AutoAdvanceCountdownRemainingMs,
+            IsActive = _autoAdvanceCountdownItemId != null
+        });
+    }
+
+    /// <summary>
+    /// Entry point for the video-ended auto-advance trigger (đợt 2 T4 / R3): the
+    /// output layer calls this when the current item's video (per-item background
+    /// video or full-screen video) plays to its end. Only an item whose configured
+    /// condition is VideoEnd advances — the pure resolver enforces the match, so an
+    /// item without a running video, or with any other condition, never moves here.
+    /// </summary>
+    public void NotifyCurrentItemVideoEnded()
+    {
+        FireAutoAdvance(AutoAdvanceTrigger.VideoEnd);
+    }
+
+    /// <summary>
+    /// Invoked when a per-item auto-advance trigger fires (timer elapsed, or the
+    /// current item's video ended). Asks the pure <see cref="AutoAdvanceResolver"/>
+    /// what to do for the current item under that trigger, then executes the
+    /// decision via the manager (which raises ItemChanged for the UI to render).
+    /// </summary>
+    private void FireAutoAdvance(AutoAdvanceTrigger trigger)
     {
         var order = _serviceOrderManager.CurrentServiceOrder;
         var currentId = _serviceOrderManager.CurrentItem?.Id;
         if (order == null || currentId == null)
             return;
 
-        var decision = AutoAdvanceResolver.Resolve(order, currentId);
+        var decision = AutoAdvanceResolver.Resolve(order, currentId, trigger);
         switch (decision.Action)
         {
             case AutoAdvanceAction.NextItem:
@@ -841,7 +1012,33 @@ public class PresenterEngine : IDisposable
             _autoAdvanceTimer.Dispose();
             _autoAdvanceTimer = null;
         }
+
+        if (_autoAdvanceCountdownTicker != null)
+        {
+            _autoAdvanceCountdownTicker.Stop();
+            _autoAdvanceCountdownTicker.Dispose();
+            _autoAdvanceCountdownTicker = null;
+        }
+        _autoAdvanceCountdownItemId = null;
+
+        // Đợt 2 T17 (R9): release the item-audio stream with the engine.
+        ItemAudio.Dispose();
     }
+}
+
+/// <summary>
+/// Event args for auto-advance countdown updates (đợt 2 T5 / R3.4).
+/// </summary>
+public class AutoAdvanceCountdownEventArgs : EventArgs
+{
+    /// <summary>Id of the item counting down; null when no countdown is active.</summary>
+    public string? ItemId { get; set; }
+
+    /// <summary>Milliseconds remaining until the auto-advance fires; 0 when inactive or finished.</summary>
+    public long RemainingMs { get; set; }
+
+    /// <summary>True while a countdown is running.</summary>
+    public bool IsActive { get; set; }
 }
 
 /// <summary>

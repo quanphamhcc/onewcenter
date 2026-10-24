@@ -24,6 +24,20 @@ public class PresenterSettings
     public int StageDisplay { get; set; } = -1;
 
     /// <summary>
+    /// Output list (đợt 2 T15 / R8): replaces the two fixed display indices above with a
+    /// list of <see cref="OutputConfig"/> (each: name, display index, purpose, optional
+    /// per-output foreground template override).
+    /// Nullable: null = the settings predate the list (missing "outputs" key) → migrated
+    /// from OutputDisplay/StageDisplay at LoadAsync
+    /// (see <see cref="Services.OutputMigration.EnsureOutputs"/>). A present list — even
+    /// an EMPTY one — is the user's own state and is kept as-is.
+    /// The legacy OutputDisplay/StageDisplay fields are KEPT (not removed) for backward
+    /// compatibility: DisplayManager still reads them until T16 rewires the engine.
+    /// </summary>
+    [JsonPropertyName("outputs")]
+    public List<OutputConfig>? Outputs { get; set; }
+
+    /// <summary>
     /// Output resolution (0 = match display native resolution).
     /// </summary>
     [JsonPropertyName("outputWidth")]
@@ -244,6 +258,18 @@ public class PresenterSettings
     /// </summary>
     [JsonPropertyName("ndiResolutionHeight")]
     public int NdiResolutionHeight { get; set; } = 1080;
+
+    // ─── Slide Labels (đợt 2 T7 / R5) ──────────────────────────────
+    /// <summary>
+    /// The shared slide-label catalog (name + color + hotkey per label) that song sections
+    /// reference via <see cref="Section.LabelId"/>. Null means the settings predate slide
+    /// labels (the JSON key is absent): the catalog is seeded with the six defaults at load
+    /// time (<see cref="Services.SlideLabelService.EnsureLabels"/>, called by
+    /// PresenterSettingsService.LoadAsync). A present-but-empty list is a deliberate user
+    /// state (all labels deleted) and is never re-seeded.
+    /// </summary>
+    [JsonPropertyName("slideLabels")]
+    public List<SlideLabelDefinition>? SlideLabels { get; set; }
 
     // ─── Video Library ─────────────────────────────────────────────
     /// <summary>

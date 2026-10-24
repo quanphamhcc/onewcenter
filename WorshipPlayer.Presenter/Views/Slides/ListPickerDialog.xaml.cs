@@ -34,6 +34,14 @@ public partial class ListPickerDialog : Window
     {
         InitializeComponent();
 
+        // The audience/output window (OutputWindow) runs Topmost=true while live and would
+        // otherwise sit ABOVE this modal and swallow the operator's clicks/taps (symptom:
+        // "Cancel is very hard to press"). Make this dialog Topmost + active so it always sits
+        // above the output window and receives input on the first try, matching the
+        // SlideServiceItemEditorWindow fix. Activate on load to take foreground.
+        Topmost = true;
+        Loaded += (_, _) => { Activate(); };
+
         HeaderText.Text = header;
         ItemsListBox.ItemsSource = rows;
 

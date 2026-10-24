@@ -119,7 +119,11 @@ public static class SlidePresentationMapper
                 Type = SlideType.Custom,
                 Order = ps.Order,
                 SectionName = "",
-                Content = new SlideContent { Text = ps.Text ?? "" }
+                Content = new SlideContent
+                {
+                    Text = ps.Text ?? "",
+                    Subtitle = ps.Subtitle ?? ""
+                }
             };
 
             if (!string.IsNullOrEmpty(ps.BackgroundImage))

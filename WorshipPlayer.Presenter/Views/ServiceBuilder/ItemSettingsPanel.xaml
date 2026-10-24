@@ -41,6 +41,13 @@
 
                     <!-- Settings panel -->
                     <StackPanel x:Name="SettingsPanel" Visibility="Collapsed">
+                        <!-- Đợt 2 T3: auto-advance not available for lyrics/scripture items -->
+                        <TextBlock x:Name="AutoAdvanceNotAvailableNote"
+                                   Text="Auto-advance is not available for this item: lyrics and scripture items never advance automatically."
+                                   Foreground="{StaticResource OwcWarningBrush}"
+                                   FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"
+                                   Visibility="Collapsed"/>
+
                         <!-- Auto-Advance Go To -->
                         <TextBlock Text="Go To" Foreground="{StaticResource OwcTextSecondaryBrush}"
                                    FontSize="11" Margin="0,0,0,4"/>
@@ -110,6 +117,31 @@
                                        FontSize="12" VerticalAlignment="Center"
                                        HorizontalAlignment="Right"/>
                         </Grid>
+
+                        <!-- Đợt 2 T17 (R9): attached audio -->
+                        <TextBlock Text="Audio" Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                   FontSize="12" FontWeight="SemiBold" Margin="0,4,0,4"/>
+                        <ListBox x:Name="AudioFilesListBox" Margin="0,0,0,8"
+                                 MinHeight="64" MaxHeight="128"
+                                 Background="{StaticResource OwcSurfaceBrush}"
+                                 Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                 BorderBrush="{StaticResource OwcBorderBrush}"
+                                 FontSize="12"/>
+                        <WrapPanel Margin="0,0,0,8" Orientation="Horizontal">
+                            <Button Content="Add…" Style="{StaticResource OwcCompactButton}"
+                                    Margin="0,0,6,4" Padding="10,6" Click="AddAudio_Click"/>
+                            <Button Content="Remove" Style="{StaticResource OwcCompactButton}"
+                                    Margin="0,0,6,4" Padding="10,6" Click="RemoveAudio_Click"/>
+                            <Button Content="▲" Style="{StaticResource OwcCompactButton}"
+                                    Margin="0,0,6,4" Padding="10,6" Click="MoveAudioUp_Click"/>
+                            <Button Content="▼" Style="{StaticResource OwcCompactButton}"
+                                    Margin="0,0,6,4" Padding="10,6" Click="MoveAudioDown_Click"/>
+                        </WrapPanel>
+                        <CheckBox x:Name="LoopAudioCheckBox" Content="Loop audio (repeat the list)"
+                                  Style="{StaticResource OwcCheckBox}"
+                                  Foreground="{StaticResource OwcTextPrimaryBrush}"
+                                  FontSize="12" Margin="0,0,0,8"
+                                  Click="LoopAudioCheckBox_Click"/>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>

@@ -74,6 +74,19 @@ public class Song
     [JsonPropertyName("sections")]
     public List<Section> Sections { get; set; } = new();
 
+    /// <summary>
+    /// Custom slide order for this song (đợt 2 T9 / R6.1): the play order of sections
+    /// used whenever slides are generated from this song — sections may repeat (e.g.
+    /// Chorus after every Verse) and Blank entries insert a single blank slide.
+    /// Null = not set: slide generation follows the original section order (pre-T9
+    /// behavior, and what every older song.json loads as). Entries reference sections
+    /// by name; an entry naming a section that no longer exists is skipped at resolve
+    /// time by <see cref="Services.SongSlideOrderResolver"/>. Per-service-item order
+    /// (T10) is a separate override and does NOT live here.
+    /// </summary>
+    [JsonPropertyName("customSlideOrder")]
+    public List<SongSlideOrderEntry>? CustomSlideOrder { get; set; }
+
     [JsonPropertyName("lightingPresets")]
     public List<LightingPreset> LightingPresets { get; set; } = new();
 
@@ -245,6 +258,17 @@ public class Section
     /// </summary>
     [JsonPropertyName("templateId")]
     public string? TemplateId { get; set; }
+
+    /// <summary>
+    /// Optional slide-label reference (đợt 2 T7 / R5): the
+    /// <see cref="SlideLabelDefinition.Id"/> of this section's label in the shared catalog
+    /// (<see cref="PresenterSettings.SlideLabels"/>). Null when unset — older songs without
+    /// this field still load, and such sections resolve a label by NAME instead (see
+    /// <see cref="Services.SlideLabelService.ResolveForSection"/>). Purely additive display
+    /// metadata: it does NOT change the meaning of the loop fields above or loop behavior.
+    /// </summary>
+    [JsonPropertyName("labelId")]
+    public string? LabelId { get; set; }
 
     /// <summary>
     /// Optional per-section override of the global lines-per-slide setting
