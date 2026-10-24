@@ -139,4 +139,103 @@ public class PresenterEngineSlideSourceTests
         // SlideChanged fired for the standalone load (slide 0).
         Assert.Equal(1, slideChangedCount);
     }
+
+    // Field report 2026-10-24 (video): tapping/clicking a slide thumbnail — mouse
+    // AND touch — never moved the live slide; the AUDIENCE preview stayed on slide 1
+    // (INTRO, blank). Root cause: the thumbnail click always re-ran GoToItem, which
+    // reloads engine slides from ServiceItem.Slides — empty for library-linked /
+    // setlist-added songs — so GoToSlide was a no-op and the later async backtrack
+    // LoadSong snapped back to slide 0. The fix's engine half is covered here:
+    // LoadItemSlides gives the engine the section's resolved slides, GoToSlide then
+    // lands on the tapped slide, and a late LoadSong of the SAME song must preserve
+    // that slide instead of resetting to 0.
+    [Fact]
+    public void LoadItemSlides_ThenGoToSlide_ThenSameSongLoad_KeepsTappedSlide()
+    {
+        var item = new ServiceItem
+        {
+            Type = ServiceItemType.Song,
+            Title = "Added Song",
+            Slides = new List<Slide>() // added via Songs tab / setlist: no baked slides
+        };
+        var engine = EngineWithCurrentItem(item);
+
+        var song = new Song
+        {
+            Title = "Added Song",
+            OriginalKey = "C",
+            Sections = new List<Section>
+            {
+                new Section { Name = "Verse 1", Text = "First line here" },
+                new Section { Name = "Chorus", Text = "Chorus line here" },
+                new Section { Name = "Bridge", Text = "Bridge line here" }
+            }
+        };
+
+        // Before any load the engine has no slides, so a tap alone is a no-op
+        // (this is the old failure mode, documented, not the fix).
+        engine.GoToSlide(1);
+        Assert.Equal(-1, engine.CurrentSlideIndex);
+
+        // The thumbnail-click fix: load the section's resolved slides, then go to
+        // the tapped slide (index 1 = Chorus).
+        var resolved = engine.GenerateSlidesForSong(song);
+        Assert.Equal(3, resolved.Count);
+        engine.LoadItemSlides(resolved);
+        engine.GoToSlide(1);
+        Assert.Equal(1, engine.CurrentSlideIndex);
+        Assert.Equal("Chorus", engine.CurrentSlides[1].SectionName, ignoreCase: true);
+
+        // The late async backtrack load of the same song must NOT snap back to 0
+        // and must NOT re-emit a slide change for a slide already displayed.
+        int slideChangedCount = 0;
+        engine.SlideChanged += (_, _) => slideChangedCount++;
+        engine.OnSongLoaded(song);
+
+        Assert.Equal(1, engine.CurrentSlideIndex);
+        Assert.Equal("Chorus", engine.CurrentSlide?.SectionName, ignoreCase: true);
+        Assert.Equal(0, slideChangedCount);
+    }
+
+    [Fact]
+    public void LoadSong_DifferentSong_StillResetsToSlide0()
+    {
+        var item = new ServiceItem
+        {
+            Type = ServiceItemType.Song,
+            Title = "First Song",
+            Slides = new List<Slide>()
+        };
+        var engine = EngineWithCurrentItem(item);
+
+        var first = new Song
+        {
+            Title = "First Song",
+            Sections = new List<Section>
+            {
+                new Section { Name = "Verse 1", Text = "First verse" },
+                new Section { Name = "Chorus", Text = "First chorus" }
+            }
+        };
+        engine.LoadItemSlides(engine.GenerateSlidesForSong(first));
+        engine.GoToSlide(1);
+        Assert.Equal(1, engine.CurrentSlideIndex);
+
+        int slideChangedCount = 0;
+        engine.SlideChanged += (_, _) => slideChangedCount++;
+
+        var second = new Song
+        {
+            Title = "Second Song",
+            Sections = new List<Section>
+            {
+                new Section { Name = "Verse 1", Text = "Second verse" }
+            }
+        };
+        engine.OnSongLoaded(second);
+
+        Assert.Equal(0, engine.CurrentSlideIndex);
+        Assert.Equal(1, engine.TotalSlides);
+        Assert.Equal(1, slideChangedCount);
+    }
 }

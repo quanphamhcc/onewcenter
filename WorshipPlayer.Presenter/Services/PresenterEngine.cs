@@ -364,25 +364,56 @@ public class PresenterEngine : IDisposable
         // sections[].text and no item slides).
         bool itemHasSlides = _serviceOrderManager.CurrentItem?.Slides?.Count > 0;
 
+        // Snapshot the slides the operator is currently looking at BEFORE any
+        // regeneration, so a late async backtrack load of the SAME song does not
+        // snap a tapped slide back to slide 0 (field report 2026-10-24: thumbnail
+        // taps kept landing back on INTRO / blank). GenerateSlidesForSong is pure
+        // and deterministic, so slides already loaded via LoadItemSlides for this
+        // song compare equal section-by-section and text-by-text.
+        List<(string Section, string Text)> previousSnapshot;
+        int previousIndex;
         lock (_stateLock)
         {
             _currentSong = song;
+            previousIndex = _currentSlideIndex;
+            previousSnapshot = _currentSlides
+                .Select(s => (s.SectionName ?? "", s.Content?.Text ?? ""))
+                .ToList();
         }
         _pitchShiftSemitones = 0;
         _tempoPercent = 100.0;
 
+        bool regeneratedSameSlides = false;
         if (!itemHasSlides)
         {
             // Fallback: generate slides from the song's sections[].text.
             // GenerateSlidesFromSong resets _currentSlides/_currentSlideIndex under lock.
             GenerateSlidesFromSong(song);
+
+            if (previousSnapshot.Count > 0 && previousIndex >= 0
+                && previousSnapshot.Count == _currentSlides.Count
+                && previousSnapshot.Zip(_currentSlides, (prev, cur) =>
+                    prev.Section == (cur.SectionName ?? "")
+                    && prev.Text == (cur.Content?.Text ?? "")).All(same => same))
+            {
+                // Same song, same slides as the operator already has (e.g. loaded via
+                // LoadItemSlides on a thumbnail tap): keep the tapped slide instead
+                // of resetting to slide 0, and emit nothing — the current slide is
+                // already displayed.
+                regeneratedSameSlides = true;
+                lock (_stateLock)
+                {
+                    _currentSlideIndex = Math.Min(previousIndex, _currentSlides.Count - 1);
+                }
+            }
         }
 
         SongLoaded?.Invoke(this, new SongLoadedEventArgs { Song = song });
 
         // Fire slide changed ONLY in the fallback case (slide 0). When the item
         // already had slides, OnServiceItemChanged owns the SlideChanged emit.
-        if (!itemHasSlides && _currentSlides.Count > 0 && _currentSlideIndex >= 0)
+        // When regeneration reproduced the slides already shown, nothing is fired.
+        if (!itemHasSlides && !regeneratedSameSlides && _currentSlides.Count > 0 && _currentSlideIndex >= 0)
         {
             SlideChanged?.Invoke(this, new SlideChangedEventArgs
             {
@@ -445,6 +476,39 @@ public class PresenterEngine : IDisposable
         // later re-fires ItemChanged and restarts its audio from the top.
         ItemAudio.Stop();
 
+        Slide? firstSlide;
+        lock (_stateLock)
+        {
+            _currentSlides = slides ?? new List<Slide>();
+            _currentSlideIndex = _currentSlides.Count > 0 ? 0 : -1;
+            firstSlide = _currentSlideIndex >= 0 ? _currentSlides[0] : null;
+        }
+
+        if (firstSlide != null)
+        {
+            SlideChanged?.Invoke(this, new SlideChangedEventArgs
+            {
+                PreviousSlide = null,
+                NewSlide = firstSlide,
+                Transition = SlideTransition.Fade,
+                TransitionDurationMs = 500,
+                IsLogo = false
+            });
+        }
+    }
+
+    /// <summary>
+    /// Load slides already resolved for the CURRENT service item (e.g. the operator
+    /// center pane's GetSlidesForItem output for a library-linked Song or a live-linked
+    /// Slides item whose ServiceItem.Slides are empty) directly into the engine and
+    /// emit the first one. Unlike <see cref="LoadScriptureSlides"/> it does NOT stop
+    /// item audio: it is called right after GoToItem, which already stopped the
+    /// previous item's audio and started the new item's. This is what makes tapping a
+    /// thumbnail of a non-baked item work: without it, GoToSlide runs against an
+    /// empty slide list and is a no-op (field report 2026-10-24).
+    /// </summary>
+    public void LoadItemSlides(List<Slide> slides)
+    {
         Slide? firstSlide;
         lock (_stateLock)
         {

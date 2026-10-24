@@ -2551,8 +2551,29 @@ public partial class OperatorWindow : Window
                                 }
                                 else
                                 {
-                                    // Performance: make this item live, then fire the slide.
-                                    _serviceOrderManager?.GoToItem(capturedItemIndex);
+                                    // FIX (field report 2026-10-24, video: tapping/clicking a
+                                    // slide — mouse AND touch — never moved the red live frame
+                                    // or the AUDIENCE preview, which stayed on slide 1 / blank):
+                                    // the old code ALWAYS called GoToItem first, even when this
+                                    // section was already live. GoToItem reloads the engine's
+                                    // slides from ServiceItem.Slides, which are EMPTY for
+                                    // library-linked / setlist-added songs (only the center
+                                    // pane resolves those from the song library), so the
+                                    // following GoToSlide was a no-op (0 slides) and the later
+                                    // async backtrack LoadSong snapped back to slide 0 (INTRO,
+                                    // blank). Every tap re-ran that loop, so no tap could ever
+                                    // stick. Now: only navigate when the item is not already
+                                    // live, and if the engine still has no slides, load this
+                                    // section's already-resolved slides first so GoToSlide has
+                                    // something to go to.
+                                    if (_engine != null && capturedItemIndex != _engine.CurrentItemIndex)
+                                    {
+                                        _serviceOrderManager?.GoToItem(capturedItemIndex);
+                                    }
+                                    if (_engine != null && _engine.TotalSlides == 0 && slides.Count > 0)
+                                    {
+                                        _engine.LoadItemSlides(slides);
+                                    }
                                     _engine?.GoToSlide(idx);
                                 }
                             });
