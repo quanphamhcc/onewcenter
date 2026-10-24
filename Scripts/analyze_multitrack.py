@@ -710,12 +710,94 @@ def detect_beat_grid(classified: Dict, files: List[str], grid_mode: str = None) 
     # user's "analyze drums/bass/chords" approach), then build an EVEN grid at that tempo. For a
     # genuinely steady worship track this stays locked; the downbeat PHASE is corrected separately
     # downstream from kick/snare/chord changes.
-    print(f"    Using librosa (autocorrelation tempo) on: {Path(analysis_file).name}")
+    print(f"    Using librosa (per-stem tempo consensus), lead: {Path(analysis_file).name}")
+    import numpy as _np
     y, sr = librosa.load(analysis_file, sr=SAMPLE_RATE)
     total_duration = librosa.get_duration(y=y, sr=sr)
 
-    # Combined onset envelope: drums (analysis_file) + bass, which gives a strong, regular pulse.
-    oenv = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
+    def _tempo_of(onset_env):
+        """Autocorrelation tempo of one onset envelope (version-robust across librosa)."""
+        for fn in (
+            lambda: librosa.feature.rhythm.tempo(onset_envelope=onset_env, sr=sr,
+                        hop_length=HOP_LENGTH, start_bpm=100, aggregate=_np.median),
+            lambda: librosa.feature.tempo(onset_envelope=onset_env, sr=sr,
+                        hop_length=HOP_LENGTH, start_bpm=100, aggregate=_np.median),
+            lambda: librosa.beat.tempo(onset_envelope=onset_env, sr=sr,
+                        hop_length=HOP_LENGTH, start_bpm=100, aggregate=_np.median),
+        ):
+            try:
+                return float(_np.ravel(fn())[0])
+            except Exception:
+                continue
+        return 0.0
+
+    # ── PER-STEM TEMPO CONSENSUS ──
+    # The old method summed drums+bass into ONE onset envelope and autocorrelated the blob — so a
+    # single noisy/odd stem (e.g. a piano playing a cross-rhythm) could drag the estimate to the
+    # wrong metrical level (observed on a real song: piano said 120 while drums+guitar+bass agreed
+    # at ~90). Instead we estimate tempo for EACH stem independently, fold every estimate into a
+    # common octave, then take a WEIGHTED vote. The rhythm section (drums, bass) carries the pulse
+    # most reliably, guitar next, piano/keys/other least (they sustain and autocorrelate at odd
+    # multiples). The consensus is robust to one outlier stem and yields an agreement score.
+    def _fold(bpm_val):
+        """Fold a tempo into the worship range so estimates at different octaves can be voted
+        together. Only OBVIOUS double/half-time is folded (>185 or <50)."""
+        if bpm_val <= 0:
+            return 0.0
+        while bpm_val > 185:
+            bpm_val /= 2.0
+        while bpm_val < 50:
+            bpm_val *= 2.0
+        return bpm_val
+
+    stem_weights = [('drums', 2.0), ('bass', 2.0), ('acoustic_guitar', 1.5),
+                    ('electric_guitar', 1.5), ('piano', 1.0), ('keys', 0.5)]
+    # Always include the lead analysis file (usually drums) as a drums vote.
+    votes = []  # (bpm_folded, weight, role)
+    seen_paths = set()
+    lead_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
+    lead_bpm = _fold(_tempo_of(lead_env))
+    if lead_bpm > 0:
+        votes.append((lead_bpm, 2.0, 'lead'))
+        seen_paths.add(analysis_file)
+    for role, w in stem_weights:
+        p = classified.get(role)
+        if not p or not os.path.exists(p) or p in seen_paths:
+            continue
+        seen_paths.add(p)
+        try:
+            ys, _ = librosa.load(p, sr=sr)
+            est = _fold(_tempo_of(librosa.onset.onset_strength(y=ys, sr=sr, hop_length=HOP_LENGTH)))
+            if est > 0:
+                votes.append((est, w, role))
+                print(f"      stem tempo: {role:16s} {est:6.1f} BPM (weight {w})")
+        except Exception:
+            continue
+
+    # Weighted vote: cluster votes that are within ~3% of each other, sum their weights, pick the
+    # heaviest cluster, and use its weighted-mean BPM. Agreement = cluster weight / total weight.
+    tempo_confidence = 0.0
+    if votes:
+        best_cluster, best_wsum = None, -1.0
+        for center_bpm, _, _ in votes:
+            members = [(b, w) for (b, w, _) in votes if abs(b - center_bpm) / center_bpm <= 0.03]
+            wsum = sum(w for _, w in members)
+            if wsum > best_wsum:
+                best_wsum, best_cluster = wsum, members
+        bpm = sum(b * w for b, w in best_cluster) / sum(w for _, w in best_cluster)
+        total_w = sum(w for _, w, _ in votes)
+        tempo_confidence = best_wsum / total_w if total_w > 0 else 0.0
+        print(f"    ✓ Tempo consensus: {bpm:.2f} BPM "
+              f"(agreement {tempo_confidence:.0%} across {len(votes)} stems)")
+    else:
+        # No stems produced a tempo — fall back to the lead file's beat_track tempo.
+        t, _ = librosa.beat.beat_track(y=y, sr=sr, start_bpm=100)
+        bpm = _fold(float(_np.ravel(t)[0]))
+        print(f"    ! No stem tempo votes; fell back to beat_track {bpm:.2f} BPM")
+
+    # Build the combined drum+bass onset envelope for the beat tracker below (seeded with the
+    # consensus BPM so it locks onto the agreed metrical level).
+    oenv = lead_env
     bass_path = classified.get('bass')
     if bass_path and os.path.exists(bass_path) and bass_path != analysis_file:
         try:
@@ -725,36 +807,6 @@ def detect_beat_grid(classified: Dict, files: List[str], grid_mode: str = None) 
             oenv = oenv[:n] + ob[:n]
         except Exception:
             pass
-
-    # STEADY global tempo via autocorrelation (stable single value, worship-range prior).
-    # The tempo estimator moved across librosa versions: feature.rhythm.tempo (new),
-    # feature.tempo (mid), beat.tempo (old). Try them in order for version robustness.
-    import numpy as _np
-    def _estimate_tempo(onset_env):
-        for fn in (
-            lambda: librosa.feature.rhythm.tempo(onset_envelope=onset_env, sr=sr,
-                        hop_length=HOP_LENGTH, start_bpm=90, aggregate=_np.median),
-            lambda: librosa.feature.tempo(onset_envelope=onset_env, sr=sr,
-                        hop_length=HOP_LENGTH, start_bpm=90, aggregate=_np.median),
-            lambda: librosa.beat.tempo(onset_envelope=onset_env, sr=sr,
-                        hop_length=HOP_LENGTH, start_bpm=90, aggregate=_np.median),
-        ):
-            try:
-                return float(_np.ravel(fn())[0])
-            except Exception:
-                continue
-        # Last resort: beat_track's global tempo.
-        t, _ = librosa.beat.beat_track(y=y, sr=sr, start_bpm=90)
-        return float(_np.ravel(t)[0])
-    bpm = _estimate_tempo(oenv)
-    # Sanity: fold only OBVIOUS double/half-time. The previous ceiling of 140 was too low — it
-    # halved legitimate fast tempos (e.g. a real 143.6 BPM song became 71.8, so the click played
-    # every OTHER beat). Genuine worship/CCM tempos reach ~150-160 BPM, so only fold when the value
-    # is almost certainly a doubled (>185) or halved (<50) count.
-    while bpm > 185:
-        bpm /= 2.0
-    while bpm < 50:
-        bpm *= 2.0
 
     # TEMPO-FOLLOWING GRID (fixes drift). A single global BPM built into an EVEN grid drifts off
     # the music whenever the song's real tempo wanders even slightly: the error accumulates every
