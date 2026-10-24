@@ -843,6 +843,32 @@ public partial class SectionEditorWindow : Window
         }
     }
 
+    /// <summary>
+    /// Clear every section from the editor so the song can be re-divided from scratch (e.g. with
+    /// Auto-Detect on the corrected downbeat). In-memory only — the empty list is written to SQL /
+    /// song.json when the user clicks SAVE + CLOSE (Cancel discards the clear).
+    /// </summary>
+    private void DeleteAllSections_Click(object sender, RoutedEventArgs e)
+    {
+        if (_sections.Count == 0)
+        {
+            MessageBox.Show("There are no sections to delete.", "No Sections",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Delete all {_sections.Count} section(s)?\n\n" +
+            "This clears the section list so you can re-generate it (e.g. run Auto-Detect). " +
+            "The change is applied when you click SAVE + CLOSE; Cancel keeps the current sections.",
+            "Delete All Sections", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.OK) return;
+
+        _sections.Clear();
+        ReindexSections();
+        SectionsGrid.Items.Refresh();
+    }
+
     private void MoveUp_Click(object sender, RoutedEventArgs e)
     {
         int index = SectionsGrid.SelectedIndex;
@@ -2438,7 +2464,14 @@ public partial class SectionEditorWindow : Window
 
     // ─── GENERATE CLICK TRACK ─────────────────────────────────────────────
 
-    private void GenerateClick_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Auto Generate Click Track: detect the TRUE musical downbeat (beat 1) from the stems
+    /// (drums kick/snare + bass/guitar/piano chord changes) via the Python analyzer, correct the
+    /// grid anchor to it, re-snap the existing sections onto the corrected grid (bar numbers
+    /// preserved), then write ONE loud/compressed "Click (Auto)" track whose beat 1 lands on the
+    /// detected downbeat. Does not re-detect sections. Requires Demucs-separated stems.
+    /// </summary>
+    private async void AutoGenerateClick_Click(object sender, RoutedEventArgs e)
     {
         if (_currentGrid == null || _currentGrid.Bpm <= 0)
         {
@@ -2446,11 +2479,15 @@ public partial class SectionEditorWindow : Window
                 "No BPM", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
+        if (string.IsNullOrEmpty(_song.FolderPath) || !Directory.Exists(_song.FolderPath))
+        {
+            MessageBox.Show("No song folder set — cannot analyze stems or write the click.",
+                "No Folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
-        // Estimate duration if not set
         if (_currentGrid.TotalDurationMs <= 0)
             _currentGrid.TotalDurationMs = EstimateTotalDuration();
-
         if (_currentGrid.TotalDurationMs <= 0)
         {
             MessageBox.Show("Cannot determine song duration. Add audio files first.",
@@ -2458,103 +2495,168 @@ public partial class SectionEditorWindow : Window
             return;
         }
 
-        // Anchor the generated click to the user's manual Beat 1 when they have set one. The grid's
-        // GridAnchorMs is seeded from auto-detect and is NOT updated by the Beat 1 "Set" button
-        // (that only writes _song.ManualClickBeat1Ms), so without this the A/B/C tracks would ignore
-        // the downbeat the user placed. Rebuild the grid phase from that anchor, keeping the current
-        // BPM / time-signature / duration, so all three modes (Adaptive/Hybrid/PureGrid) line up on it.
-        double manualBeat1 = CurrentManualBeat1();
-        if (manualBeat1 >= 0 && Math.Abs(manualBeat1 - _currentGrid.GridAnchorMs) > 0.001)
+        // Resolve the analysis script + python interpreter (same discovery as Auto-Detect).
+        string appFolder = AppDomain.CurrentDomain.BaseDirectory;
+        string scriptPath = new[]
+            {
+                Path.Combine(appFolder, "Scripts", "analyze_multitrack.py"),
+                Path.Combine(appFolder, "..", "Scripts", "analyze_multitrack.py"),
+                Path.Combine(appFolder, "..", "..", "Scripts", "analyze_multitrack.py"),
+                Path.Combine(appFolder, "..", "..", "..", "Scripts", "analyze_multitrack.py"),
+            }.FirstOrDefault(File.Exists) ?? "";
+        if (!File.Exists(scriptPath))
         {
-            var (anchNum, anchDen) = GetSelectedTimeSignature();
-            var reanchored = _beatService.BuildGridFromManualAnchor(
-                manualBeat1, _currentGrid.Bpm, anchNum, anchDen, _currentGrid.TotalDurationMs);
-            reanchored.TotalDurationMs = _currentGrid.TotalDurationMs;
-            _currentGrid = reanchored;
-            _song.GridAnchorMs = reanchored.GridAnchorMs;
-        }
-
-        // Check if there's an existing click track to sync with
-        string? existingClickPath = FindTrackFile("click");
-
-        // Don't sync to a previously generated click (only sync to original recordings)
-        if (existingClickPath != null && existingClickPath.Contains("Generated_Click", StringComparison.OrdinalIgnoreCase))
-            existingClickPath = null;
-
-        // Generate all three modes (A/B/C) in one action so the operator can A/B/C them.
-        string pathA = Path.Combine(_song.FolderPath, "Generated_Click_A.wav");
-        string pathB = Path.Combine(_song.FolderPath, "Generated_Click_B.wav");
-        string pathC = Path.Combine(_song.FolderPath, "Generated_Click_C.wav");
-
-        try
-        {
-            _beatService.GenerateClickTrack(_currentGrid, pathA,
-                BeatDetectionService.ClickGenerationMode.AdaptiveSync, existingClickTrackPath: existingClickPath);
-            _beatService.GenerateClickTrack(_currentGrid, pathB,
-                BeatDetectionService.ClickGenerationMode.HybridAnchor, existingClickTrackPath: existingClickPath);
-            _beatService.GenerateClickTrack(_currentGrid, pathC,
-                BeatDetectionService.ClickGenerationMode.PureGrid);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to generate click tracks:\n\n{ex.Message}",
-                "Generate Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("Analysis script not found (Scripts/analyze_multitrack.py).",
+                "Script Not Found", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        // Idempotent surfacing: remove the previously-inserted A/B/C generated-click entries,
-        // then re-insert A/B/C exactly once each at the top (stable order), so pressing Generate
-        // twice overwrites the WAVs without duplicating or stacking track entries. Match the three
-        // A/B/C file names EXACTLY so the manual click entry (Generated_Click_Manual.wav), which
-        // also starts with "Generated_Click", is never silently dropped by this handler.
-        var abcFileNames = new[]
-        {
-            "Generated_Click_A.wav",
-            "Generated_Click_B.wav",
-            "Generated_Click_C.wav"
-        };
-        var existing = _song.Tracks
-            .Where(t => abcFileNames.Contains(t.FileName, StringComparer.OrdinalIgnoreCase))
-            .ToList();
-        foreach (var t in existing)
-            _song.Tracks.Remove(t);
+        var btn = sender as System.Windows.Controls.Button;
+        if (btn != null) btn.IsEnabled = false;
+        ProgressPanel.Visibility = Visibility.Visible;
+        AnalysisProgressBar.IsIndeterminate = false;
+        AnalysisProgressBar.Value = 0;
+        ProgressStepText.Text = "Detecting the musical downbeat…";
+        ProgressPercentText.Text = "";
 
-        _song.Tracks.Insert(0, new TrackInfo
+        try
         {
-            FileName = "Generated_Click_C.wav",
-            Label = "Click C (Grid)",
-            Output = TrackOutput.IEM,
-            DefaultVolume = 0.8f,
-            Color = "#4A90D9"
-        });
-        _song.Tracks.Insert(0, new TrackInfo
-        {
-            FileName = "Generated_Click_B.wav",
-            Label = "Click B (Hybrid)",
-            Output = TrackOutput.IEM,
-            DefaultVolume = 0.8f,
-            Color = "#F5A623"
-        });
-        _song.Tracks.Insert(0, new TrackInfo
-        {
-            FileName = "Generated_Click_A.wav",
-            Label = "Click A (Adaptive Sync)",
-            Output = TrackOutput.IEM,
-            DefaultVolume = 0.8f,
-            Color = "#FF6B6B"
-        });
+            string configuredPathSnapshot = _configuredPythonPath;
+            var (chosenPath, tried) = await Task.Run(() =>
+            {
+                var candidateOrder = PythonAnalysisService.BuildCandidateOrder();
+                return PythonAnalysisService.ResolvePythonExecutable(
+                    configuredPathSnapshot, candidateOrder, PythonAnalysisService.ProbeCandidate);
+            });
+            if (string.IsNullOrEmpty(chosenPath))
+            {
+                ShowPythonNotFoundDialog(tried, !string.IsNullOrWhiteSpace(_configuredPythonPath));
+                return;
+            }
 
-        string syncMsg = existingClickPath != null
-            ? $"Existing click found for sync (A) / anchor (B):\n{Path.GetFileName(existingClickPath)}"
-            : "No existing click found — A and B fall back to the math grid.";
+            var service = new WorshipPlayer.Core.Services.PythonAnalysisService(chosenPath, scriptPath);
+            Action<int, string> onProgress = (pct, step) => Dispatcher.Invoke(() =>
+            {
+                AnalysisProgressBar.Value = pct;
+                ProgressPercentText.Text = $"{pct}%";
+                if (!string.IsNullOrWhiteSpace(step)) ProgressStepText.Text = step;
+            });
 
-        MessageBox.Show(
-            $"Generated 3 click tracks at {_currentGrid.Bpm:F1} BPM:\n\n" +
-            $"• Generated_Click_A.wav — Mode A (Adaptive Sync)\n" +
-            $"• Generated_Click_B.wav — Mode B (Hybrid anchor)\n" +
-            $"• Generated_Click_C.wav — Mode C (Pure grid)\n\n" +
-            $"{syncMsg}",
-            "Click Tracks Generated", MessageBoxButton.OK, MessageBoxImage.Information);
+            var (result, message) = await service.DetectDownbeatAsync(_song.FolderPath, onProgress);
+            if (result == null)
+            {
+                MessageBox.Show(
+                    $"Could not detect the downbeat from the stems:\n\n{message}\n\n" +
+                    "This feature needs Demucs-separated stems (drums, bass, and a harmonic stem).",
+                    "Downbeat Detection Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var db = result.Value;
+
+            // ── ANALYZE-FIRST: show the tempo analysis and let the operator choose how the click
+            // grid is built (Auto / Even / Tempo-following). If they pick a mode other than what
+            // the analyzer applied, re-detect with that forced mode (fast — stems already exist).
+            string? chosenMode = GridModeDialog.Show(this, _song.Title, db.GridFit, db.Bpm);
+            if (chosenMode == null) return; // cancelled
+            if (chosenMode != "auto" && !string.Equals(db.GridFit.Applied, chosenMode,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                var (result2, _) = await service.DetectDownbeatAsync(_song.FolderPath, onProgress, chosenMode);
+                if (result2 != null) db = result2.Value;
+            }
+
+            // Confirm with the operator before shifting the grid (it moves every section in time).
+            string gridNote = db.GridFit.Applied == "even"
+                ? "Click grid: EVEN (mathematically steady)."
+                : "Click grid: tempo-following (tracks the band).";
+            string snareNote = db.SnareBackbeatOk
+                ? "Snare sits on the backbeat (consistent)."
+                : "Snare phase was inconclusive.";
+            string shiftNote = db.Phase == 0
+                ? "The current downbeat already matches the music — no shift needed."
+                : $"The true downbeat is +{db.Phase} beat(s) (+{db.ShiftMs:F0} ms) from the current grid.";
+            var confirm = MessageBox.Show(
+                $"Detected musical downbeat ({db.Method}):\n\n" +
+                $"{gridNote}\n{shiftNote}\n" +
+                $"Confidence: {db.Confidence:P0}.  {snareNote}\n\n" +
+                $"Beat 1 will be set to {MsToTimecode(db.CorrectedAnchorMs)} " +
+                $"({db.CorrectedAnchorMs:F0} ms).\n\n" +
+                "Apply this downbeat, re-snap the existing sections to it, and generate a loud " +
+                "'Click (Auto)' track?",
+                "Confirm Auto Downbeat", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.OK)
+                return;
+
+            var (num, den) = GetSelectedTimeSignature();
+            double correctedAnchorMs = db.CorrectedAnchorMs;
+            int countInBeats = CurrentCountInBeats();
+
+            // Adopt the chosen grid's FINAL corrected beat positions so the click renders from the
+            // selected even/tempo-following grid (ApplyAutoClickToSong uses song.BeatPositionsMs).
+            if (db.CorrectedBeatsMs != null && db.CorrectedBeatsMs.Count >= 4)
+                _song.BeatPositionsMs = db.CorrectedBeatsMs;
+            _song.Bpm = db.Bpm;
+            _song.BeatIntervalMs = db.BeatIntervalMs;
+            _song.BarDurationMs = db.BarDurationMs;
+
+            // ── SHARED helper: apply the corrected downbeat + generate the loud "Click (Auto)"
+            // track + write the grid back onto the song + insert the track. Identical to the
+            // "Create Multi-Track" path (single source of truth). ──
+            try
+            {
+                _beatService.ApplyAutoClickToSong(_song, correctedAnchorMs,
+                    _currentGrid.TotalDurationMs, countInBeats, 44100);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to write the click track:\n\n{ex.Message}",
+                    "Generate Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Mirror the corrected grid into the editor's working grid for subsequent operations.
+            double keepDuration = _currentGrid.TotalDurationMs;
+            _currentGrid = _beatService.BuildGridFromManualAnchor(
+                correctedAnchorMs, _song.Bpm, num, den, keepDuration);
+            _currentGrid.TotalDurationMs = keepDuration;
+
+            // ── Re-snap existing sections: KEEP bar numbers, recompute times on the corrected grid. ──
+            foreach (var vm in _sections)
+            {
+                vm.LoopInMs = Math.Round(_song.GetBarStartMs(vm.StartBar), 3);
+                // End = start of the bar AFTER EndBar (exclusive boundary), matching the generator.
+                vm.LoopOutMs = Math.Round(_song.GetBarStartMs(vm.EndBar + 1), 3);
+                if (vm.LoopOutMs <= vm.LoopInMs)
+                    vm.LoopOutMs = Math.Round(vm.LoopInMs + _song.BarDurationMs, 3);
+            }
+            SectionsGrid.Items.Refresh();
+            ApplySectionsToSong();
+
+            // Update the Downbeat / Beat 1 UI boxes to reflect the corrected anchor.
+            if (DownbeatTimecodeBox != null) DownbeatTimecodeBox.Text = MsToTimecode(correctedAnchorMs);
+            if (DownbeatDisplayText != null)
+                DownbeatDisplayText.Text = $"Beat 1 @ {MsToTimecode(correctedAnchorMs)} ({correctedAnchorMs:F1} ms)";
+            if (ManualBeat1Box != null) ManualBeat1Box.Text = MsToTimecode(correctedAnchorMs);
+            if (ManualBeat1Display != null)
+                ManualBeat1Display.Text = $"Beat 1 @ {MsToTimecode(correctedAnchorMs)} ({correctedAnchorMs:F1} ms)";
+
+            MessageBox.Show(
+                $"Auto click generated at the detected downbeat:\n\n" +
+                $"• Beat 1: {MsToTimecode(correctedAnchorMs)} ({correctedAnchorMs:F0} ms)\n" +
+                $"• Shift from old grid: +{db.Phase} beat(s) (+{db.ShiftMs:F0} ms)\n" +
+                $"• BPM {_currentGrid.Bpm:F2}, {num}/{den}, count-in {countInBeats} beat(s)\n" +
+                $"• Sections re-snapped to the corrected grid (bar numbers kept)\n\n" +
+                "Added as a loud 'Click (Auto)' track (IEM). Click SAVE + CLOSE to keep the " +
+                "corrected downbeat and sections.",
+                "Auto Click Generated", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        finally
+        {
+            ProgressPanel.Visibility = Visibility.Collapsed;
+            AnalysisProgressBar.IsIndeterminate = false;
+            if (btn != null) btn.IsEnabled = true;
+        }
     }
 
     // ─── SAVE / APPLY / CANCEL ────────────────────────────────────────────

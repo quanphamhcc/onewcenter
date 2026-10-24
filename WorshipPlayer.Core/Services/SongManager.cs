@@ -505,6 +505,10 @@ CREATE TABLE IF NOT EXISTS Setlists (
         {
             await DeleteSongRowAsync(song.FolderPath);
 
+            // Also purge the song's play-history rows so "delete the song" removes ALL of its
+            // data from the database, not just the Songs record.
+            await DeleteSongUsageAsync(song.FolderPath, song.Title);
+
             // Keep the backup registry file in sync too (best-effort).
             await UnregisterSongPathAsync(song.FolderPath);
 
@@ -513,6 +517,47 @@ CREATE TABLE IF NOT EXISTS Setlists (
                 try { Directory.Delete(song.FolderPath, true); }
                 catch { /* best-effort; the DB/list/registry removal already succeeded */ }
             }
+        }
+    }
+
+    /// <summary>
+    /// Delete a song's play-history rows from the <c>SongUsage</c> table. Matches on either the
+    /// normalized folder path or the song title so legacy rows (which may have been logged under a
+    /// different folder path or before a rename) are also removed. Best-effort: swallows DB errors
+    /// so a locked/absent DB never crashes the UI delete action.
+    /// </summary>
+    private async Task DeleteSongUsageAsync(string folderPath, string? title)
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+
+            // The SongUsage table is created lazily by SongUsageService; it may not exist yet.
+            using var connection = _database.CreateConnection();
+            await connection.OpenAsync();
+
+            using (var exists = connection.CreateCommand())
+            {
+                exists.CommandText =
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='SongUsage'";
+                if (await exists.ExecuteScalarAsync() is null) return;
+            }
+
+            // SongUsage.SongId stores the song's FolderPath (see SongUsageMapper.FromSong), which
+            // may be stored raw (unnormalized). Match on the raw path, the normalized path, and the
+            // title so every play-history row for this song is removed.
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText =
+                "DELETE FROM SongUsage WHERE SongId = @RawPath OR SongId = @NormPath " +
+                "OR (@Title <> '' AND SongTitle = @Title)";
+            cmd.Parameters.AddWithValue("@RawPath", folderPath);
+            cmd.Parameters.AddWithValue("@NormPath", SongPathResolver.Normalize(folderPath));
+            cmd.Parameters.AddWithValue("@Title", (object?)title ?? string.Empty);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to delete song usage rows: {ex.Message}");
         }
     }
 

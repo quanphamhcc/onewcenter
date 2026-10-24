@@ -23,7 +23,13 @@ public partial class MainWindow : Window
     private PresenterSettingsService _presenterSettingsService = null!;
 
     private Song? _currentSong;
+    private bool _suppressSetlistSelection = false;
     private int _currentSectionIndex = -1;
+    // Monotonic token for LoadSong. LoadSong is async (it decodes audio on a background thread), so
+    // two loads started close together can finish out of order and the LATER-finishing one would
+    // win — activating the WRONG song's mixer (a cause of "played a different song"). Each call
+    // captures a token; after the await, only the newest token is allowed to activate its mixer.
+    private int _loadGeneration = 0;
     private bool _loopEnabled = false;
     private bool _loopInfinite = false;
     private double _tempoPercent = 100.0;
@@ -517,23 +523,35 @@ public partial class MainWindow : Window
     /// </summary>
     private async void DeleteSong_Click(object sender, RoutedEventArgs e)
     {
-        int index = SetlistBox.SelectedIndex;
-        if (index < 0 || index >= _songManager.Songs.Count)
+        // Resolve the selected song by IDENTITY (item Tag), not positional index.
+        if (SetlistBox.SelectedItem is not ListBoxItem selItem || selItem.Tag is not Song song)
         {
             StatusText.Text = "Select a song in the setlist first, then click Delete Song.";
             return;
         }
+        int index = _songManager.Songs.FindIndex(s => ReferenceEquals(s, song));
+        if (index < 0) index = 0;
 
-        var song = _songManager.Songs[index];
-
+        // First confirmation.
         var confirm = MessageBox.Show(
-            $"Remove \"{song.Title}\" from the setlist?\n\n" +
-            "This only removes it from the list. The audio files and song.json on disk are kept.",
-            "Remove Song",
+            $"Delete \"{song.Title}\"?\n\n" +
+            "This removes the song and ALL its data from the database (song record and play " +
+            "history). The audio files and song.json on disk are kept.",
+            "Delete Song",
             MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
+            MessageBoxImage.Warning);
 
         if (confirm != MessageBoxResult.Yes) return;
+
+        // Second confirmation — deleting SQL data is not undoable from the UI.
+        var confirm2 = MessageBox.Show(
+            $"Are you sure?\n\nAll database records for \"{song.Title}\" will be permanently " +
+            "deleted. This cannot be undone.",
+            "Confirm Delete",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirm2 != MessageBoxResult.Yes) return;
 
         try
         {
@@ -556,7 +574,7 @@ public partial class MainWindow : Window
                 SongInfoText.Text = "";
                 SectionButtonsPanel.Children.Clear();
                 SectionsPanel.Children.Clear();
-                StatusText.Text = $"Removed: {song.Title}. Setlist is empty.";
+                StatusText.Text = $"Deleted: {song.Title}. Setlist is empty.";
                 return;
             }
 
@@ -568,7 +586,7 @@ public partial class MainWindow : Window
                 LoadSong(_songManager.Songs[nextIndex]);
             }
 
-            StatusText.Text = $"Removed from setlist: {song.Title}";
+            StatusText.Text = $"Deleted from database: {song.Title}";
         }
         catch (Exception ex)
         {
@@ -603,6 +621,281 @@ public partial class MainWindow : Window
             SongInfoText.Text = $"{_currentSong.Bpm:F1} BPM | {_currentSong.OriginalKey} | {_currentSong.Tracks.Count} tracks | {_currentSong.Sections.Count} sections";
             RefreshSongList();
         }
+    }
+
+    /// <summary>
+    /// Create Multi-Track: separate the selected single-track song into stems (Demucs via the
+    /// Python analyzer), then AUTOMATICALLY generate a loud "Click (Auto)" track on the
+    /// music-detected downbeat (kick/bass/chord phase). After it finishes, the song is reloaded so
+    /// the new stems + click appear in the mixer. Does not touch section divisions or lyrics.
+    /// </summary>
+    private async void CreateMultiTrack_Click(object sender, RoutedEventArgs e)
+    {
+        // 1) Let the operator browse to the SINGLE mixed audio file to separate. The file's
+        //    folder becomes the song folder; Demucs writes stems into a <folder>/<name>/ subfolder.
+        var picker = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Select the single audio file to separate into stems",
+            Filter = "Audio files (*.mp3;*.wav;*.flac;*.ogg;*.m4a)|*.mp3;*.wav;*.flac;*.ogg;*.m4a|All files (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (picker.ShowDialog(this) != true)
+            return; // cancelled
+
+        string audioPath = picker.FileName;
+        string songFolder = Path.GetDirectoryName(audioPath) ?? "";
+        string songTitle = Path.GetFileNameWithoutExtension(audioPath);
+        if (string.IsNullOrEmpty(songFolder) || !Directory.Exists(songFolder))
+        {
+            MessageBox.Show("Could not resolve the folder for the selected file.", "No Folder",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Separate \"{Path.GetFileName(audioPath)}\" into stems (vocals, drums, bass, guitar, " +
+            "piano, other) using AI source separation, then auto-generate a loud click on the " +
+            "detected downbeat?\n\nThis can take 1-10 minutes (much faster on a GPU).",
+            "Create Multi-Track", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.OK) return;
+
+        // Resolve the analysis script + python interpreter.
+        string appFolder = AppDomain.CurrentDomain.BaseDirectory;
+        string scriptPath = new[]
+            {
+                Path.Combine(appFolder, "Scripts", "analyze_multitrack.py"),
+                Path.Combine(appFolder, "..", "Scripts", "analyze_multitrack.py"),
+                Path.Combine(appFolder, "..", "..", "Scripts", "analyze_multitrack.py"),
+                Path.Combine(appFolder, "..", "..", "..", "Scripts", "analyze_multitrack.py"),
+            }.FirstOrDefault(File.Exists) ?? "";
+        if (!File.Exists(scriptPath))
+        {
+            MessageBox.Show("Analysis script not found (Scripts/analyze_multitrack.py).",
+                "Script Not Found", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Find or create the Song for this folder. If it isn't already in the setlist, create a
+        // fresh one so Create Multi-Track also works as an import path (no pre-selection needed).
+        Song song = _songManager.Songs.FirstOrDefault(s =>
+                        SongPathResolver.PathsEqual(s.FolderPath, songFolder))
+                    ?? new Song { Title = songTitle, FolderPath = songFolder };
+
+        var btn = sender as Button;
+        if (btn != null) btn.IsEnabled = false;
+        ShowTaskProgress("Create Multi-Track", "Resolving Python interpreter…");
+        UpdateTaskProgress(-1, ""); // indeterminate until the script reports progress
+
+        try
+        {
+            StatusText.Text = "Resolving Python interpreter…";
+            string configuredPath = _settings.PythonExecutablePath ?? "";
+            var (chosenPath, _) = await Task.Run(() =>
+            {
+                var candidateOrder = PythonAnalysisService.BuildCandidateOrder();
+                return PythonAnalysisService.ResolvePythonExecutable(
+                    configuredPath, candidateOrder, PythonAnalysisService.ProbeCandidate);
+            });
+            if (string.IsNullOrEmpty(chosenPath))
+            {
+                MessageBox.Show(
+                    "A working Python interpreter with librosa/demucs was not found.\n\n" +
+                    "Set it in Edit Sections → 'Set Python…', then try again.",
+                    "Python Not Found", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var service = new PythonAnalysisService(chosenPath, scriptPath);
+            Action<int, string> onProgress = (pct, step) => Dispatcher.Invoke(() =>
+            {
+                UpdateTaskProgress(pct, step);
+                StatusText.Text = string.IsNullOrWhiteSpace(step)
+                    ? $"Create Multi-Track… {pct}%"
+                    : $"Create Multi-Track… {pct}% — {step}";
+            });
+
+            // ── STEP 1: Demucs separation (runs the full analyzer on the single-track song). ──
+            StatusText.Text = "Separating stems with Demucs (this can take a few minutes)…";
+            UpdateTaskProgress(-1, "Separating stems with Demucs (this can take a few minutes)…");
+            // skipDownbeatDetect: the dialog/DetectDownbeat step below is the SINGLE authoritative
+            // downbeat+grid detection whose result drives the click, so don't correct the downbeat
+            // here too (that was a redundant second detection that could disagree with the dialog).
+            var (analyzed, analyzeMsg) = await service.AnalyzeSongAsync(
+                songFolder, llmMode: "none", onProgress: onProgress, quality: "default",
+                skipDownbeatDetect: true);
+            if (analyzed == null)
+            {
+                MessageBox.Show($"Stem separation failed:\n\n{analyzeMsg}",
+                    "Separation Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Demucs now writes the stems DIRECTLY into the original file's folder (alongside the
+            // mix), and the analyzer saves song.json there too. So the song folder stays the
+            // ORIGINAL folder — no subfolder repointing.
+            string stemFolder = !string.IsNullOrEmpty(analyzed.FolderPath) && Directory.Exists(analyzed.FolderPath)
+                ? analyzed.FolderPath
+                : songFolder;
+
+            song.Title = string.IsNullOrWhiteSpace(song.Title) ? songTitle : song.Title;
+            song.FolderPath = stemFolder;
+            song.Bpm = analyzed.Bpm;
+            song.BeatIntervalMs = analyzed.BeatIntervalMs;
+            song.BarDurationMs = analyzed.BarDurationMs;
+            song.GridAnchorMs = analyzed.GridAnchorMs;
+            song.OriginalKey = analyzed.OriginalKey;
+            song.BeatPositionsMs = analyzed.BeatPositionsMs;
+            if (analyzed.Tracks.Count > 0)
+            {
+                song.Tracks.Clear();
+                foreach (var t in analyzed.Tracks) song.Tracks.Add(t);
+            }
+
+            // Leave the song SECTION-LESS on purpose. Section division is driven by the user's
+            // provided lyrics (which already carry the exact section list/order) via Auto-Detect in
+            // the Section Editor — an audio-only guess here would just be overwritten. Create
+            // Multi-Track only prepares the audio: stems, corrected grid, and the click.
+            song.Sections.Clear();
+            song.ChordChart = null;
+
+            // ── ANALYZE-FIRST: now the stems exist, run the fast downbeat/grid detection to get the
+            // tempo analysis, show it, and let the operator choose the grid mode (Auto/Even/
+            // Following). This reuses the SAME detection + dialog as the Section Editor button, so
+            // both paths behave identically. If the operator picks a non-auto mode, we re-detect
+            // with it (fast — stems already separated). The chosen grid's anchor/beats drive the
+            // click below.
+            double chosenAnchorMs = song.GridAnchorMs;
+            double chosenTotalMs = analyzed.BeatPositionsMs != null && analyzed.BeatPositionsMs.Count > 0
+                ? analyzed.BeatPositionsMs[^1] + song.BeatIntervalMs
+                : EstimateSongDurationMs(stemFolder);
+            try
+            {
+                UpdateTaskProgress(85, "Analyzing tempo (constant vs variable)…");
+                var (det, _) = await service.DetectDownbeatAsync(stemFolder, onProgress);
+                if (det != null)
+                {
+                    var dbr = det.Value;
+                    string? mode = GridModeDialog.Show(this, song.Title, dbr.GridFit, dbr.Bpm);
+                    if (mode == null) { HideTaskProgress(); StatusText.Text = "Create Multi-Track cancelled."; return; }
+                    if (mode != "auto" && !string.Equals(dbr.GridFit.Applied, mode, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var (det2, _) = await service.DetectDownbeatAsync(stemFolder, onProgress, mode);
+                        if (det2 != null) dbr = det2.Value;
+                    }
+                    // Adopt the chosen grid, including its FINAL corrected beat positions so the
+                    // click renders from exactly this grid (even or tempo-following as chosen).
+                    chosenAnchorMs = dbr.CorrectedAnchorMs;
+                    song.Bpm = dbr.Bpm;
+                    song.BeatIntervalMs = dbr.BeatIntervalMs;
+                    song.BarDurationMs = dbr.BarDurationMs;
+                    song.GridAnchorMs = dbr.CorrectedAnchorMs;
+                    if (dbr.CorrectedBeatsMs != null && dbr.CorrectedBeatsMs.Count >= 4)
+                        song.BeatPositionsMs = dbr.CorrectedBeatsMs;
+                    if (dbr.TotalDurationMs > 0) chosenTotalMs = dbr.TotalDurationMs;
+                }
+            }
+            catch { /* non-fatal: fall back to the grid the full analysis already produced */ }
+
+            // ── STEP 2: Generate the loud click on the chosen downbeat/grid. ──
+            // Use the SHARED helper so this is identical to the Section Editor's "Auto Generate
+            // Click Track" (single source of truth).
+            UpdateTaskProgress(90, "Generating the click track on the detected downbeat…");
+            string clickNote;
+            try
+            {
+                double correctedAnchorMs = chosenAnchorMs;
+                double totalMs = chosenTotalMs;
+                var beatSvc = new WorshipPlayer.Audio.DSP.BeatDetectionService();
+                beatSvc.ApplyAutoClickToSong(song, correctedAnchorMs, totalMs,
+                    song.ManualClickCountInBeats, 44100);
+                clickNote = $"Loud 'Click (Auto)' generated on the corrected downbeat " +
+                            $"(beat 1 @ {correctedAnchorMs:F0} ms).";
+            }
+            catch (Exception clickEx)
+            {
+                clickNote = $"Stems created, but the click could not be generated ({clickEx.Message}). " +
+                            "You can add one in Edit Sections → Auto Generate Click Track.";
+            }
+
+            // Persist, register, and ensure the song is in the setlist, then load it so the mixer
+            // shows the new stems + click.
+            UpdateTaskProgress(100, "Saving and loading the multitrack song…");
+            await _songManager.SaveSongAsync(song);
+            await _songManager.RegisterSongPathAsync(song.FolderPath);
+            if (!_songManager.Songs.Any(s => SongPathResolver.PathsEqual(s.FolderPath, song.FolderPath)))
+                _songManager.Songs.Add(song);
+            _currentSong = song;
+            RefreshSongList();
+            LoadSong(song);
+            HideTaskProgress();
+
+            StatusText.Text = $"Multi-track created: {song.Tracks.Count} tracks. {clickNote}";
+            MessageBox.Show(
+                $"Created {song.Tracks.Count} tracks for \"{song.Title}\".\n\n" +
+                $"{clickNote}\n\n" +
+                "Next: open Edit Sections and run Auto-Detect with your lyrics to divide the song " +
+                "into sections. The sections will land on the corrected downbeat so each loops cleanly.",
+                "Create Multi-Track", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Create Multi-Track failed:\n\n{ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusText.Text = $"Create Multi-Track error: {ex.Message}";
+        }
+        finally
+        {
+            HideTaskProgress();
+            if (btn != null) btn.IsEnabled = true;
+        }
+    }
+
+    // ─── Long-task progress overlay helpers ───────────────────────────────
+    private void ShowTaskProgress(string title, string step = "")
+    {
+        TaskProgressTitle.Text = title;
+        TaskProgressStep.Text = step;
+        TaskProgressBar.IsIndeterminate = false;
+        TaskProgressBar.Value = 0;
+        TaskProgressPercent.Text = "";
+        TaskProgressOverlay.Visibility = Visibility.Visible;
+    }
+
+    private void UpdateTaskProgress(int percent, string step)
+    {
+        if (percent < 0)
+        {
+            TaskProgressBar.IsIndeterminate = true;
+            TaskProgressPercent.Text = "";
+        }
+        else
+        {
+            TaskProgressBar.IsIndeterminate = false;
+            TaskProgressBar.Value = Math.Clamp(percent, 0, 100);
+            TaskProgressPercent.Text = $"{Math.Clamp(percent, 0, 100)}%";
+        }
+        if (!string.IsNullOrWhiteSpace(step)) TaskProgressStep.Text = step;
+    }
+
+    private void HideTaskProgress()
+    {
+        TaskProgressOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>Best-effort duration (ms) of the first audio file in a folder, for grid building.</summary>
+    private static double EstimateSongDurationMs(string folder)
+    {
+        try
+        {
+            var audioExts = new[] { ".mp3", ".wav", ".flac", ".ogg", ".m4a" };
+            var file = Directory.GetFiles(folder)
+                .FirstOrDefault(f => audioExts.Contains(Path.GetExtension(f).ToLower()));
+            if (file == null) return 0;
+            using var reader = new NAudio.Wave.AudioFileReader(file);
+            return reader.TotalTime.TotalMilliseconds;
+        }
+        catch { return 0; }
     }
 
     private async void EditSections_Click(object sender, RoutedEventArgs e)
@@ -699,10 +992,19 @@ public partial class MainWindow : Window
 
     private void PresenterIntegration_SongLoadRequested(object? sender, string songFolder)
     {
-        // Find the song by folder path and load it
+        if (string.IsNullOrWhiteSpace(songFolder)) return;
+
+        // Resolve by IDENTITY, most specific first, so we never load the wrong song:
+        //   1. exact full-path equality (normalized),
+        //   2. exact folder-NAME equality (handles a request that passes just the leaf folder).
+        // The old code used FolderPath.EndsWith(songFolder), which could match a DIFFERENT song
+        // whose path merely ended with the requested string (e.g. a short/partial name) — that was
+        // a cause of "played a different song".
         var song = _songManager.Songs.FirstOrDefault(s =>
-            s.FolderPath.EndsWith(songFolder) ||
-            Path.GetFileName(s.FolderPath) == songFolder);
+                       SongPathResolver.PathsEqual(s.FolderPath, songFolder))
+                   ?? _songManager.Songs.FirstOrDefault(s =>
+                       string.Equals(Path.GetFileName(s.FolderPath), Path.GetFileName(songFolder),
+                           StringComparison.OrdinalIgnoreCase));
 
         if (song != null)
         {
@@ -756,14 +1058,25 @@ public partial class MainWindow : Window
 
     private void SetlistBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (SetlistBox.SelectedIndex >= 0 && SetlistBox.SelectedIndex < _songManager.Songs.Count)
+        // Ignore selection events raised while RefreshSongList is rebuilding the list (clearing
+        // items transiently fires SelectionChanged with a stale index).
+        if (_suppressSetlistSelection) return;
+
+        // Resolve the song by IDENTITY (the item's Tag), not by positional index. Positional
+        // indexing broke when the in-memory Songs order and the rendered rows diverged, which
+        // could load/play the wrong song.
+        if (SetlistBox.SelectedItem is ListBoxItem item && item.Tag is Song song)
         {
-            LoadSong(_songManager.Songs[SetlistBox.SelectedIndex]);
+            LoadSong(song);
         }
     }
 
     private async void LoadSong(Song song)
     {
+        // Claim the newest load token. Any load already in flight becomes stale and must not
+        // activate its mixer when it finishes.
+        int myGeneration = ++_loadGeneration;
+
         _currentSong = song;
         _currentSectionIndex = 0;
         _pitchSemitones = 0;
@@ -799,12 +1112,37 @@ public partial class MainWindow : Window
             // Phase 1: Decode audio files on background thread (heavy, no WASAPI)
             var mixer = await Task.Run(() => _audioEngine.PreloadSong(song));
 
+            // If a newer LoadSong started while we were decoding, this result is stale — discard it
+            // so we never activate the wrong song's mixer over the one the user actually chose.
+            if (myGeneration != _loadGeneration)
+            {
+                mixer.Dispose();
+                return;
+            }
+
             // Phase 2: Initialize WASAPI on UI thread (light, instant)
             _audioEngine.ActivateSong(mixer);
 
             _audioEngine.SetLoopEnabled(_loopEnabled);
             _audioEngine.SetLoopInfinite(_loopInfinite);
-            StatusText.Text = $"Loaded: {song.Title} ({song.Tracks.Count} tracks in memory) | [SPACE]=Play [L]=Loop [Arrows]=Sections [1-9]=Jump";
+
+            // If NO track files resolved, the mixer is silent. Surface this loudly instead of
+            // leaving the operator to press Play and hear nothing (or confuse it with a prior song).
+            if (mixer.TrackCount == 0)
+            {
+                StatusText.Text = $"⚠ Loaded '{song.Title}' but 0 of {song.Tracks.Count} track files were " +
+                    $"found on disk at: {song.FolderPath} — nothing will play. Check the song folder/tracks.";
+                MessageBox.Show(
+                    $"\"{song.Title}\" has no playable audio: none of its {song.Tracks.Count} track file(s) " +
+                    $"were found on disk.\n\nFolder: {song.FolderPath}\n\n" +
+                    "The song's info shows, but pressing Play will produce no sound. Re-add the song or " +
+                    "run Create Multi-Track / Auto-Detect so the audio files resolve.",
+                    "No Playable Audio", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                StatusText.Text = $"Loaded: {song.Title} ({mixer.TrackCount}/{song.Tracks.Count} tracks in memory) | [SPACE]=Play [L]=Loop [Arrows]=Sections [1-9]=Jump";
+            }
         }
         catch (Exception ex)
         {
@@ -820,16 +1158,40 @@ public partial class MainWindow : Window
 
     private void RefreshSongList()
     {
-        SetlistBox.Items.Clear();
-        foreach (var song in _songManager.Songs)
+        // Suppress selection events while rebuilding; clearing items fires spurious
+        // SelectionChanged with a stale index that must not trigger a load.
+        _suppressSetlistSelection = true;
+        try
         {
-            SetlistBox.Items.Add(new ListBoxItem
+            SetlistBox.Items.Clear();
+            foreach (var song in _songManager.Songs)
             {
-                Content = $"{song.Title}",
-                Foreground = new SolidColorBrush(Colors.White),
-                FontSize = 14,
-                Padding = new Thickness(8, 6, 8, 6)
-            });
+                SetlistBox.Items.Add(new ListBoxItem
+                {
+                    Content = $"{song.Title}",
+                    Tag = song, // identity — selection resolves the song from this, not the index
+                    Foreground = new SolidColorBrush(Colors.White),
+                    FontSize = 14,
+                    Padding = new Thickness(8, 6, 8, 6)
+                });
+            }
+
+            // Re-select the current song by identity so the highlight matches what's loaded.
+            if (_currentSong != null)
+            {
+                foreach (ListBoxItem it in SetlistBox.Items)
+                {
+                    if (it.Tag is Song s && SongPathResolver.PathsEqual(s.FolderPath, _currentSong.FolderPath))
+                    {
+                        SetlistBox.SelectedItem = it;
+                        break;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _suppressSetlistSelection = false;
         }
     }
 

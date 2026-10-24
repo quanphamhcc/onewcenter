@@ -278,10 +278,10 @@
                                         Style="{StaticResource TransportButton}"
                                         Click="SnapToBar_Click" Margin="0,0,4,4"
                                         ToolTip="Snap all loop points to nearest bar downbeat" />
-                                <Button Content="Generate Click"
+                                <Button x:Name="AutoGenClickBtn" Content="Auto Generate Click Track"
                                         Style="{StaticResource TransportButton}"
-                                        Click="GenerateClick_Click" Margin="0,0,4,4"
-                                        ToolTip="Generate 3 click tracks (A: Adaptive Sync, B: Hybrid, C: Grid) from detected BPM" />
+                                        Click="AutoGenerateClick_Click" Margin="0,0,4,4"
+                                        ToolTip="Detect the TRUE musical downbeat from the drums/bass/chords, correct the grid, re-snap sections, and generate one loud 'Click (Auto)' track" />
                             </WrapPanel>
 
                             <Separator Background="#4A4A60" Margin="0,0,0,8" />
@@ -400,6 +400,9 @@
                                 Click="AddSection_Click" Margin="3,0" />
                         <Button Content="Remove" Style="{StaticResource TransportButton}"
                                 Click="RemoveSection_Click" Margin="3,0" />
+                        <Button Content="Delete All Sections" Style="{StaticResource TransportButton}"
+                                Click="DeleteAllSections_Click" Margin="3,0"
+                                ToolTip="Clear every section so you can re-generate them with Auto-Detect (applied on SAVE)" />
                         <Button Content="▲ Up" Style="{StaticResource TransportButton}"
                                 Click="MoveUp_Click" Margin="3,0" />
                         <Button Content="▼ Down" Style="{StaticResource TransportButton}"
