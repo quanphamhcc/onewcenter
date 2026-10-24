@@ -1483,6 +1483,18 @@ public partial class OperatorWindow : Window
         _suppressServiceOrderSelection = true;
         try
         {
+            // Preserve the operator's place across the rebuild. Clearing + refilling the
+            // backing collection resets the ListBox selection to null, and this refresh runs
+            // after EVERY navigation (the deferred rebuild in OnItemChanged) — so the row the
+            // operator just tapped lost its highlight immediately, and SelectedItem was null
+            // by the time Remove / Edit / Settings ran, making those actions silently no-op
+            // (field report 2026-10-24, both videos). Capture the selected row's identity
+            // (service-item Id, or group Id for a header row) and re-select the matching row
+            // after the rebuild, still under the suppression flag so it cannot re-fire
+            // GoToItem.
+            var selectedItemId = (ServiceOrderList.SelectedItem as ServiceItemDisplay)?.Item?.Id;
+            var selectedGroupId = (ServiceOrderList.SelectedItem as ServiceItemDisplay)?.Group?.Id;
+
             _serviceOrderItems.Clear();
             ServiceOrderList.ItemsSource = _serviceOrderItems;
 
@@ -1532,6 +1544,21 @@ public partial class OperatorWindow : Window
                     foreach (var id in ungroupedIds)
                         if (byId.TryGetValue(id, out var item))
                             _serviceOrderItems.Add(MakeItemRow(item));
+                }
+            }
+
+            // Re-select the row that was selected before the rebuild, matched by identity
+            // (the rebuild created fresh display wrappers). Suppression is still on, so this
+            // raises no navigation. When the previously selected item no longer exists (it
+            // was just removed), the selection is left clear and the caller decides.
+            if (selectedItemId != null || selectedGroupId != null)
+            {
+                var rowToReselect = _serviceOrderItems.FirstOrDefault(d =>
+                    selectedItemId != null ? d.Item?.Id == selectedItemId : d.Group?.Id == selectedGroupId);
+                if (rowToReselect != null)
+                {
+                    ServiceOrderList.SelectedItem = rowToReselect;
+                    ServiceOrderList.ScrollIntoView(rowToReselect);
                 }
             }
         }
@@ -1984,6 +2011,23 @@ public partial class OperatorWindow : Window
 
             await SaveServiceOrderAsync();
             RefreshServiceOrderList();
+
+            // Keep the operator's place: the removed row was the selected one, so the
+            // refresh above left the selection clear. Select the item that slid into the
+            // removed slot (or the new last item) WITHOUT navigating to it — the assignment
+            // runs under the suppression flag, so a mid-service removal never fires another
+            // item live.
+            if (order.Items.Count > 0)
+            {
+                var neighbor = order.Items[Math.Min(index, order.Items.Count - 1)];
+                var neighborRow = _serviceOrderItems.FirstOrDefault(d => ReferenceEquals(d.Item, neighbor));
+                if (neighborRow != null)
+                {
+                    _suppressServiceOrderSelection = true;
+                    try { ServiceOrderList.SelectedItem = neighborRow; }
+                    finally { _suppressServiceOrderSelection = false; }
+                }
+            }
         }
         catch (Exception ex)
         {
