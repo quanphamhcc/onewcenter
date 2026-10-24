@@ -27,3 +27,6 @@ Thumbs.db
 
 # Redundant archive (stems are already extracted alongside it; too large for GitHub)
 Songs/TheBlessing.zip
+
+# Python bytecode cache (analyzer)
+Scripts/__pycache__/

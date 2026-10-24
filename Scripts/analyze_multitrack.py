@@ -138,14 +138,14 @@ def _post_process_stems(stems: Dict[str, str], sr: int) -> Dict[str, str]:
 
 
 def generate_click_track(grid: Dict, folder_path: str, time_sig: int = 4) -> Optional[str]:
-    """Generate a click track WAV from detected beat positions.
+    """DEPRECATED / UNUSED. Auto-Detect no longer generates a click track (the output
+    was on the wrong downbeat phase and too quiet). Click generation now lives entirely
+    in the C# "Auto Generate Click Track" button (music-detected downbeat + loud render).
+    Kept only for reference; not called by the pipeline.
 
     Creates a metronome-style click with:
     - Loud high-pitched click on beat 1 (downbeat)
     - Softer lower-pitched click on beats 2, 3, 4
-
-    The click track is saved to _separated/<songname>/click.wav
-    and automatically routed to IEM (in-ear monitor) output.
 
     Returns the path to the generated click WAV, or None if failed.
     """
@@ -309,10 +309,12 @@ def run_demucs_separation(audio_path: str, quality: str = 'default') -> Optional
     model_name = preset['model']
     shifts = preset['shifts']
 
-    # Check if already separated (cached)
+    # Write stems DIRECTLY into the original file's folder (not a <name>/ subfolder), so the
+    # separated tracks live alongside the source mix. Stem names (vocals.wav, drums.wav, …) never
+    # collide with the source file name. Cached stems in the same folder are reused.
     audio_dir = str(Path(audio_path).parent)
     audio_name = Path(audio_path).stem
-    cache_dir = os.path.join(audio_dir, audio_name)
+    cache_dir = audio_dir
 
     # Expected stems depend on the model
     if model_name == 'htdemucs_6s':
@@ -334,7 +336,7 @@ def run_demucs_separation(audio_path: str, quality: str = 'default') -> Optional
 
     # If all cached stems exist, return them immediately
     if all(os.path.exists(p) for p in expected_stems.values()):
-        print(f"    Using cached Demucs stems from: {audio_name}/")
+        print(f"    Using cached Demucs stems from: {cache_dir}")
         print(f"    Model: {model_name} | Quality: {quality}")
         return expected_stems
 
@@ -479,7 +481,14 @@ def classify_tracks(files: List[str], demucs_quality: str = 'default') -> Dict[s
         for f in files:
             if f in used_files:
                 continue
-            name = Path(f).stem.lower().replace(' ', '').replace('_', '').replace('-', '')
+            stem = Path(f).stem
+            name = stem.lower().replace(' ', '').replace('_', '').replace('-', '')
+            # NEVER treat our OWN generated clicks as the 'click' tempo source. Files named
+            # Generated_Click_* (Auto/Manual/A/B/C) are OUTPUTS of this app; using one as the
+            # beat-grid source creates a feedback loop where a wrong-tempo generated click becomes
+            # the tempo for the next run. Only a real, authored click stem should drive TIER 1.
+            if role == 'click' and stem.lower().startswith('generated_click'):
+                continue
             for kw in keywords:
                 if kw in name:
                     classified[role] = f
@@ -511,21 +520,157 @@ def classify_tracks(files: List[str], demucs_quality: str = 'default') -> Dict[s
 # BEAT GRID DETECTION (from click track or librosa)
 # ═══════════════════════════════════════════════════════════════════════
 
-def detect_beat_grid(classified: Dict, files: List[str]) -> Dict[str, Any]:
+# Records what the last _fit_grid call decided, so callers can surface the analysis to the UI
+# (verdict, metrics) and so the result JSON can report it for the analyze-first dialog.
+_LAST_GRID_FIT: Dict[str, Any] = {}
+
+# Grid mode: how the final grid is built from detected beats.
+#   'auto'      — pick EVEN if an even grid fits within a quarter-beat everywhere, else following.
+#   'even'      — FORCE a mathematically even (least-squares) grid regardless of fit.
+#   'following' — FORCE a smoothed tempo-following grid regardless of fit.
+# Set via the CLI (--grid-mode) / analyzer args so the UI's analyze-first choice is honored.
+GRID_MODE = 'auto'
+
+
+def _fit_grid(beat_positions, total_duration, mode: str = None):
+    """Turn a list of detected beat times into the final grid, choosing between a mathematically
+    EVEN grid (constant tempo) and a smoothed TEMPO-FOLLOWING grid (variable tempo).
+
+    Shared by every detector tier (click, beat_this, librosa) so the output is consistent. A
+    detector's raw beats are frame-quantized (they wobble ±1 frame) and may drift. We:
+      1. assign each beat an integer index (robust to dropped beats at section gaps),
+      2. least-squares fit beat[i] = anchor + i*interval,
+      3. EVEN if (mode even) OR (mode auto AND the fit is tight) → emit the perfectly even grid,
+         FOLLOWING otherwise → emit a moving-median-smoothed tempo-following grid.
+    `mode` overrides the module GRID_MODE when given. Records metrics in _LAST_GRID_FIT.
+    Returns (beats_list, bpm, beat_interval_sec, grid_anchor_sec).
+    """
+    import numpy as _np
+    mode = (mode or GRID_MODE or 'auto').lower()
+    raw = _np.asarray([b for b in beat_positions if 0.0 <= b <= total_duration], dtype=float)
+    if len(raw) < 8:
+        return None
+    iv = _np.diff(raw)
+    med = float(_np.median(iv))
+    if med <= 0:
+        return None
+    idx = _np.zeros(len(raw))
+    for i in range(1, len(raw)):
+        idx[i] = idx[i - 1] + max(1, int(round((raw[i] - raw[i - 1]) / med)))
+    A = _np.vstack([_np.ones(len(idx)), idx]).T
+    (anchor_fit, interval_fit), *_ = _np.linalg.lstsq(A, raw, rcond=None)
+    resid = (anchor_fit + interval_fit * idx) - raw
+    max_dev_ms = float(_np.max(_np.abs(resid))) * 1000.0
+    rms_ms = float(_np.sqrt(_np.mean(resid ** 2))) * 1000.0
+    interval = float(interval_fit) if interval_fit > 0 else med
+    even_fits = max_dev_ms < (interval * 1000.0 * 0.25)
+    recommended = 'even' if even_fits else 'following'
+
+    # Decide which grid to emit, honoring an explicit mode override.
+    use_even = (mode == 'even') or (mode == 'auto' and even_fits)
+
+    _LAST_GRID_FIT.clear()
+    _LAST_GRID_FIT.update({
+        'mode_requested': mode,
+        'recommended': recommended,
+        'even_fits': bool(even_fits),
+        'fit_max_dev_ms': round(max_dev_ms, 2),
+        'fit_rms_ms': round(rms_ms, 2),
+        'raw_jitter_ms': round(float(_np.std(iv)) * 1000.0, 2),
+        'fit_bpm': round(60.0 / interval, 3),
+    })
+
+    if use_even:
+        anchor = float(anchor_fit)
+        while anchor - interval >= 0:
+            anchor -= interval
+        while anchor < 0:
+            anchor += interval
+        beats = []
+        t = anchor
+        while t < total_duration:
+            beats.append(t); t += interval
+        _LAST_GRID_FIT['applied'] = 'even'
+        forced = " (FORCED)" if mode == 'even' and not even_fits else ""
+        print(f"      → EVEN grid{forced}: BPM={60.0/interval:.3f} "
+              f"(fit max-dev {max_dev_ms:.1f} ms, rms {rms_ms:.1f} ms)")
+        return beats, 60.0 / interval, interval, anchor
+
+    # Tempo-following (smoothed).
+    iv_cl = _np.clip(iv, med * 0.5, med * 1.5)
+    halfw = 4
+    sm_iv = _np.empty_like(iv_cl)
+    for i in range(len(iv_cl)):
+        lo = max(0, i - halfw); hi = min(len(iv_cl), i + halfw + 1)
+        sm_iv[i] = _np.median(iv_cl[lo:hi])
+    sm = _np.empty(len(raw)); sm[0] = raw[0]; sm[1:] = raw[0] + _np.cumsum(sm_iv)
+    beats = [float(t) for t in sm if 0.0 <= t <= total_duration]
+    interval = float(_np.median(sm_iv))
+    _LAST_GRID_FIT['applied'] = 'following'
+    forced = " (FORCED)" if mode == 'following' and even_fits else ""
+    print(f"      → tempo-following grid{forced}: median BPM={60.0/interval:.2f} "
+          f"(even-fit max-dev {max_dev_ms:.0f} ms; jitter "
+          f"{float(_np.std(iv))*1000:.1f}→{float(_np.std(sm_iv))*1000:.1f} ms)")
+    return beats, 60.0 / interval, interval, beats[0]
+
+
+def _find_real_click_file(files: List[str]) -> Optional[str]:
+    """Return a REAL (human-authored) click track from the file list, or None.
+
+    Matches filenames containing a click keyword (click/metronome/met) but EXCLUDES this app's own
+    generated clicks (Generated_Click_*), which must never seed the grid (feedback loop). Used so a
+    folder that ships an authored click — e.g. 'Original CLICK.wav' — drives the grid even when the
+    keyword classifier was bypassed (Demucs single-file path)."""
+    click_keywords = ('click', 'metronome')
+    for f in files:
+        stem = Path(f).stem
+        low = stem.lower()
+        if low.startswith('generated_click'):
+            continue
+        norm = low.replace(' ', '').replace('_', '').replace('-', '')
+        if any(kw in norm for kw in click_keywords):
+            return f
+    return None
+
+
+def detect_beat_grid(classified: Dict, files: List[str], grid_mode: str = None) -> Dict[str, Any]:
     """Detect BPM and beat grid using tiered approach:
     Tier 1: Click track peak detection (sample-accurate)
     Tier 2: beat_this AI model (ISMIR 2024 SOTA, ~95% F1)
-    Tier 3: librosa beat_track (fallback, ~75-80% F1)"""
+    Tier 3: librosa beat_track (fallback, ~75-80% F1)
+
+    grid_mode ('auto'|'even'|'following') forces how the final grid is built (shared by all tiers).
+    The returned grid carries a 'grid_fit' dict (verdict + metrics) so the UI can show the
+    analyze-first dialog and so a forced mode can be honored."""
+    global GRID_MODE
+    if grid_mode:
+        GRID_MODE = grid_mode.lower()
     print("__PROGRESS__|5|Detecting beat grid...")
     print("  [1/8] Detecting beat grid...")
 
-    # TIER 1: Click track
+    def _stamp(grid):
+        """Attach the last _fit_grid decision/metrics to the grid for the caller/UI."""
+        if grid is not None and _LAST_GRID_FIT:
+            grid['grid_fit'] = dict(_LAST_GRID_FIT)
+        return grid
+
+    # TIER 1: Click track. A REAL (human-authored) click is ground truth for the beat grid, so it
+    # always wins. Prefer the classified 'click' role, but ALSO scan the raw file list directly:
+    # on the Create Multi-Track / Demucs single-file path the classifier never runs the keyword
+    # matcher, so a folder that contains e.g. "Original CLICK.wav" alongside the mix would otherwise
+    # be missed and the grid would fall back to (less reliable) music tempo estimation.
     click_path = classified.get('click')
+    if not (click_path and os.path.exists(click_path)):
+        click_path = _find_real_click_file(files)
     if click_path and os.path.exists(click_path):
         grid = analyze_click_track(click_path)
         if grid and grid['confidence'] > 0.7:
-            print(f"    ✓ TIER 1 (click): BPM={grid['bpm']:.2f}, {len(grid['beats'])} beats")
-            return grid
+            print(f"    ✓ TIER 1 (click): BPM={grid['bpm']:.2f}, {len(grid['beats'])} beats "
+                  f"(from {Path(click_path).name})")
+            return _stamp(grid)
+        elif grid:
+            print(f"    ! Click file {Path(click_path).name} gave low confidence "
+                  f"({grid.get('confidence', 0):.2f}); falling through to tempo estimation")
 
     analysis_file = classified.get('drums') or classified.get('bass')
     if not analysis_file:
@@ -538,38 +683,164 @@ def detect_beat_grid(classified: Dict, files: List[str]) -> Dict[str, Any]:
 
     # TIER 2: beat_this AI
     grid = _detect_with_beat_this(analysis_file)
-    if grid:
+    # Only trust beat_this when its result is sane AND confident. On some inputs it returns garbage
+    # (e.g. 375 BPM, confidence 0); reject those and fall through to the librosa prior tier.
+    if grid and grid.get('confidence', 0) >= 0.5 and 40 <= grid['bpm'] <= 180:
+        # beat_this returns its own frame-quantized beat positions (they wobble ±1 frame and can
+        # drift). Run them through the SAME even-grid / tempo-following fit as every other tier so a
+        # constant-tempo song gets a mathematically even click instead of a wobbly one.
+        fitted = _fit_grid(grid['beats'], grid.get('total_duration_sec')
+                           or (grid['beats'][-1] if grid['beats'] else 0))
+        if fitted:
+            beats, bpm, interval, anchor = fitted
+            grid['beats'] = beats; grid['bpm'] = bpm
+            grid['beat_interval_sec'] = interval; grid['grid_anchor_sec'] = anchor
         print(f"    ✓ TIER 2 (beat_this): BPM={grid['bpm']:.2f}, {len(grid['beats'])} beats")
-        return grid
+        return _stamp(grid)
+    elif grid:
+        print(f"    ! beat_this result rejected (BPM={grid['bpm']:.2f}, "
+              f"confidence={grid.get('confidence', 0):.2f}) — using librosa tier")
 
-    # TIER 3: librosa fallback
-    print(f"    Using librosa on: {Path(analysis_file).name}")
+    # TIER 3: librosa fallback — STEADY grid at a music-derived tempo.
+    #
+    # Key lesson: librosa's per-beat beat_track output is NOISY (±22ms jitter) — that jitter is
+    # DETECTION ERROR, not real tempo movement. Placing clicks on those raw beats makes the click
+    # stutter; placing them on an even grid at a WRONG bpm makes it drift. The fix is to derive one
+    # ACCURATE, STEADY tempo from the autocorrelation of a combined drum+bass onset envelope (the
+    # user's "analyze drums/bass/chords" approach), then build an EVEN grid at that tempo. For a
+    # genuinely steady worship track this stays locked; the downbeat PHASE is corrected separately
+    # downstream from kick/snare/chord changes.
+    print(f"    Using librosa (autocorrelation tempo) on: {Path(analysis_file).name}")
     y, sr = librosa.load(analysis_file, sr=SAMPLE_RATE)
-    tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
-    bpm = float(tempo) if not hasattr(tempo, '__len__') else float(tempo[0])
-    beat_times = librosa.frames_to_time(beats, sr=sr)
-    grid_anchor = float(beat_times[0]) if len(beat_times) > 0 else 0.0
-    beat_interval = 60.0 / bpm
     total_duration = librosa.get_duration(y=y, sr=sr)
-    print(f"    ✓ TIER 3 (librosa): BPM={bpm:.2f}")
+
+    # Combined onset envelope: drums (analysis_file) + bass, which gives a strong, regular pulse.
+    oenv = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
+    bass_path = classified.get('bass')
+    if bass_path and os.path.exists(bass_path) and bass_path != analysis_file:
+        try:
+            yb, _ = librosa.load(bass_path, sr=sr)
+            ob = librosa.onset.onset_strength(y=yb, sr=sr, hop_length=HOP_LENGTH)
+            n = min(len(oenv), len(ob))
+            oenv = oenv[:n] + ob[:n]
+        except Exception:
+            pass
+
+    # STEADY global tempo via autocorrelation (stable single value, worship-range prior).
+    # The tempo estimator moved across librosa versions: feature.rhythm.tempo (new),
+    # feature.tempo (mid), beat.tempo (old). Try them in order for version robustness.
+    import numpy as _np
+    def _estimate_tempo(onset_env):
+        for fn in (
+            lambda: librosa.feature.rhythm.tempo(onset_envelope=onset_env, sr=sr,
+                        hop_length=HOP_LENGTH, start_bpm=90, aggregate=_np.median),
+            lambda: librosa.feature.tempo(onset_envelope=onset_env, sr=sr,
+                        hop_length=HOP_LENGTH, start_bpm=90, aggregate=_np.median),
+            lambda: librosa.beat.tempo(onset_envelope=onset_env, sr=sr,
+                        hop_length=HOP_LENGTH, start_bpm=90, aggregate=_np.median),
+        ):
+            try:
+                return float(_np.ravel(fn())[0])
+            except Exception:
+                continue
+        # Last resort: beat_track's global tempo.
+        t, _ = librosa.beat.beat_track(y=y, sr=sr, start_bpm=90)
+        return float(_np.ravel(t)[0])
+    bpm = _estimate_tempo(oenv)
+    # Sanity: fold only OBVIOUS double/half-time. The previous ceiling of 140 was too low — it
+    # halved legitimate fast tempos (e.g. a real 143.6 BPM song became 71.8, so the click played
+    # every OTHER beat). Genuine worship/CCM tempos reach ~150-160 BPM, so only fold when the value
+    # is almost certainly a doubled (>185) or halved (<50) count.
+    while bpm > 185:
+        bpm /= 2.0
+    while bpm < 50:
+        bpm *= 2.0
+
+    # TEMPO-FOLLOWING GRID (fixes drift). A single global BPM built into an EVEN grid drifts off
+    # the music whenever the song's real tempo wanders even slightly: the error accumulates every
+    # bar, so after ~10 bars the click is visibly off beat 1. Measured on real worship stems the
+    # live tempo swings ~96–103 BPM around a 99 BPM median, and the MEAN beat interval differs from
+    # the median by several ms — enough to accumulate seconds of drift across a song.
+    #
+    # librosa's dynamic-programming beat tracker returns the ACTUAL beat positions, which follow the
+    # real tempo while still being smooth (it penalizes sudden tempo jumps, so it does NOT produce
+    # the random ±jitter of raw onset peaks). Using those positions as the grid keeps the click
+    # locked to the music for the whole song. We keep `bpm`/`beat_interval` as summary values
+    # (median interval) for display and for count-in spacing.
+    beats = []
+    try:
+        _tempo, beat_frames = librosa.beat.beat_track(
+            onset_envelope=oenv, sr=sr, hop_length=HOP_LENGTH, start_bpm=bpm, trim=False)
+        beat_times = librosa.frames_to_time(beat_frames, sr=sr, hop_length=HOP_LENGTH)
+        beats = [float(t) for t in beat_times if 0.0 <= t <= total_duration]
+    except Exception as _e:
+        print(f"    ! beat_track failed ({_e}); falling back to even grid")
+
+    if len(beats) >= 8:
+        # Run the librosa beat positions through the shared even-grid / tempo-following fit (same
+        # logic used for the click and beat_this tiers): constant tempo → mathematically EVEN grid
+        # (no wobble, no drift); variable tempo → smoothed tempo-following grid.
+        print("    TIER 3 (librosa beat-track):")
+        fitted = _fit_grid(beats, total_duration)
+        if fitted:
+            fb, fbpm, finterval, fanchor = fitted
+            return _stamp({
+                'bpm': fbpm, 'beat_interval_sec': finterval,
+                'grid_anchor_sec': fanchor, 'total_duration_sec': total_duration,
+                'beats': fb, 'downbeats': [], 'confidence': 0.82
+            })
+
+    # Fallback: too few beats detected — build an even grid from the global tempo as before.
+    ot = librosa.frames_to_time(_np.arange(len(oenv)), sr=sr, hop_length=HOP_LENGTH)
+    from scipy.signal import find_peaks as _fp
+    pk, _ = _fp(oenv, height=float(_np.max(oenv)) * 0.3, distance=int((60.0 / bpm) * sr / HOP_LENGTH * 0.5))
+    grid_anchor = float(ot[pk[0]]) if len(pk) > 0 else 0.0
+    beat_interval = 60.0 / bpm
+    beats = []
+    t = grid_anchor
+    while t < total_duration:
+        beats.append(t)
+        t += beat_interval
+    print(f"    ✓ TIER 3 (librosa even-grid fallback): BPM={bpm:.2f} ({len(beats)} beats)")
     return {
         'bpm': bpm, 'beat_interval_sec': beat_interval,
         'grid_anchor_sec': grid_anchor, 'total_duration_sec': total_duration,
-        'beats': beat_times.tolist(), 'downbeats': [], 'confidence': 0.6
+        'beats': beats, 'downbeats': [], 'confidence': 0.7
     }
 
 
 def _detect_with_beat_this(audio_path: str) -> Optional[Dict]:
-    """Use beat_this (ISMIR 2024) for state-of-the-art beat+downbeat detection."""
+    """Use beat_this (ISMIR 2024) for state-of-the-art beat+downbeat detection.
+
+    IMPORTANT: beat_this's File2Beats decodes the file with its own backend (soxr/mpg123),
+    which chokes on some MP3s (ID3/decoder errors). To stay robust we decode the audio ourselves
+    with librosa (handles mp3/wav/flac reliably) and feed the ARRAY to Audio2Beats — the same
+    file-decode-bypass pattern used for Whisper.
+    """
     try:
-        from beat_this.inference import File2Beats
+        from beat_this.inference import Audio2Beats
         import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"    Running beat_this (GPU: {torch.cuda.is_available()})...")
-        file2beats = File2Beats(checkpoint_path=None,
-            device="cuda" if torch.cuda.is_available() else "cpu", dbn=False)
-        beats_sec, downbeats_sec = file2beats(audio_path)
+
+        # Decode ourselves (mono float32). beat_this expects the audio signal + its sample rate.
+        signal, sr = librosa.load(audio_path, sr=22050, mono=True)
+        signal = np.asarray(signal, dtype=np.float32)
+
+        # checkpoint_path must be a TRAINED checkpoint shortname ("final0") or a path/URL.
+        # Passing None builds an UNINITIALIZED BeatThis() with random weights, which produces
+        # garbage (nonsense BPM, zero confidence) — the cause of the earlier 375 BPM result.
+        checkpoint = os.environ.get("OWC_BEATTHIS_CHECKPOINT", "final0")
+        a2b = Audio2Beats(checkpoint_path=checkpoint, device=device,
+                          float16=(device == 'cuda'), dbn=False)
+        beats_sec, downbeats_sec = a2b(signal, sr)
+
+        beats_sec = np.asarray(beats_sec, dtype=float)
+        downbeats_sec = np.asarray(downbeats_sec, dtype=float)
         if len(beats_sec) < 4:
+            print("    ! beat_this returned too few beats")
             return None
+
         intervals = np.diff(beats_sec)
         beat_interval = float(np.median(intervals))
         bpm = 60.0 / beat_interval
@@ -588,6 +859,8 @@ def _detect_with_beat_this(audio_path: str) -> Optional[Dict]:
         return None
     except Exception as e:
         print(f"    ! beat_this failed: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
@@ -649,22 +922,66 @@ def analyze_click_track(click_path: str) -> Optional[Dict]:
         clean_clicks = click_times
         clean_intervals = intervals
 
-    # BPM derived directly from actual click peak intervals (guaranteed in sync)
-    beat_interval = float(np.median(clean_intervals))
-    bpm = 60.0 / beat_interval
-    grid_anchor = float(clean_clicks[0])
     total_duration = float(len(y) / sr)
-    confidence = max(0, 1.0 - (float(np.std(clean_intervals)) / beat_interval) * 10)
 
-    print(f"    Click peaks detected: {len(clean_clicks)} beats")
+    # EVEN-GRID FIT. The click's raw peaks have small timing noise (onset refinement ±~1 ms plus any
+    # real tempo wobble). To make the GENERATED click match the ORIGINAL's even spacing exactly, fit
+    # beat[i] = anchor + i*interval by least squares (same approach as the music path). Assign each
+    # peak an integer beat index from its time so dropped/extra peaks don't corrupt the fit. If the
+    # even grid fits well (a programmed/metronomic click — the usual case) we emit the perfectly even
+    # grid; if it fits poorly (a hand-played/变 tempo click) we keep the ACTUAL peak positions so the
+    # click still tracks the performance.
+    cc = np.asarray(clean_clicks, dtype=float)
+    med_iv = float(np.median(clean_intervals))
+    if med_iv <= 0:
+        med_iv = float(np.median(intervals)) or 0.5
+    idx = np.zeros(len(cc))
+    for i in range(1, len(cc)):
+        step = max(1, int(round((cc[i] - cc[i - 1]) / med_iv)))
+        idx[i] = idx[i - 1] + step
+    A = np.vstack([np.ones(len(idx)), idx]).T
+    (anchor_fit, interval_fit), *_ = np.linalg.lstsq(A, cc, rcond=None)
+    resid = (anchor_fit + interval_fit * idx) - cc
+    max_dev_ms = float(np.max(np.abs(resid))) * 1000.0
+    rms_ms = float(np.sqrt(np.mean(resid ** 2))) * 1000.0
+
+    print(f"    Click peaks detected: {len(cc)} beats")
     print(f"    Resolution: {hop/sr*1000:.1f}ms + parabolic refinement")
 
+    if interval_fit > 0 and max_dev_ms < (interval_fit * 1000.0 * 0.25):
+        beat_interval = float(interval_fit)
+        bpm = 60.0 / beat_interval
+        grid_anchor = float(anchor_fit)
+        while grid_anchor - beat_interval >= 0:
+            grid_anchor -= beat_interval
+        while grid_anchor < 0:
+            grid_anchor += beat_interval
+        beats = []
+        t = grid_anchor
+        while t < total_duration:
+            beats.append(t)
+            t += beat_interval
+        print(f"    → constant-tempo click: EVEN grid BPM={bpm:.3f} "
+              f"(fit max-dev {max_dev_ms:.1f} ms, rms {rms_ms:.1f} ms)")
+        return {
+            'bpm': bpm, 'beat_interval_sec': beat_interval,
+            'grid_anchor_sec': grid_anchor, 'total_duration_sec': total_duration,
+            'beats': beats, 'confidence': 0.95
+        }
+
+    # Variable-tempo click → keep the real peak positions.
+    beat_interval = med_iv
+    bpm = 60.0 / beat_interval
+    grid_anchor = float(cc[0])
+    confidence = max(0, 1.0 - (float(np.std(clean_intervals)) / beat_interval) * 10)
+    print(f"    → variable-tempo click: keeping actual peak positions "
+          f"(even-fit max-dev {max_dev_ms:.0f} ms)")
     return {
         'bpm': bpm,
         'beat_interval_sec': beat_interval,
         'grid_anchor_sec': grid_anchor,
         'total_duration_sec': total_duration,
-        'beats': clean_clicks.tolist(),  # ACTUAL peak positions (not calculated)
+        'beats': cc.tolist(),  # ACTUAL peak positions
         'confidence': confidence
     }
 
@@ -948,35 +1265,141 @@ def transcribe_with_whisper(classified: Dict, grid: Dict, time_sig: int = 4) -> 
         'word_timestamps': [],  # List of {word, start_sec, end_sec} for chord chart
     }
 
+    # Pin NLTK's data search path to a SINGLE writable local folder BEFORE importing WhisperX.
+    # WhisperX's forced-alignment imports NLTK, whose default search path probes the root of every
+    # drive (C:\nltk_data, D:\nltk_data, E:\nltk_data, …). A BitLocker-locked drive (e.g. E:) makes
+    # that existence-probe THROW, which silently kills alignment. Restricting nltk.data.path to one
+    # folder we control avoids touching any locked drive. The punkt/punkt_tab data lives here.
     try:
-        import whisper
+        # sys.executable is <venv>\Scripts\python.exe → <venv>\nltk_data
+        _nltk_dir = os.environ.get('OWC_NLTK_DATA') or os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(sys.executable))), 'nltk_data')
+        os.environ['NLTK_DATA'] = _nltk_dir
+        import nltk  # noqa
+        nltk.data.path[:] = [_nltk_dir]  # replace the whole list → never probe drive roots
+    except Exception as _nltk_e:
+        print(f"    (NLTK path setup skipped: {_nltk_e})")
+
+    # Device for GPU-accelerated transcription (RTX 3090s when present).
+    try:
+        import torch
+        _device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    except Exception:
+        _device = 'cpu'
+
+    preferred = os.environ.get('OWC_WHISPER_MODEL', 'large-v3').strip() or 'large-v3'
+
+    # ── PRIMARY: WhisperX (faster-whisper transcription + wav2vec2 FORCED ALIGNMENT) ──
+    # WhisperX gives far more accurate WORD-LEVEL timestamps than raw Whisper, which is exactly
+    # what lyric-to-section timing depends on. We transcribe, then align to get per-word start/end.
+    # Normalized output matches the openai-whisper shape used downstream:
+    #   {'segments': [{'text','start','end','words':[{'word','start','end'}]}]}
+    _wx = None
+    _wx_model = None
+    _wx_align_cache = {}
+    try:
+        import whisperx as _wx  # noqa
         result['whisper_available'] = True
+        compute_type = 'float16' if _device == 'cuda' else 'int8'
+        try:
+            print(f"    Loading WhisperX model '{preferred}' on {_device} ({compute_type})…")
+            _wx_model = _wx.load_model(preferred, _device, compute_type=compute_type)
+            result['whisper_model'] = f"whisperx:{preferred}"
+            print(f"    ✓ WhisperX '{preferred}' loaded (forced-alignment word timing)")
+        except Exception as e:
+            print(f"    ! WhisperX model load failed ({e}); will fall back to openai-whisper")
+            _wx = None
     except ImportError:
-        print("    ! Whisper not installed (pip install openai-whisper)")
-        print("    Skipping lyrics/cue transcription")
-        return result
+        _wx = None  # WhisperX not installed — fall back below.
 
-    # Load model once
-    print("    Loading Whisper model (base)...")
-    model = whisper.load_model("base")
+    # ── FALLBACK: openai-whisper (word_timestamps, no forced alignment) ──
+    _ow_model = None
+    if _wx_model is None:
+        try:
+            import whisper
+            result['whisper_available'] = True
+        except ImportError:
+            print("    ! Neither WhisperX nor openai-whisper is installed — skipping transcription")
+            return result
+        _chain = []
+        for m in [preferred, 'medium', 'small', 'base']:
+            if m not in _chain:
+                _chain.append(m)
+        for name in _chain:
+            try:
+                print(f"    Loading Whisper model '{name}' on {_device}…")
+                _ow_model = whisper.load_model(name, device=_device)
+                result['whisper_model'] = name
+                print(f"    ✓ Whisper model '{name}' loaded")
+                break
+            except Exception as e:
+                print(f"    ! Could not load Whisper '{name}': {e}")
+        if _ow_model is None:
+            print("    ! No Whisper model could be loaded — skipping transcription")
+            return result
 
-    def _transcribe(path: str):
-        """Transcribe an audio file with word timestamps.
+    def _transcribe(path: str) -> Dict:
+        """Transcribe an audio file and return {'segments':[{text,start,end,words:[...]}]}.
 
-        Whisper normally shells out to ffmpeg to decode audio. On machines where
-        ffmpeg is not on PATH that raises WinError 2 and we lose ALL word
-        timestamps (which breaks vocal-aligned lyric placement). To stay robust,
-        decode the file ourselves with librosa (already a dependency) to the
-        16kHz mono float32 Whisper expects, and hand the array directly to the
-        model. Falls back to the normal file-path call if local decode fails.
+        Uses WhisperX (transcribe + forced alignment) when available for precise word timing,
+        otherwise openai-whisper. Audio is decoded with librosa (16 kHz mono float32) so we never
+        depend on a system ffmpeg being on PATH.
         """
         try:
             audio, _ = librosa.load(path, sr=16000, mono=True)
             audio = np.asarray(audio, dtype=np.float32)
-            return model.transcribe(audio, word_timestamps=True)
         except Exception as decode_err:
-            print(f"      (librosa decode failed: {decode_err}; trying ffmpeg path)")
-            return model.transcribe(path, word_timestamps=True)
+            print(f"      (librosa decode failed: {decode_err})")
+            audio = path  # last resort: let the backend decode via ffmpeg
+
+        # WhisperX path
+        if _wx_model is not None:
+            try:
+                tr = _wx_model.transcribe(audio, batch_size=16)
+                lang = tr.get('language', 'en')
+                segs = tr.get('segments', [])
+                # Forced alignment for accurate word timestamps.
+                try:
+                    if lang not in _wx_align_cache:
+                        _wx_align_cache[lang] = _wx.load_align_model(language_code=lang, device=_device)
+                    align_model, metadata = _wx_align_cache[lang]
+                    aligned = _wx.align(segs, align_model, metadata, audio, _device,
+                                        return_char_alignments=False)
+                    segs = aligned.get('segments', segs)
+                except Exception as ae:
+                    print(f"      (WhisperX alignment skipped: {ae})")
+                # Normalize to the openai-whisper shape.
+                out_segs = []
+                for s in segs:
+                    words = []
+                    for w in s.get('words', []) or []:
+                        wt = (w.get('word') or '').strip()
+                        if not wt:
+                            continue
+                        st = w.get('start'); en = w.get('end')
+                        if st is None:
+                            st = s.get('start', 0)
+                        if en is None:
+                            en = w.get('start', st)
+                        words.append({'word': wt, 'start': float(st), 'end': float(en)})
+                    out_segs.append({
+                        'text': s.get('text', ''),
+                        'start': float(s.get('start', words[0]['start'] if words else 0)),
+                        'end': float(s.get('end', words[-1]['end'] if words else 0)),
+                        'words': words,
+                    })
+                return {'segments': out_segs}
+            except Exception as wxe:
+                print(f"      (WhisperX transcription failed: {wxe}; using openai-whisper if available)")
+
+        # openai-whisper path
+        if _ow_model is not None:
+            try:
+                return _ow_model.transcribe(audio, word_timestamps=True)
+            except Exception as decode_err:
+                print(f"      (array transcribe failed: {decode_err}; trying ffmpeg path)")
+                return _ow_model.transcribe(path, word_timestamps=True)
+        return {'segments': []}
 
     # Transcribe cue track first (highest value — may give us sections directly)
     cue_path = classified.get('cue')
@@ -3228,32 +3651,70 @@ def sections_from_lyrics_timing(section_hints: List[str], section_lyrics: Dict[s
         if not signature:
             return None, search_from_idx
 
+        # Common filler words are poor anchors (they appear everywhere); a section onset
+        # should be pinned to a DISTINCTIVE signature word, not "is/my/for/me".
+        STOP = {'the', 'is', 'a', 'an', 'of', 'to', 'in', 'on', 'my', 'me', 'for', 'and',
+                'that', 'this', 'it', 'be', 'i', 'you', 'we', 'he', 'so', 'no', 'all',
+                'now', 'oh', 'will', 'can', 'are', 'was', 'he', 'she'}
+
+        def word_match(sig, sw):
+            if sig == sw:
+                return 2
+            if len(sig) >= 3 and len(sw) >= 3 and (sig in sw or sw in sig):
+                return 1
+            return 0
+
         best_score = 0
-        best_idx = -1
+        best_i = -1
         window = len(signature) + 4  # allow for mis-transcribed / dropped words
         for i in range(search_from_idx, len(sung)):
             sw_window = [sung[j]['word'] for j in range(i, min(i + window, len(sung)))]
             score = 0
             for sig in signature:
                 for sw in sw_window:
-                    if sig == sw:
-                        score += 2
+                    m = word_match(sig, sw)
+                    if m:
+                        score += m
                         break
-                    if len(sig) >= 3 and len(sw) >= 3 and (sig in sw or sw in sig):
-                        score += 1
-                        break
-            # Prefer the earliest strong match (respects song order)
             if score > best_score:
                 best_score = score
-                best_idx = i
-                # Strong enough — stop early to keep boundaries in order
+                best_i = i
                 if score >= len(signature) * 2 * 0.67:
                     break
 
-        # Require at least ~50% signature overlap to trust the onset
-        if best_idx >= 0 and best_score >= max(2, len(signature)):
-            return sung[best_idx]['start_sec'], best_idx + 1
-        return None, search_from_idx
+        if best_i < 0 or best_score < max(2, len(signature)):
+            return None, search_from_idx
+
+        # Anchor the ONSET to where the FIRST signature word actually appears inside the
+        # matched window — NOT the window's start index. The window start can be the tail of
+        # the previous section (e.g. "...set free" before a CHORUS), which otherwise places the
+        # onset too early and makes the next section swallow the previous section's last line.
+        # Prefer a DISTINCTIVE (non-stopword) signature word as the anchor; fall back to the
+        # earliest signature hit of any kind.
+        win_end = min(best_i + window, len(sung))
+        anchor_idx = None
+        # Pass 1: first distinctive signature word (exact or substring) in the window.
+        for j in range(best_i, win_end):
+            sw = sung[j]['word']
+            for sig in signature:
+                if sig in STOP:
+                    continue
+                if word_match(sig, sw) >= 1:
+                    anchor_idx = j
+                    break
+            if anchor_idx is not None:
+                break
+        # Pass 2: if the block's leading words are all stopwords, use the first signature hit.
+        if anchor_idx is None:
+            for j in range(best_i, win_end):
+                sw = sung[j]['word']
+                if any(word_match(sig, sw) >= 1 for sig in signature):
+                    anchor_idx = j
+                    break
+        if anchor_idx is None:
+            anchor_idx = best_i
+
+        return sung[anchor_idx]['start_sec'], anchor_idx + 1
 
     # Build ordered blocks from the hint list
     blocks = []
@@ -3677,51 +4138,49 @@ def build_song_json(grid: Dict, sections: List[Dict], classified: Dict,
     # Build track list
     tracks = []
 
-    # For single-track songs with Demucs separation, use separated stems as playback tracks
-    # song.json is saved INSIDE the stems folder, so track paths are just filenames
+    # Demucs now writes stems DIRECTLY into the song folder (alongside the original mix). For a
+    # single-track song, after separation the folder contains: the original mix + vocals/drums/
+    # bass/guitar/piano/other.wav. We build the track list by scanning the folder for those stems
+    # and ALSO include the original mix as a track (option A). song.json lives in this same folder,
+    # so track paths are plain filenames.
     use_separated = False
     if len(files) == 1:
-        # Look for stem folder named after the audio file (e.g., BinhAnVua/binhanvua/)
-        audio_name = Path(files[0]).stem
-        stem_dir = os.path.join(folder_path, audio_name)
-
-        # Also check with capitalized name
-        if not os.path.isdir(stem_dir):
-            # Try case-insensitive match
-            for item in os.listdir(folder_path):
-                if item.lower() == audio_name.lower() and os.path.isdir(os.path.join(folder_path, item)):
-                    stem_dir = os.path.join(folder_path, item)
-                    audio_name = item
-                    break
-
-        if os.path.isdir(stem_dir):
-            # Support both 4-stem and 6-stem models + generated click
-            stem_files = {
-                'vocals.wav': ('Lead Vocal', 'FOH', '#E74C3C'),
-                'drums.wav': ('Drums', 'FOH', '#F39C12'),
-                'bass.wav': ('Bass', 'FOH', '#27AE60'),
-                'guitar.wav': ('Guitar', 'FOH', '#8E44AD'),
-                'piano.wav': ('Piano', 'FOH', '#50E3C2'),
-                'other.wav': ('Other', 'FOH', '#4A90D9'),
-                'click.wav': ('Click', 'IEM', '#FF6B6B'),
-            }
-            existing_stems = []
-            for stem_file, (label, output, color) in stem_files.items():
-                stem_path = os.path.join(stem_dir, stem_file)
-                if os.path.exists(stem_path):
-                    # Direct filename — song.json is in the same folder as stems
-                    existing_stems.append({
-                        'file': stem_file,
-                        'label': label,
-                        'output': output,
-                        'defaultVolume': 0.8 if output == 'IEM' else 1.0,
-                        'defaultMute': False,
-                        'color': color
-                    })
-            if len(existing_stems) >= 3:  # Need at least vocals+drums+bass
-                tracks = existing_stems
-                use_separated = True
-                print(f"  Using Demucs-separated stems for playback ({len(tracks)} tracks)")
+        # Standard Demucs stem names expected in this folder (no click.wav — the click comes from
+        # the dedicated "Auto Generate Click Track" button or the manual click).
+        stem_files = {
+            'vocals.wav': ('Lead Vocal', 'FOH', '#E74C3C'),
+            'drums.wav': ('Drums', 'FOH', '#F39C12'),
+            'bass.wav': ('Bass', 'FOH', '#27AE60'),
+            'guitar.wav': ('Guitar', 'FOH', '#8E44AD'),
+            'piano.wav': ('Piano', 'FOH', '#50E3C2'),
+            'other.wav': ('Other', 'FOH', '#4A90D9'),
+        }
+        existing_stems = []
+        for stem_file, (label, output, color) in stem_files.items():
+            if os.path.exists(os.path.join(folder_path, stem_file)):
+                existing_stems.append({
+                    'file': stem_file,
+                    'label': label,
+                    'output': output,
+                    'defaultVolume': 1.0,
+                    'defaultMute': False,
+                    'color': color
+                })
+        if len(existing_stems) >= 3:  # Need at least vocals+drums+bass
+            # Option A: include the ORIGINAL mix as a track too (muted by default so the stems play
+            # on their own; the operator can unmute the full mix if they want it as a reference).
+            orig = Path(files[0]).name
+            tracks.append({
+                'file': orig,
+                'label': 'Full Mix',
+                'output': 'FOH',
+                'defaultVolume': 1.0,
+                'defaultMute': True,
+                'color': '#888888'
+            })
+            tracks.extend(existing_stems)
+            use_separated = True
+            print(f"  Using Demucs-separated stems + full mix for playback ({len(tracks)} tracks)")
 
     if not use_separated:
         for f in files:
@@ -3750,7 +4209,10 @@ def build_song_json(grid: Dict, sections: List[Dict], classified: Dict,
         'sections': output_sections,
         'lightingPresets': [],
         'chordChart': {'slides': chord_chart.get('slides', [])} if chord_chart else {'slides': []},
-        'beatPositions_ms': beat_positions_ms
+        'beatPositions_ms': beat_positions_ms,
+        # Grid-fit analysis (verdict + metrics) so the UI can show the analyze-first dialog and
+        # report whether the emitted grid is even or tempo-following.
+        'gridFit': grid.get('grid_fit', {}),
     }
 
 
@@ -3775,14 +4237,418 @@ def _guess_track_label(filepath: str) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# DOWNBEAT PHASE DETECTION (music-driven — independent of the click's own accent)
+# ═══════════════════════════════════════════════════════════════════════
+
+def detect_downbeat_phase(classified: Dict, grid: Dict, time_sig: int = 4) -> Dict[str, Any]:
+    """Determine the TRUE musical downbeat (beat 1) from the MUSIC — not from the
+    click track's own high-pitch accent, which may be placed wrong.
+
+    The click grid gives accurate beat SPACING; this finds which of the `time_sig`
+    beat positions is beat 1 by scoring each phase candidate with:
+      - CHORD CHANGES (bass root + piano/guitar triad) — the strongest signal;
+        harmony changes on the downbeat. Bass is weighted highest.
+      - KICK on the downbeat (sub 40-90 Hz) — kick usually hits beat 1 (& 3).
+      - SNARE on the backbeat (180-450 Hz) — snare is NOT on the downbeat; the
+        chord typically changes just AFTER the snare. Used as a corroborating
+        check, not a primary driver.
+
+    Returns a dict:
+      {
+        'phase': int,                # 0..time_sig-1, beats to shift anchor forward
+        'shift_ms': float,           # phase * beat_interval_ms
+        'corrected_anchor_sec': float,
+        'confidence': float,         # 0..1 how decisive the chord-change vote was
+        'scores': {phase: score},    # blended chord-change score per phase
+        'snare_ok': bool,            # snare landed on a backbeat (sanity)
+        'method': str
+      }
+    """
+    import numpy as _np
+    from scipy.signal import find_peaks as _find_peaks, butter as _butter, sosfiltfilt as _sosfiltfilt
+
+    beats = grid.get('beats', [])
+    if not beats or len(beats) < time_sig * 2:
+        return {'phase': 0, 'shift_ms': 0.0,
+                'corrected_anchor_sec': grid.get('grid_anchor_sec', 0.0),
+                'confidence': 0.0, 'scores': {}, 'snare_ok': False,
+                'method': 'insufficient-beats'}
+
+    beats = _np.asarray(beats, dtype=float)
+    beat_interval = grid['beat_interval_sec']
+    note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+    # ── Per-beat chord/root label for one harmonic stem ──
+    # Returns a list (one label per beat). For bass we use the dominant pitch class (the root);
+    # for chordal instruments we match the beat's chroma to the best major/minor triad.
+    def labels_per_beat(path, bass=False):
+        try:
+            y, sr = librosa.load(path, sr=SAMPLE_RATE)
+        except Exception:
+            return None
+        ch = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=1024)
+        ct = librosa.frames_to_time(_np.arange(ch.shape[1]), sr=sr, hop_length=1024)
+        out = []
+        for bt in beats:
+            m = (ct >= bt) & (ct < bt + beat_interval)
+            vec = ch[:, m].mean(axis=1) if m.any() else ch[:, int(_np.argmin(_np.abs(ct - bt)))]
+            if bass:
+                out.append(int(_np.argmax(vec)))  # dominant pitch class (root)
+            else:
+                n = _np.linalg.norm(vec)
+                if n > 0:
+                    vec = vec / n
+                best, sc = -1, -1.0
+                for root in range(12):
+                    for third in (4, 3):  # major / minor triad
+                        tmpl = _np.zeros(12)
+                        tmpl[root] = 1; tmpl[(root + 4 if third == 4 else root + 3) % 12] = 1
+                        tmpl[(root + 7) % 12] = 1
+                        tmpl = tmpl / _np.linalg.norm(tmpl)
+                        s = float(_np.dot(vec, tmpl))
+                        if s > sc:
+                            sc, best = s, root * 2 + (1 if third == 3 else 0)
+                out.append(best)
+        return out
+
+    # ── HARMONIC CHANGE NOVELTY (time-domain, across ALL harmonic instruments) ──
+    # Beat 1 of a bar is where bass + guitar + piano + keys change chord TOGETHER. Instead of
+    # quantizing chord labels to a (possibly mis-anchored) beat grid, we measure the actual
+    # HARMONIC CHANGE at every time frame for each instrument — how much its chroma shifts from
+    # one short window to the next — and SUM that novelty across instruments. Peaks in the summed
+    # novelty are the moments where several instruments changed chord at once = candidate
+    # downbeats. We then score each beat phase by how much of that coincident-change energy lands
+    # on it.
+    # CHORD-LABEL-CHANGE METHOD (robust to note re-articulation). A re-struck SAME chord creates a
+    # new note onset but NO harmonic change — chroma-flux/onset methods therefore fire on every
+    # beat and wash the downbeat out (observed: flat phase scores). Instead we LABEL each beat with
+    # a chord (bass → dominant pitch-class root; guitar/piano → best major/minor triad), STABILIZE
+    # labels with a short mode filter so a held chord reads as one label, then mark a CHANGE only
+    # when the stabilized label differs from the previous beat. That yields ~per-bar changes, which
+    # actually carry beat 1.
+    from collections import Counter as _Counter
+
+    # Use ONLY the real instrument stems — bass, guitar and piano. The 'keys' role is Demucs'
+    # 'other.wav' catch-all (pads, synths, strings, bleed) and is deliberately excluded. Drums are
+    # handled separately below (kick/snare phase corroboration).
+    harmonic_stems = [('bass', 1.5), ('piano', 1.0), ('acoustic_guitar', 1.0),
+                      ('electric_guitar', 1.0)]
+
+    # Pre-load each stem's chroma once (hop 2048 ≈ 93 ms at 22050). Re-labelled per candidate
+    # offset below; the chroma itself does not depend on the grid.
+    stem_chroma = []  # list of (weight, is_bass, chroma[12,T], times[T])
+    for role, weight in harmonic_stems:
+        path = classified.get(role)
+        if not path or not os.path.exists(path):
+            continue
+        try:
+            y, sr = librosa.load(path, sr=SAMPLE_RATE)
+        except Exception:
+            continue
+        ch = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=2048)
+        ct = librosa.frames_to_time(_np.arange(ch.shape[1]), sr=sr, hop_length=2048)
+        stem_chroma.append((weight, role == 'bass', ch, ct))
+    n_harm = len(stem_chroma)
+    used_any = n_harm > 0
+
+    def _triad_label(vec):
+        n = _np.linalg.norm(vec)
+        if n > 0:
+            vec = vec / n
+        best, sc = -1, -1.0
+        for root in range(12):
+            for third in (4, 3):  # major / minor
+                tmpl = _np.zeros(12)
+                tmpl[root] = 1; tmpl[(root + third) % 12] = 1; tmpl[(root + 7) % 12] = 1
+                tmpl = tmpl / _np.linalg.norm(tmpl)
+                s = float(_np.dot(vec, tmpl))
+                if s > sc:
+                    sc, best = s, root * 2 + (1 if third == 3 else 0)
+        return best
+
+    def _change_energy_for_grid(grid_beats):
+        """Summed stabilized chord-change strength per beat on the given grid."""
+        ce = _np.zeros(len(grid_beats))
+        for weight, is_bass, ch, ct in stem_chroma:
+            labs = []
+            for bt in grid_beats:
+                m = (ct >= bt) & (ct < bt + beat_interval)
+                vec = ch[:, m].mean(axis=1) if m.any() else ch[:, int(_np.argmin(_np.abs(ct - bt)))]
+                labs.append(int(_np.argmax(vec)) if is_bass else _triad_label(vec))
+            labs = _np.asarray(labs)
+            # Stabilize: mode over a +/-1 beat window removes single-beat estimator flicker.
+            stab = labs.copy()
+            for i in range(len(labs)):
+                lo = max(0, i - 1); hi = min(len(labs), i + 2)
+                stab[i] = _Counter(labs[lo:hi].tolist()).most_common(1)[0][0]
+            chg = _np.concatenate([[0.0], (_np.diff(stab) != 0).astype(float)]) * weight
+            ce[:len(chg)] += chg
+        return ce
+
+    # ── JOINT RE-ANCHOR + BEAT-1 SEARCH ──
+    # The tempo (beat spacing) is correct but the grid POSITION can be off by a fraction of a beat.
+    # We scan sub-beat offsets across one beat; for each offset we compute the chord-change energy
+    # per bar-position and score by how dominant the strongest position is (peakiness). The winning
+    # offset both re-anchors the grid onto the chord changes AND reveals which bar-position is
+    # beat 1 (the one where chord changes concentrate).
+    sub_beat_shift_sec = 0.0
+    align_strength = 0.0
+    best_phase_energy = _np.zeros(time_sig)
+    reanchored = beats
+    if used_any:
+        N_OFF = 12
+        best = None
+        for oi in range(N_OFF):
+            off = (oi / N_OFF) * beat_interval
+            # Shift grid within +/- half a beat (nearest representation so it barely moves).
+            shift = off if off <= beat_interval / 2.0 else off - beat_interval
+            gb = beats + shift
+            if gb[0] < 0:
+                gb = gb - gb[0]
+            ce = _change_energy_for_grid(gb)
+            pe = _np.zeros(time_sig)
+            for i in range(len(gb)):
+                pe[i % time_sig] += ce[i]
+            tot = float(pe.sum()) or 1.0
+            pe = pe / tot
+            peak = float(_np.max(pe))  # dominance of the strongest bar position
+            if best is None or peak > best[0]:
+                best = (peak, shift, pe.copy(), gb)
+        peak, sub_beat_shift_sec, best_phase_energy, reanchored = best
+        # align_strength: how far the winning phase rises above an even 1/time_sig split (0..1).
+        align_strength = max(0.0, min(1.0, (peak - 1.0 / time_sig) / (1.0 - 1.0 / time_sig)))
+
+    scores = {p: float(best_phase_energy[p]) for p in range(time_sig)}
+
+    # ── Kick (sub) and snare (body) phase, for corroboration ──
+    # Matched against the RE-ANCHORED grid so drum hits are compared to beats that sit on the music.
+    def band_phase(path, lo, hi):
+        if not path or not os.path.exists(path):
+            return None
+        try:
+            yd, srd = librosa.load(path, sr=44100)
+        except Exception:
+            return None
+        hi = min(hi, srd / 2 - 100)
+        sos = _butter(4, [lo, hi], btype='band', fs=srd, output='sos')
+        filt = _sosfiltfilt(sos, yd)
+        oe = librosa.onset.onset_strength(y=filt, sr=srd, hop_length=256)
+        ot = librosa.frames_to_time(_np.arange(len(oe)), sr=srd, hop_length=256)
+        pk, _ = _find_peaks(oe, height=_np.max(oe) * 0.25, distance=int(srd * 0.20 / 256))
+        tally = {p: 0 for p in range(time_sig)}
+        for t in ot[pk]:
+            j = int(_np.argmin(_np.abs(reanchored - t)))
+            if abs(reanchored[j] - t) < beat_interval * 0.20:
+                tally[j % time_sig] += 1
+        return tally
+
+    drums_path = classified.get('drums')
+    kick_tally = band_phase(drums_path, 40, 90)
+    snare_tally = band_phase(drums_path, 180, 450)
+
+    # Primary decision: where SIMULTANEOUS multi-instrument chord changes concentrate = beat 1.
+    # If no harmonic stems produced a signal, fall back to the kick (kick on downbeat).
+    if used_any and max(scores.values()) > 0:
+        phase = max(range(time_sig), key=lambda p: scores[p])
+        method = 'simultaneous-chord-change'
+    elif kick_tally and sum(kick_tally.values()) > 0:
+        phase = max(range(time_sig), key=lambda p: kick_tally[p])
+        method = 'kick-fallback'
+        scores = {p: float(kick_tally[p]) for p in range(time_sig)}
+    else:
+        phase = 0
+        method = 'no-signal'
+
+    # Confidence = how dominant the winning phase is vs the runner-up, GATED by how well the grid
+    # could be re-anchored (align_strength). A flat phase vote OR a weak re-anchor both lower it.
+    svals = sorted(scores.values(), reverse=True) if scores else [0, 0]
+    top = svals[0] if svals else 0.0
+    second = svals[1] if len(svals) > 1 else 0.0
+    phase_margin = float((top - second) / top) if top > 0 else 0.0
+    confidence = float(phase_margin * (0.5 + 0.5 * min(1.0, align_strength * 2.0)))
+
+    # Sanity: the snare should sit on a backbeat (1 or 3 beats from the downbeat),
+    # i.e. NOT on the detected downbeat. Matches "chord changes after the snare".
+    snare_ok = False
+    if snare_tally and sum(snare_tally.values()) > 0:
+        snare_pos = max(range(time_sig), key=lambda p: snare_tally[p])
+        snare_ok = ((snare_pos - phase) % time_sig) in (1, 3)
+
+    # Snare corroboration: when the snare independently lands on a backbeat relative to the
+    # chord-change downbeat, two unrelated signals agree — boost confidence. This is exactly the
+    # "snare on 2 & 4, chord changes on 1" worship pattern. A disagreeing snare leaves it as-is.
+    if snare_ok:
+        confidence = min(1.0, confidence + 0.12)
+
+    # The corrected anchor combines BOTH corrections:
+    #   1. sub_beat_shift_sec — continuous re-anchor so beats land ON the chord changes.
+    #   2. phase * beat_interval — whole-beat shift so beat 1 is the right bar position.
+    anchor = grid['grid_anchor_sec'] + sub_beat_shift_sec + phase * beat_interval
+    while anchor < 0:
+        anchor += beat_interval
+    total_shift_ms = (sub_beat_shift_sec + phase * beat_interval) * 1000.0
+
+    print(f"  Downbeat detection: method={method}, sub-beat re-anchor={sub_beat_shift_sec*1000:+.0f} ms "
+          f"(align {align_strength:.2f}), phase=+{phase} beat(s) "
+          f"(+{phase * beat_interval * 1000:.0f} ms), total shift {total_shift_ms:+.0f} ms, "
+          f"confidence={confidence:.2f}, snare_backbeat={snare_ok}, harmonic_stems={n_harm}")
+    print(f"    simultaneous-chord-change score per beat-position: "
+          f"{', '.join(f'b{p+1}={scores.get(p,0):.2f}' for p in range(time_sig))}")
+
+    return {
+        'phase': int(phase),
+        'sub_beat_shift_ms': float(sub_beat_shift_sec * 1000.0),
+        'align_strength': float(align_strength),
+        'shift_ms': float(total_shift_ms),
+        'corrected_anchor_sec': float(anchor),
+        'confidence': confidence,
+        'scores': scores,
+        'snare_ok': bool(snare_ok),
+        'method': method,
+    }
+
+
+def run_detect_downbeat(folder_path: str, time_sig: int = 4, grid_mode: str = None) -> Optional[Dict]:
+    """Lightweight entry point: detect ONLY the musical downbeat phase.
+
+    Fast — no Whisper, no LLM, no section detection. Classifies stems, builds the
+    click-track beat grid (accurate spacing), then runs music-driven phase
+    detection. Emits a small JSON result for the C# caller. `grid_mode`
+    ('auto'|'even'|'following') forces how the grid is built.
+    """
+    print(f"\n{'='*60}")
+    print(f"  DOWNBEAT DETECTION: {Path(folder_path).name}")
+    print(f"{'='*60}\n")
+
+    print("__PROGRESS__|5|Discovering audio files...")
+    files = find_audio_files(folder_path)
+    if not files:
+        print("ERROR: No audio files found!", file=sys.stderr)
+        return None
+
+    classified = classify_tracks(files, demucs_quality='default')
+
+    print("__PROGRESS__|30|Detecting beat grid from click track...")
+    grid = detect_beat_grid(classified, files, grid_mode=grid_mode)
+    if not grid:
+        print("ERROR: Could not detect beat grid!", file=sys.stderr)
+        return None
+    if 'total_duration_sec' not in grid or grid['total_duration_sec'] <= 0:
+        for f in files:
+            try:
+                grid['total_duration_sec'] = librosa.get_duration(path=f)
+                break
+            except Exception:
+                continue
+
+    print("__PROGRESS__|60|Analyzing drums, bass and chords for the downbeat...")
+    result = detect_downbeat_phase(classified, grid, time_sig)
+
+    # Apply the detected downbeat correction to the grid so we can emit the FINAL corrected beat
+    # positions. This is what the click is rendered from, so the caller can use them directly
+    # (keeps the chosen even/tempo-following grid intact; only shifts phase + sub-beat).
+    sub_ms = result.get('sub_beat_shift_ms', 0.0)
+    align = result.get('align_strength', 0.0)
+    phase = int(result.get('phase', 0))
+    apply_phase = phase != 0 and result.get('confidence', 0) >= 0.15
+    apply_reanchor = abs(sub_ms) > 5.0 and align >= 0.20
+    if apply_phase or apply_reanchor:
+        _apply_downbeat_shift(grid, sub_ms / 1000.0 if apply_reanchor else 0.0)
+        if apply_phase and grid.get('beats') and len(grid['beats']) > phase:
+            grid['beats'] = grid['beats'][phase:]
+        if grid.get('beats'):
+            grid['grid_anchor_sec'] = grid['beats'][0]
+
+    corrected_beats_ms = [round(b * 1000.0, 3) for b in grid.get('beats', [])]
+
+    beat_interval_ms = grid['beat_interval_sec'] * 1000.0
+    out = {
+        'bpm': grid['bpm'],
+        'beat_interval_ms': beat_interval_ms,
+        'bar_duration_ms': beat_interval_ms * time_sig,
+        'time_sig': time_sig,
+        'original_anchor_ms': grid['grid_anchor_sec'] * 1000.0,
+        'phase': result['phase'],
+        'sub_beat_shift_ms': result.get('sub_beat_shift_ms', 0.0),
+        'align_strength': result.get('align_strength', 0.0),
+        'shift_ms': result['shift_ms'],
+        'corrected_anchor_ms': (grid['beats'][0] * 1000.0) if grid.get('beats')
+                               else result['corrected_anchor_sec'] * 1000.0,
+        'confidence': result['confidence'],
+        'snare_backbeat_ok': result['snare_ok'],
+        'method': result['method'],
+        'total_duration_ms': grid['total_duration_sec'] * 1000.0,
+        # Grid-fit analysis so the UI can show the analyze-first dialog (verdict + metrics).
+        'grid_fit': grid.get('grid_fit', {}),
+        # FINAL corrected beat positions (ms) so the caller renders the click from the chosen grid.
+        'corrected_beats_ms': corrected_beats_ms,
+    }
+    print("__PROGRESS__|100|Downbeat detection complete!")
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # MAIN PIPELINE
 # ═══════════════════════════════════════════════════════════════════════
+
+def _apply_downbeat_shift(grid: Dict, sub_beat_shift_sec: float = 0.0) -> None:
+    """Apply a downbeat correction to grid['beats'] WITHOUT destroying tempo-following.
+
+    The beat grid is now the librosa dynamic-programming beat track — real positions that follow
+    the song's tempo, so the click never drifts. A downbeat correction has two parts handled
+    elsewhere: the PHASE (which existing beat is beat 1 — pure relabeling, no position change) and
+    a small continuous SUB-BEAT nudge so beats sit exactly on the chord changes. Only the sub-beat
+    nudge moves positions, and it moves EVERY beat by the same tiny amount, preserving the real
+    inter-beat spacing (no drift reintroduced).
+
+    If the grid holds a synthetic EVEN grid (the fallback path), we rebuild it evenly from the
+    shifted anchor as before so behaviour is unchanged for that case.
+    """
+    interval = grid['beat_interval_sec']
+    total = grid.get('total_duration_sec', 0) or 0
+    beats = grid.get('beats') or []
+
+    # Detect whether the current beats are tempo-following (variable spacing) or a synthetic even
+    # grid. If variable, shift them in place; if even/empty, regenerate evenly from the anchor.
+    is_even = True
+    if len(beats) >= 3:
+        import numpy as _np
+        iv = _np.diff(_np.asarray(beats, dtype=float))
+        is_even = bool(_np.std(iv) < 1e-3)
+
+    if beats and not is_even:
+        # Tempo-following: shift every real beat by the sub-beat nudge; keep spacing intact.
+        grid['beats'] = [b + sub_beat_shift_sec for b in beats if 0.0 <= (b + sub_beat_shift_sec) <= total]
+        if grid['beats']:
+            grid['grid_anchor_sec'] = grid['beats'][0]
+        return
+
+    # Even-grid fallback: rebuild from the (already-shifted) anchor using the fixed interval.
+    anchor = grid['grid_anchor_sec']
+    if interval <= 0 or total <= 0:
+        return
+    new_beats = []
+    t = anchor
+    while t < total:
+        new_beats.append(t)
+        t += interval
+    grid['beats'] = new_beats
+
+
+# Backwards-compatible alias (older call sites rebuilt an even grid from the anchor).
+def _rebuild_beats_from_anchor(grid: Dict) -> None:
+    _apply_downbeat_shift(grid, 0.0)
+
 
 def analyze_multitrack(folder_path: str, llm_mode: str = "openai",
                        time_sig: int = 4, override_bpm: float = None,
                        demucs_quality: str = 'default',
-                       lines_per_slide: int = 4, slide_lead_ms: int = 500) -> Optional[Dict]:
-    """Full multi-signal analysis pipeline."""
+                       lines_per_slide: int = 4, slide_lead_ms: int = 500,
+                       apply_downbeat_detection: bool = True,
+                       anchor_override_ms: float = None,
+                       grid_mode: str = None) -> Optional[Dict]:
+    """Full multi-signal analysis pipeline. `grid_mode` ('auto'|'even'|'following') forces how the
+    beat grid is built (shared with the Auto Generate Click path)."""
     print(f"\n{'='*60}")
     print(f"  MULTITRACK ANALYSIS: {Path(folder_path).name}")
     print(f"  LLM Mode: {llm_mode}")
@@ -3813,7 +4679,7 @@ def analyze_multitrack(folder_path: str, llm_mode: str = "openai",
             print(f"    {'unclassified':18s} → {Path(f).name}")
 
     # Step 1: Beat grid detection (click track = source of truth for timing)
-    grid = detect_beat_grid(classified, files)
+    grid = detect_beat_grid(classified, files, grid_mode=grid_mode)
     if not grid:
         print("ERROR: Could not detect BPM!", file=sys.stderr)
         return None
@@ -3878,11 +4744,60 @@ def analyze_multitrack(folder_path: str, llm_mode: str = "openai",
         print(f"  Count-in detected: {count_in_bars} bar(s) — adjusting grid anchor")
         grid['grid_anchor_sec'] += count_in_bars * bar_duration_sec
 
-    # Step 2b: Generate click track for single-track songs (no click stem available)
-    if not classified.get('click') and len(files) == 1:
-        click_path = generate_click_track(grid, folder_path, time_sig)
-        if click_path:
-            classified['click'] = click_path
+    # Step 2b: (removed) Auto-Detect no longer generates a click track. The analyzer's old
+    # generated click was on the wrong downbeat phase and too quiet. The click now comes ONLY
+    # from the dedicated "Auto Generate Click Track" button (music-detected downbeat + loud,
+    # compressed render) or the user's manual click. Beat-grid timing above is unaffected — it
+    # is detected from the real click/librosa in Step 1.
+
+    # Step 2c: CORRECT THE DOWNBEAT PHASE from the music (kick/bass/chords) BEFORE any bar-based
+    # work. The click grid gives accurate beat SPACING, but its beat-1 phase can be wrong (the
+    # first click pulse is not always the musical downbeat). Shifting the anchor here means section
+    # boundaries land on REAL downbeats, so each section loops cleanly — and lyric-driven sections
+    # snap to the correct bars. Auto-applied only when the detection is confident; otherwise the
+    # original anchor is kept. An explicit override (anchor_override_ms) takes precedence and skips
+    # detection (used when a prior "Create Multi-Track" already corrected the downbeat).
+    if anchor_override_ms is not None and anchor_override_ms >= 0:
+        _shift = anchor_override_ms / 1000.0 - grid['grid_anchor_sec']
+        # Shift the real (tempo-following) beats by the override delta so spacing is preserved; the
+        # even-grid fallback is rebuilt from the new anchor inside _apply_downbeat_shift.
+        grid['grid_anchor_sec'] = anchor_override_ms / 1000.0
+        _apply_downbeat_shift(grid, _shift)
+        print(f"  Downbeat anchor override: {anchor_override_ms:.0f} ms "
+              f"(shift {_shift*1000:+.0f} ms)")
+    elif apply_downbeat_detection:
+        try:
+            db = detect_downbeat_phase(classified, grid, time_sig)
+            # Apply the correction when it is meaningful. Two independent corrections exist:
+            #   • a whole-beat phase shift (beat 1 lands on the right bar position), gated by
+            #     phase-vote confidence; and
+            #   • a continuous sub-beat re-anchor (beats land ON the chord changes), gated by how
+            #     concentrated the chord-change energy was (align_strength).
+            # Either alone is worth applying.
+            sub_ms = db.get('sub_beat_shift_ms', 0.0)
+            align = db.get('align_strength', 0.0)
+            phase = int(db.get('phase', 0))
+            apply_phase = phase != 0 and db['confidence'] >= 0.15
+            apply_reanchor = abs(sub_ms) > 5.0 and align >= 0.20
+            if apply_phase or apply_reanchor:
+                # 1. Sub-beat nudge: move every real beat by the small amount so beats sit on the
+                #    chord changes (preserves tempo-following spacing — no drift).
+                _apply_downbeat_shift(grid, sub_ms / 1000.0 if apply_reanchor else 0.0)
+                # 2. Phase: beat 1 = the real beat at index `phase`. This is pure relabeling of
+                #    which beat starts the bar; it does NOT change beat spacing. We drop the leading
+                #    `phase` beats so the grid starts on the chosen downbeat.
+                if apply_phase and grid.get('beats') and len(grid['beats']) > phase:
+                    grid['beats'] = grid['beats'][phase:]
+                if grid.get('beats'):
+                    grid['grid_anchor_sec'] = grid['beats'][0]
+                print(f"  ✓ Downbeat corrected: re-anchor {sub_ms:+.0f} ms (align {align:.2f}), "
+                      f"phase +{phase} beat(s), total {db['shift_ms']:+.0f} ms, "
+                      f"confidence {db['confidence']:.2f}")
+            else:
+                print(f"  Downbeat kept as-is (phase={db['phase']}, re-anchor={sub_ms:+.0f} ms, "
+                      f"align={align:.2f}, confidence={db['confidence']:.2f})")
+        except Exception as e:
+            print(f"  ! Downbeat detection skipped: {e}")
 
     # Step 3: Extract per-bar features FIRST (needed for all paths)
     features = extract_per_bar_features(classified, grid, time_sig)
@@ -4098,6 +5013,42 @@ def main():
     demucs_quality = 'default'  # htdemucs_6s, shifts=2
     lines_per_slide = 4         # slide grouping: lyric lines per slide (clamped 2-4)
     slide_lead_ms = 500         # slide read-ahead lead (subtracted from each slide start)
+    apply_downbeat_detection = True  # correct the musical downbeat before dividing sections
+    anchor_override_ms = None        # explicit corrected anchor (ms); skips detection when set
+    grid_mode = None                 # 'auto'|'even'|'following' — force how the grid is built
+
+    # --grid-mode controls the even-vs-tempo-following decision (shared by Create Multi-Track and
+    # Auto Generate Click). Parsed early so it applies to both the --detect-downbeat and full paths.
+    if '--grid-mode' in sys.argv:
+        _gi = sys.argv.index('--grid-mode')
+        if _gi + 1 < len(sys.argv):
+            _gm = sys.argv[_gi + 1].lower()
+            if _gm in ('auto', 'even', 'following'):
+                grid_mode = _gm
+                print(f"  Grid mode: {grid_mode}")
+            else:
+                print(f"WARNING: Invalid --grid-mode '{_gm}'. Options: auto, even, following",
+                      file=sys.stderr)
+
+    # ── LIGHTWEIGHT MODE: detect the musical downbeat only (no Whisper/LLM/sections) ──
+    # Used by the "Auto Generate Click Track" button. Emits a small JSON result.
+    if '--detect-downbeat' in sys.argv:
+        if not os.path.isdir(folder_path):
+            print(f"ERROR: Folder not found: {folder_path}", file=sys.stderr)
+            sys.exit(1)
+        try:
+            db = run_detect_downbeat(folder_path, time_sig=4, grid_mode=grid_mode)
+        except Exception as e:
+            print(f"ERROR: Unhandled exception: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            sys.exit(1)
+        if db is None:
+            print("ERROR: Downbeat detection returned no result.", file=sys.stderr)
+            sys.exit(1)
+        print(f"\n__RESULT_JSON__")
+        print(json.dumps(db))
+        sys.exit(0)
 
     # Parse optional arguments
     if '--output' in sys.argv:
@@ -4148,6 +5099,22 @@ def main():
             except ValueError:
                 print(f"WARNING: Invalid --slide-lead-ms value, using 500", file=sys.stderr)
 
+    # Downbeat correction controls:
+    #   --no-downbeat-detect   disable music-driven downbeat correction (keep the click's phase)
+    #   --anchor-ms VALUE      force the corrected beat-1 anchor (ms); skips detection
+    if '--no-downbeat-detect' in sys.argv:
+        apply_downbeat_detection = False
+        print("  Downbeat detection: disabled (keeping click-track phase)")
+
+    if '--anchor-ms' in sys.argv:
+        idx = sys.argv.index('--anchor-ms')
+        if idx + 1 < len(sys.argv):
+            try:
+                anchor_override_ms = max(0.0, float(sys.argv[idx + 1]))
+                print(f"  Downbeat anchor override: {anchor_override_ms:.1f} ms")
+            except ValueError:
+                print(f"WARNING: Invalid --anchor-ms value, ignoring", file=sys.stderr)
+
     if not os.path.isdir(folder_path):
         print(f"ERROR: Folder not found: {folder_path}", file=sys.stderr)
         sys.exit(1)
@@ -4158,7 +5125,10 @@ def main():
                                        override_bpm=override_bpm,
                                        demucs_quality=demucs_quality,
                                        lines_per_slide=lines_per_slide,
-                                       slide_lead_ms=slide_lead_ms)
+                                       slide_lead_ms=slide_lead_ms,
+                                       apply_downbeat_detection=apply_downbeat_detection,
+                                       anchor_override_ms=anchor_override_ms,
+                                       grid_mode=grid_mode)
     except Exception as e:
         print(f"ERROR: Unhandled exception: {e}", file=sys.stderr)
         import traceback
@@ -4166,35 +5136,9 @@ def main():
         sys.exit(1)
 
     if song_data:
-        # Determine output path for song.json
-        # For single-track songs: save inside the stems folder (songname/song.json)
-        # For multitrack songs: save in the song folder (folder_path/song.json)
-        is_single_track = len([f for f in os.listdir(folder_path)
-                              if Path(f).suffix.lower() in {'.mp3', '.wav', '.flac', '.ogg', '.m4a'}
-                              and os.path.isfile(os.path.join(folder_path, f))]) == 1
-
-        if is_single_track:
-            # Find the stems folder (named after the audio file)
-            audio_files = [f for f in os.listdir(folder_path)
-                          if Path(f).suffix.lower() in {'.mp3', '.wav', '.flac', '.ogg', '.m4a'}
-                          and os.path.isfile(os.path.join(folder_path, f))]
-            if audio_files:
-                stem_folder_name = Path(audio_files[0]).stem
-                stem_dir = os.path.join(folder_path, stem_folder_name)
-                # Try case-insensitive match
-                if not os.path.isdir(stem_dir):
-                    for item in os.listdir(folder_path):
-                        if item.lower() == stem_folder_name.lower() and os.path.isdir(os.path.join(folder_path, item)):
-                            stem_dir = os.path.join(folder_path, item)
-                            break
-                if os.path.isdir(stem_dir):
-                    output_path = os.path.join(stem_dir, output_file)
-                else:
-                    output_path = os.path.join(folder_path, output_file)
-            else:
-                output_path = os.path.join(folder_path, output_file)
-        else:
-            output_path = os.path.join(folder_path, output_file)
+        # song.json (backup) is written directly in the song folder. Demucs now writes stems into
+        # this same folder (no subfolder), so single-track and multi-track songs both save here.
+        output_path = os.path.join(folder_path, output_file)
 
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(song_data, f, indent=2, ensure_ascii=False)

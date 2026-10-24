@@ -80,6 +80,10 @@
                             ToolTip="Remove the selected song from the setlist" />
                     <Button Content="Edit Song Info" Style="{StaticResource TransportButton}"
                             Click="EditSongInfo_Click" Margin="0,3" FontSize="12" MinHeight="34" />
+                    <Button x:Name="CreateMultiTrackBtn" Content="Create Multi-Track"
+                            Style="{StaticResource TransportButton}"
+                            Click="CreateMultiTrack_Click" Margin="0,3" FontSize="12" MinHeight="34"
+                            ToolTip="Separate a single-track song into stems (Demucs), then auto-generate a loud click on the detected musical downbeat" />
                     <Button Content="Edit Sections" Style="{StaticResource TransportButton}"
                             Click="EditSections_Click" Margin="0,3" FontSize="12" MinHeight="34" />
                     <Button Content="Chord Chart" Style="{StaticResource TransportButton}"
@@ -256,6 +260,34 @@
                            FontSize="11" Foreground="{StaticResource TextMutedBrush}"
                            VerticalAlignment="Center" />
             </Grid>
+        </Border>
+
+        <!-- ═══ Long-task progress overlay (Create Multi-Track, etc.) ═══ -->
+        <Border x:Name="TaskProgressOverlay" Grid.RowSpan="5" Grid.ColumnSpan="2"
+                Background="#CC000000" Visibility="Collapsed" Panel.ZIndex="100">
+            <Border Background="{StaticResource SecondaryDarkBrush}"
+                    BorderBrush="{StaticResource AccentBlueBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="28,22" MinWidth="460"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock x:Name="TaskProgressTitle" Text="Working…"
+                               FontSize="18" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Margin="0,0,0,12" />
+                    <TextBlock x:Name="TaskProgressStep" Text=""
+                               FontSize="13" TextWrapping="Wrap"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,0,0,12" MaxWidth="420" />
+                    <ProgressBar x:Name="TaskProgressBar" Height="18" Minimum="0" Maximum="100"
+                                 Value="0" IsIndeterminate="False"
+                                 Foreground="{StaticResource AccentBlueBrush}"
+                                 Background="{StaticResource SurfaceDarkBrush}"
+                                 BorderThickness="0" />
+                    <TextBlock x:Name="TaskProgressPercent" Text="" FontSize="12"
+                               Foreground="{StaticResource AccentBlueBrush}"
+                               HorizontalAlignment="Right" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
         </Border>
     </Grid>
 </Window>

@@ -67,7 +67,8 @@ public class PythonAnalysisService
         string quality = "default", double? bpmOverride = null,
         List<string>? sectionHints = null,
         Dictionary<string, string>? sectionLyrics = null,
-        int linesPerSlide = 4, int slideLeadMs = 500)
+        int linesPerSlide = 4, int slideLeadMs = 500,
+        string? gridMode = null)
     {
         if (!File.Exists(_scriptPath))
             return (null, $"Analysis script not found: {_scriptPath}");
@@ -102,6 +103,9 @@ public class PythonAnalysisService
             // Slide grouping/timing options: lines-per-slide (2-4) and the read-ahead lead (ms).
             args += $" --lines-per-slide {Math.Clamp(linesPerSlide, 2, 4)}";
             args += $" --slide-lead-ms {Math.Max(0, slideLeadMs)}";
+            // Grid mode override (auto/even/following) for the click grid, when the user chose one.
+            if (!string.IsNullOrEmpty(gridMode))
+                args += $" --grid-mode {gridMode}";
 
             var result = await RunCommandWithProgressAsync(_pythonPath, args,
                 timeoutSeconds: 600, onProgress: onProgress);
@@ -133,6 +137,124 @@ public class PythonAnalysisService
 
             song.FolderPath = songFolderPath;
             return (song, "Analysis complete!");
+        }
+        catch (Exception ex)
+        {
+            return (null, $"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Result of music-driven downbeat (beat 1) detection. Times are in milliseconds.
+    /// <see cref="Phase"/> is how many beats (0..timeSig-1) the grid anchor must shift forward so
+    /// bar 1 lands on the true musical downbeat. <see cref="CorrectedAnchorMs"/> already has that
+    /// shift applied. <see cref="Confidence"/> (0..1) is how dominant the winning phase was.
+    /// </summary>
+    public readonly record struct DownbeatResult(
+        double Bpm, double BeatIntervalMs, double BarDurationMs, int TimeSig,
+        double OriginalAnchorMs, int Phase, double ShiftMs, double CorrectedAnchorMs,
+        double Confidence, bool SnareBackbeatOk, string Method, double TotalDurationMs,
+        GridFit GridFit, System.Collections.Generic.List<double> CorrectedBeatsMs);
+
+    /// <summary>
+    /// How the beat grid was (or would be) built. <see cref="Recommended"/> is the analyzer's
+    /// auto verdict ("even" for constant tempo, "following" for variable). <see cref="Applied"/> is
+    /// what was actually emitted (honors a forced mode). <see cref="FitMaxDevMs"/> is the worst
+    /// deviation of a single even grid from the detected beats — small = constant tempo.
+    /// </summary>
+    public readonly record struct GridFit(
+        string Recommended, string Applied, bool EvenFits,
+        double FitMaxDevMs, double FitRmsMs, double RawJitterMs, double FitBpm)
+    {
+        public bool IsConstantTempo => EvenFits;
+    }
+
+    /// <summary>
+    /// Detect the TRUE musical downbeat (beat 1) from the stems — drums (kick/snare), bass and
+    /// piano/guitar chord changes — independent of the click track's own accent. Fast: no Whisper,
+    /// no LLM, no section detection. Requires Demucs-separated stems (drums/bass + a harmonic stem)
+    /// in the song folder. Returns null with a message on failure.
+    /// </summary>
+    public async Task<(DownbeatResult? result, string message)> DetectDownbeatAsync(
+        string songFolderPath, Action<int, string>? onProgress = null, string? gridMode = null)
+    {
+        if (!File.Exists(_scriptPath))
+            return (null, $"Analysis script not found: {_scriptPath}");
+        if (!Directory.Exists(songFolderPath))
+            return (null, $"Song folder not found: {songFolderPath}");
+
+        try
+        {
+            var args = $"\"{_scriptPath}\" \"{songFolderPath}\" --detect-downbeat";
+            if (!string.IsNullOrEmpty(gridMode))
+                args += $" --grid-mode {gridMode}";
+            var run = await RunCommandWithProgressAsync(_pythonPath, args,
+                timeoutSeconds: 300, onProgress: onProgress);
+
+            if (run.exitCode != 0)
+            {
+                string errorDetails = !string.IsNullOrWhiteSpace(run.error) ? run.error : run.output;
+                return (null, $"Downbeat detection failed: {errorDetails}");
+            }
+
+            string jsonResult = ExtractResultJson(run.output);
+            if (string.IsNullOrEmpty(jsonResult))
+                return (null, $"No result from downbeat detection. Output:\n{run.output}");
+
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            using var doc = JsonDocument.Parse(jsonResult);
+            var root = doc.RootElement;
+
+            double GetD(string name, double dflt = 0) =>
+                root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : dflt;
+            int GetI(string name, int dflt = 0) =>
+                root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : dflt;
+            bool GetB(string name) =>
+                root.TryGetProperty(name, out var v) && (v.ValueKind == JsonValueKind.True);
+            string GetS(string name) =>
+                root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? (v.GetString() ?? "") : "";
+
+            // Parse the nested grid_fit object (verdict + metrics) for the analyze-first dialog.
+            GridFit gridFit = default;
+            if (root.TryGetProperty("grid_fit", out var gf) && gf.ValueKind == JsonValueKind.Object)
+            {
+                double GfD(string n) => gf.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
+                bool GfB(string n) => gf.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.True;
+                string GfS(string n) => gf.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.String ? (v.GetString() ?? "") : "";
+                gridFit = new GridFit(
+                    Recommended: GfS("recommended"),
+                    Applied: GfS("applied"),
+                    EvenFits: GfB("even_fits"),
+                    FitMaxDevMs: GfD("fit_max_dev_ms"),
+                    FitRmsMs: GfD("fit_rms_ms"),
+                    RawJitterMs: GfD("raw_jitter_ms"),
+                    FitBpm: GfD("fit_bpm"));
+            }
+
+            var correctedBeats = new System.Collections.Generic.List<double>();
+            if (root.TryGetProperty("corrected_beats_ms", out var cb) && cb.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var e in cb.EnumerateArray())
+                    if (e.ValueKind == JsonValueKind.Number) correctedBeats.Add(e.GetDouble());
+            }
+
+            var result = new DownbeatResult(
+                Bpm: GetD("bpm"),
+                BeatIntervalMs: GetD("beat_interval_ms"),
+                BarDurationMs: GetD("bar_duration_ms"),
+                TimeSig: GetI("time_sig", 4),
+                OriginalAnchorMs: GetD("original_anchor_ms"),
+                Phase: GetI("phase"),
+                ShiftMs: GetD("shift_ms"),
+                CorrectedAnchorMs: GetD("corrected_anchor_ms"),
+                Confidence: GetD("confidence"),
+                SnareBackbeatOk: GetB("snare_backbeat_ok"),
+                Method: GetS("method"),
+                TotalDurationMs: GetD("total_duration_ms"),
+                GridFit: gridFit,
+                CorrectedBeatsMs: correctedBeats);
+
+            return (result, "Downbeat detected.");
         }
         catch (Exception ex)
         {

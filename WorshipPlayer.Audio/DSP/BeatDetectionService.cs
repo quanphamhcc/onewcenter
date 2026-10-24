@@ -1,4 +1,5 @@
 using NAudio.Wave;
+using WorshipPlayer.Core.Models;
 
 namespace WorshipPlayer.Audio.DSP;
 
@@ -682,6 +683,293 @@ public class BeatDetectionService
         // click was the only mono track in the mixer; keeping every track the same channel layout
         // removes any mono/stereo handling asymmetry that could desync the click from the song.
         WriteStereoFloatWav(outputPath, clickAudio, sampleRate);
+    }
+
+    /// <summary>
+    /// Generate the "Auto" click track: the manual-click pulse schedule rendered with a MUCH louder,
+    /// cutting click that is compressed/limited so it sits as hot as possible at full scale — the
+    /// loudest click in the app, meant to punch over a full band (user request).
+    ///
+    /// Loudness recipe (vs. the standard manual click):
+    ///  • Full-scale tone body (beat-1 accent 1.0, other beats 1.0) with a LONGER burst and SLOWER
+    ///    decay → more energy/RMS per click.
+    ///  • A SHARP attack transient (a brief wideband "tick") layered on the tone so each click slices
+    ///    through a dense mix (audibility, not just level).
+    ///  • AGGRESSIVE compression (hard-knee, high ratio) + makeup gain + a brick-wall soft limiter so
+    ///    the average level is pushed right up to the ceiling without hard-clipping.
+    ///  • Beat 1 stays clearly distinguishable: its accent is brighter/longer than the other beats,
+    ///    so the downbeat still reads after compression.
+    ///
+    /// Beat 1 lands at <paramref name="beat1Ms"/> (defaults to grid.GridAnchorMs); count-in beats are
+    /// prepended as in <see cref="GenerateManualClickTrack"/>. Written as 44100 stereo FLOAT.
+    /// </summary>
+    public void GenerateAutoClickTrack(BeatGrid grid, string outputPath, int sampleRate = 44100,
+        double beat1Ms = -1, int countInBeats = 0)
+    {
+        double totalDurationMs = grid.TotalDurationMs;
+        if (totalDurationMs <= 0 || sampleRate <= 0)
+        {
+            using var emptyWriter = new WaveFileWriter(outputPath, new WaveFormat(Math.Max(1, sampleRate), 16, 1));
+            return;
+        }
+
+        int totalSamples = (int)(totalDurationMs / 1000.0 * sampleRate);
+        float[] clickAudio = new float[Math.Max(0, totalSamples)];
+
+        // Longer burst + slower decay than the standard manual click = more energy to compress.
+        int accentLen = (int)(AutoClickAccentMs / 1000.0 * sampleRate);
+        int normalLen = (int)(AutoClickNormalMs / 1000.0 * sampleRate);
+        // Beat 1: brighter (1500 Hz) + a 3 kHz sheen, longer; stays distinct after compression.
+        float[] clickAccent = GenerateCuttingClick(sampleRate, 1500, 3000, accentLen, 1.0f, AutoClickDecayRate);
+        // Other beats: 1000 Hz + 2.6 kHz sheen, slightly shorter, still full-scale.
+        float[] clickNormal = GenerateCuttingClick(sampleRate, 1000, 2600, normalLen, 1.0f, AutoClickDecayRate * 1.3);
+
+        double b1 = beat1Ms >= 0 ? beat1Ms : grid.GridAnchorMs;
+
+        // Build the pulse schedule. PREFER the REAL detected beat positions (grid.BeatPositionsMs)
+        // so the click follows the live band's natural tempo movement. Placing clicks on an EVEN
+        // grid from a single BPM drifts badly on live recordings (verified ~2 s of drift by song
+        // end on this song, because real beat intervals vary 557-836 ms). Only when no real beat
+        // positions are available do we fall back to the even BPM schedule.
+        var pulses = BuildAutoClickPulses(grid, b1, totalDurationMs, countInBeats);
+
+        foreach (var pulse in pulses)
+        {
+            int samplePos = (int)(pulse.TimeMs / 1000.0 * sampleRate);
+            if (samplePos < 0 || samplePos >= totalSamples) continue;
+            float[] clickSound = pulse.IsAccent ? clickAccent : clickNormal;
+            for (int j = 0; j < clickSound.Length && samplePos + j < totalSamples; j++)
+                clickAudio[samplePos + j] += clickSound[j]; // additive (bursts never overlap in practice)
+        }
+
+        // Aggressive dynamics: compress → makeup → soft-limit, so the whole track is as loud as
+        // possible right up against 0 dBFS. This bakes in the "turn the compressor up" the operator
+        // would otherwise do on the physical mixer.
+        CompressAndLimit(clickAudio, sampleRate,
+            thresholdDb: AutoClickCompThresholdDb, ratio: AutoClickCompRatio,
+            makeupDb: AutoClickCompMakeupDb);
+
+        WriteStereoFloatWav(outputPath, clickAudio, sampleRate);
+    }
+
+    /// <summary>
+    /// Build the click pulse schedule for the Auto click. Uses the REAL detected beat positions
+    /// (<see cref="BeatGrid.BeatPositionsMs"/>) when available so the click tracks the live tempo
+    /// (no drift); the first beat at/after <paramref name="beat1Ms"/> is the accented downbeat, and
+    /// every <c>TimeSignatureNumerator</c>-th beat after it is accented. Count-in beats are
+    /// prepended one beat-interval apart before beat 1. Falls back to the even-math schedule
+    /// (<see cref="ComputeManualClickPulses"/>) only when no real beat positions exist.
+    /// </summary>
+    private List<ClickPulse> BuildAutoClickPulses(BeatGrid grid, double beat1Ms,
+        double totalDurationMs, int countInBeats)
+    {
+        var beats = grid.BeatPositionsMs;
+        int bpb = grid.TimeSignatureNumerator > 0 ? grid.TimeSignatureNumerator : 4;
+
+        if (beats == null || beats.Count < 4)
+        {
+            // No real beats — fall back to the even BPM schedule.
+            return ComputeManualClickPulses(beat1Ms, grid.Bpm,
+                grid.TimeSignatureNumerator, grid.TimeSignatureDenominator, totalDurationMs, countInBeats);
+        }
+
+        var pulses = new List<ClickPulse>();
+
+        // Find the index of beat 1 = the first detected beat at/after beat1Ms (within tolerance).
+        int startIdx = 0;
+        for (int i = 0; i < beats.Count; i++)
+        {
+            if (beats[i] >= beat1Ms - 1.0) { startIdx = i; break; }
+            startIdx = i; // track last-before in case none is >= (keeps a sane default)
+        }
+
+        // Count-in: prepend up to countInBeats clicks before beat 1, spaced by the LOCAL beat
+        // interval (use the gap at the start of the real grid), clamped to t >= 0.
+        int clampedCountIn = Math.Clamp(countInBeats, 0, 4);
+        if (clampedCountIn > 0)
+        {
+            double localInterval = beats.Count > startIdx + 1 && startIdx + 1 < beats.Count
+                ? beats[startIdx + 1] - beats[startIdx]
+                : (grid.BeatIntervalMs > 0 ? grid.BeatIntervalMs : 500.0);
+            if (startIdx + 1 >= beats.Count && startIdx > 0)
+                localInterval = beats[startIdx] - beats[startIdx - 1];
+            double b1Time = beats[startIdx];
+            for (int c = clampedCountIn; c >= 1; c--)
+            {
+                double t = b1Time - c * localInterval;
+                if (t >= 0) pulses.Add(new ClickPulse(t, false)); // count-in clicks are not accented
+            }
+        }
+
+        // Body: every real beat from beat 1 onward; accent every bpb-th beat (downbeats).
+        for (int i = startIdx; i < beats.Count; i++)
+        {
+            double t = beats[i];
+            if (t < 0 || t > totalDurationMs) continue;
+            bool isDownbeat = ((i - startIdx) % bpb) == 0;
+            pulses.Add(new ClickPulse(t, isDownbeat));
+        }
+
+        return pulses;
+    }
+
+    /// <summary>
+    /// SHARED helper: apply a detected/corrected downbeat to a <see cref="Song"/> and generate the
+    /// loud "Click (Auto)" track. This is the SINGLE source of truth used by BOTH the Section
+    /// Editor's "Auto Generate Click Track" button and the main window's "Create Multi-Track"
+    /// button, so the two can never drift in logic or sound.
+    ///
+    /// It does exactly:
+    ///   1. Build the bar grid from <paramref name="correctedAnchorMs"/> + the song's BPM/meter.
+    ///   2. Write <c>Generated_Click_Auto.wav</c> into the song folder at that downbeat (the loud,
+    ///      compressed, cutting render — <see cref="GenerateAutoClickTrack"/>).
+    ///   3. Write the corrected grid back onto the song (anchor, bpm, intervals, beat positions,
+    ///      ManualClickBeat1Ms).
+    ///   4. Idempotently insert a single "Click (Auto)" track (IEM) at the top of the track list.
+    ///
+    /// It does NOT touch sections (callers decide whether/how to re-snap) and does NOT persist to
+    /// disk/DB (callers save). Returns the full path of the written click WAV.
+    /// </summary>
+    /// <param name="song">The song to apply the click + corrected grid to.</param>
+    /// <param name="correctedAnchorMs">The true musical downbeat (beat 1), in ms.</param>
+    /// <param name="totalDurationMs">Song duration (ms) for building the grid.</param>
+    /// <param name="countInBeats">Count-in beats before beat 1 (clamped 0-4).</param>
+    /// <param name="sampleRate">Output sample rate (default 44100, matching the stems).</param>
+    public string ApplyAutoClickToSong(Song song, double correctedAnchorMs, double totalDurationMs,
+        int countInBeats, int sampleRate = 44100)
+    {
+        if (song == null) throw new ArgumentNullException(nameof(song));
+
+        int num = song.TimeSignatureNumerator > 0 ? song.TimeSignatureNumerator : 4;
+        int den = song.TimeSignatureDenominator > 0 ? song.TimeSignatureDenominator : 4;
+
+        // 1. Build the corrected grid.
+        var grid = BuildGridFromManualAnchor(correctedAnchorMs, song.Bpm, num, den, totalDurationMs);
+        grid.TotalDurationMs = totalDurationMs;
+
+        // Use the song's REAL detected beat positions (which follow the live tempo) for the click,
+        // so it never drifts. BuildGridFromManualAnchor produces an EVEN grid; replace it with the
+        // real beats when the song has them. The click generator accents every bar downbeat.
+        if (song.BeatPositionsMs != null && song.BeatPositionsMs.Count >= 4)
+            grid.BeatPositionsMs = new List<double>(song.BeatPositionsMs);
+
+        // 2. Render the loud "Click (Auto)" WAV at the corrected downbeat.
+        string outputPath = Path.Combine(song.FolderPath, AutoClickFileName);
+        GenerateAutoClickTrack(grid, outputPath, sampleRate, correctedAnchorMs, Math.Clamp(countInBeats, 0, 4));
+
+        // 3. Write the corrected grid back onto the song.
+        song.GridAnchorMs = correctedAnchorMs;
+        song.Bpm = grid.Bpm;
+        song.BeatIntervalMs = grid.BeatIntervalMs;
+        song.BarDurationMs = grid.BarDurationMs;
+        song.BeatPositionsMs = grid.BeatPositionsMs != null && grid.BeatPositionsMs.Count > 0
+            ? new List<double>(grid.BeatPositionsMs)
+            : song.BeatPositionsMs;
+        song.ManualClickBeat1Ms = correctedAnchorMs;
+
+        // 4. Idempotently surface a single "Click (Auto)" track at the top.
+        var dup = song.Tracks
+            .Where(t => string.Equals(t.FileName, AutoClickFileName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        foreach (var t in dup) song.Tracks.Remove(t);
+        song.Tracks.Insert(0, new TrackInfo
+        {
+            FileName = AutoClickFileName,
+            Label = "Click (Auto)",
+            Output = TrackOutput.IEM,
+            DefaultVolume = 0.8f,
+            Color = "#E74C3C"
+        });
+
+        return outputPath;
+    }
+
+    /// <summary>Canonical filename for the generated "Auto" click track.</summary>
+    public const string AutoClickFileName = "Generated_Click_Auto.wav";
+
+    // ── "Auto" click loudness/compression constants (aggressive, cutting over a band) ──
+    internal const double AutoClickAccentMs = 70.0;   // beat-1 burst length (longer = more energy)
+    internal const double AutoClickNormalMs = 55.0;   // other-beat burst length
+    internal const double AutoClickDecayRate = 45.0;  // slower decay than manual (90) → louder RMS
+    internal const double AutoClickCompThresholdDb = -18.0; // aggressive: compress most of the body
+    internal const double AutoClickCompRatio = 8.0;          // 8:1 hard compression
+    internal const double AutoClickCompMakeupDb = 12.0;      // push back up to the ceiling
+
+    /// <summary>
+    /// Synthesize a loud, CUTTING click: a two-partial tone (fundamental + a high "sheen" partial so
+    /// it slices through a mix) with a very short wideband attack transient, under a slow-decay
+    /// envelope. Peak is bounded by <paramref name="amplitude"/> before the compressor runs.
+    /// </summary>
+    private float[] GenerateCuttingClick(int sampleRate, double freq, double sheenFreq,
+        int lengthSamples, float amplitude, double decayRate)
+    {
+        float[] click = new float[Math.Max(0, lengthSamples)];
+        int attackSamples = Math.Max(1, (int)(0.0015 * sampleRate)); // ~1.5 ms transient
+        for (int i = 0; i < click.Length; i++)
+        {
+            double t = (double)i / sampleRate;
+            double env = Math.Exp(-t * decayRate);
+            double tone = 0.7 * Math.Sin(2 * Math.PI * freq * t)
+                        + 0.3 * Math.Sin(2 * Math.PI * sheenFreq * t); // high partial = cut
+            double sample = tone * env;
+            // Short attack transient (decaying noise) so the onset is sharp and audible in a band.
+            if (i < attackSamples)
+            {
+                double ampAttack = 1.0 - (double)i / attackSamples;
+                sample += 0.5 * ampAttack * (((i * 2654435761u) & 0xFFFF) / 32768.0 - 1.0);
+            }
+            click[i] = (float)(sample * amplitude);
+        }
+        // Pre-normalize so the peak sits at amplitude before compression (the two partials + attack
+        // can exceed 1.0 when summed).
+        float peak = 0f;
+        for (int i = 0; i < click.Length; i++) peak = Math.Max(peak, Math.Abs(click[i]));
+        if (peak > 1e-6f)
+        {
+            float scale = amplitude / peak;
+            for (int i = 0; i < click.Length; i++) click[i] *= scale;
+        }
+        return click;
+    }
+
+    /// <summary>
+    /// In-place feed-forward compressor + makeup gain + soft (tanh) limiter on a mono buffer.
+    /// Raises average/RMS level toward the ceiling without hard clipping. Simple per-sample
+    /// envelope follower with fast attack / medium release — adequate for short click bursts.
+    /// </summary>
+    private static void CompressAndLimit(float[] buf, int sampleRate,
+        double thresholdDb, double ratio, double makeupDb)
+    {
+        if (buf.Length == 0) return;
+        double threshold = Math.Pow(10.0, thresholdDb / 20.0);
+        double makeup = Math.Pow(10.0, makeupDb / 20.0);
+        double attackCoef = Math.Exp(-1.0 / (0.001 * sampleRate));   // ~1 ms attack
+        double releaseCoef = Math.Exp(-1.0 / (0.080 * sampleRate));  // ~80 ms release
+        double env = 0.0;
+
+        for (int i = 0; i < buf.Length; i++)
+        {
+            double x = buf[i];
+            double ax = Math.Abs(x);
+            // Envelope follower
+            double coef = ax > env ? attackCoef : releaseCoef;
+            env = coef * env + (1 - coef) * ax;
+
+            // Static gain computation above threshold (hard knee)
+            double gain = 1.0;
+            if (env > threshold && env > 1e-9)
+            {
+                double overDb = 20.0 * Math.Log10(env / threshold);
+                double compressedOverDb = overDb / ratio;
+                double targetDb = 20.0 * Math.Log10(threshold) + compressedOverDb;
+                double targetLin = Math.Pow(10.0, targetDb / 20.0);
+                gain = targetLin / env;
+            }
+
+            double y = x * gain * makeup;
+            // Soft brick-wall limiter (tanh) so nothing exceeds full scale cleanly.
+            buf[i] = (float)Math.Tanh(y);
+        }
     }
 
     /// <summary>

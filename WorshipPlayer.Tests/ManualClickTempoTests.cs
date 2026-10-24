@@ -323,4 +323,64 @@ public class ManualClickTempoTests
         }
         return peak;
     }
+
+    // ── Auto click: valid stereo WAV + LOUDER (higher RMS) than the standard manual click ──
+    [Fact]
+    public void GenerateAutoClickTrack_WritesStereoWav_NoThrow()
+    {
+        var service = new BeatDetectionService();
+        var grid = service.BuildGridFromManualAnchor(0, 120, 4, 4, 4000);
+        string path = Path.Combine(Path.GetTempPath(), $"owc_auto_{Guid.NewGuid():N}.wav");
+        try
+        {
+            service.GenerateAutoClickTrack(grid, path, 44100);
+            Assert.True(File.Exists(path));
+            using var reader = new NAudio.Wave.AudioFileReader(path);
+            Assert.Equal(2, reader.WaveFormat.Channels);
+            Assert.True(new FileInfo(path).Length > 44);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void GenerateAutoClickTrack_IsLouderThanManual_ByRms()
+    {
+        var service = new BeatDetectionService();
+        var grid = service.BuildGridFromManualAnchor(0, 120, 4, 4, 4000);
+        string autoPath = Path.Combine(Path.GetTempPath(), $"owc_auto_{Guid.NewGuid():N}.wav");
+        string manualPath = Path.Combine(Path.GetTempPath(), $"owc_man_{Guid.NewGuid():N}.wav");
+        try
+        {
+            service.GenerateAutoClickTrack(grid, autoPath, 44100);
+            service.GenerateManualClickTrack(grid, manualPath, 44100);
+
+            double autoRms = FileRms(autoPath);
+            double manualRms = FileRms(manualPath);
+
+            Assert.True(autoRms > 0, "auto click should contain audio");
+            Assert.True(manualRms > 0, "manual click should contain audio");
+            // The compressed/longer auto click must carry more energy overall.
+            Assert.True(autoRms > manualRms,
+                $"auto RMS {autoRms:F5} should exceed manual RMS {manualRms:F5}");
+        }
+        finally
+        {
+            if (File.Exists(autoPath)) File.Delete(autoPath);
+            if (File.Exists(manualPath)) File.Delete(manualPath);
+        }
+    }
+
+    private static double FileRms(string path)
+    {
+        using var reader = new NAudio.Wave.AudioFileReader(path);
+        var chunk = new float[8192];
+        double sumSq = 0; long n = 0;
+        int read;
+        while ((read = reader.Read(chunk, 0, chunk.Length)) > 0)
+            for (int i = 0; i < read; i++) { sumSq += (double)chunk[i] * chunk[i]; n++; }
+        return n > 0 ? Math.Sqrt(sumSq / n) : 0.0;
+    }
 }
