@@ -3716,25 +3716,39 @@ def sections_from_lyrics_timing(section_hints: List[str], section_lyrics: Dict[s
                 return 1
             return 0
 
-        best_score = 0
-        best_i = -1
         window = len(signature) + 4  # allow for mis-transcribed / dropped words
-        for i in range(search_from_idx, len(sung)):
+        # A match is "confident" when it covers most of the signature. Prefer the EARLIEST
+        # confident occurrence (chart order is authoritative), NOT the globally highest-scoring
+        # window far ahead — on repetitive worship songs a section's words recur many times, and
+        # taking a distant occurrence pushes every later section to the end (cascade).
+        confident = max(2, int(round(len(signature) * 2 * 0.6)))  # ~60% of max signature score
+
+        def window_score(i):
             sw_window = [sung[j]['word'] for j in range(i, min(i + window, len(sung)))]
-            score = 0
+            sc = 0
             for sig in signature:
                 for sw in sw_window:
                     m = word_match(sig, sw)
                     if m:
-                        score += m
+                        sc += m
                         break
-            if score > best_score:
-                best_score = score
-                best_i = i
-                if score >= len(signature) * 2 * 0.67:
-                    break
+            return sc
 
-        if best_i < 0 or best_score < max(2, len(signature)):
+        # Pass 1: the FIRST window at/after search_from_idx that clears the confidence bar.
+        best_i = -1
+        best_score = 0
+        for i in range(search_from_idx, len(sung)):
+            sc = window_score(i)
+            if sc > best_score:
+                best_score, best_i = sc, i
+            if sc >= confident:
+                best_i, best_score = i, sc  # take this earliest confident hit
+                break
+
+        if best_i < 0 or best_score < confident:
+            # No confident occurrence in chart order — leave unresolved so interpolation (not a
+            # distant wrong match) places this section. This prevents one section's weak/late match
+            # from dragging all following sections to the end of the song.
             return None, search_from_idx
 
         # Anchor the ONSET to where the FIRST signature word actually appears inside the
@@ -3792,13 +3806,35 @@ def sections_from_lyrics_timing(section_hints: List[str], section_lyrics: Dict[s
     search_idx = 0
     onsets = []        # onset_sec per block (None = instrumental / unresolved)
     match_idx = []     # sung-stream index where each block's words begin (or None)
-    for b in blocks:
+    n_blocks = len(blocks)
+    for bi, b in enumerate(blocks):
         if not b['words']:
             onsets.append(None)  # instrumental section (e.g. INTRO with only chords)
             match_idx.append(None)
             continue
         prev_search = search_idx
-        onset_sec, search_idx = find_block_onset(b['words'], search_idx)
+        onset_sec, new_idx = find_block_onset(b['words'], search_idx)
+
+        # CASCADE GUARD: a match must leave room for the sections that come AFTER it. If a block
+        # matches so late that there aren't enough remaining sung words for the remaining blocks
+        # (each needs at least a few words), the match is almost certainly the WRONG occurrence of
+        # repeated lyrics (e.g. an INTRO whose words are reprised at the OUTRO). Reject it as
+        # unresolved so interpolation places it in chart order — one bad match can't drag the rest
+        # of the song to the end.
+        # Expected position: section bi of n_blocks should fall near bi/n through the sung stream.
+        # If a match lands FAR beyond that expectation (e.g. INTRO whose charted words are only
+        # reprised near the end), it's the wrong occurrence of repeated lyrics. Reject it and DO
+        # NOT advance search_idx, so the cursor stays where the following sections really are and
+        # one bad match can't cascade the rest to the end of the song.
+        matched_idx = (new_idx - 1) if (onset_sec is not None and new_idx is not None) else None
+        if matched_idx is not None and n_blocks > 1:
+            expected_frac = bi / float(n_blocks)
+            # Allow a generous margin (+35% of the stream) beyond the expected fraction.
+            max_allowed_idx = int((expected_frac + 0.35) * len(sung)) + 10
+            if matched_idx > max_allowed_idx:
+                onset_sec, new_idx = None, search_idx  # reject distant match; keep cursor
+
+        search_idx = new_idx
         onsets.append(onset_sec)
         # search_idx now points just past the matched onset word
         match_idx.append((search_idx - 1) if onset_sec is not None else None)
