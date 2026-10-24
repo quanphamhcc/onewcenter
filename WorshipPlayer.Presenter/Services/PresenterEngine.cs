@@ -633,45 +633,65 @@ public class PresenterEngine : IDisposable
             // Split section text into slide blocks (separated by empty lines)
             var blocks = _chordParser.ExtractSlideBlocks(sectionText);
 
+            // Field feature 2026-10-24: a block typed as consecutive lines (no blank
+            // line between them) used to project as ONE slide — a 4-line chorus on
+            // one screen in tiny text. Now each block is chunked into groups of
+            // linesPerSlide lines (the section's override, else the global setting,
+            // clamped 2–4): 2 lines on screen, then the next 2, and so on. Chunks
+            // never cross a section boundary — each section's blocks are chunked
+            // independently, in section order — so when a chorus ends, the next
+            // slide is the next section's first lines. A blank line still starts a
+            // new block (and therefore a new slide) as before.
+            int linesPerSlide = Math.Clamp(
+                section.LinesPerSlideOverride ?? _settings.LinesPerSlide, 2, 4);
+
             int slideIndexInSection = 0;
             foreach (var (timestampMs, text) in blocks)
             {
-                // Try to get timing from ChordChartData
-                double? slideTimestamp = null;
-                if (timestampMs >= 0)
+                var lines = text.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
+                for (int chunkStart = 0; chunkStart < lines.Length; chunkStart += linesPerSlide)
                 {
-                    // Timestamp embedded in text: {M:SS.mmm}
-                    slideTimestamp = timestampMs;
-                }
-                else if (chartSlides != null)
-                {
-                    // Find matching ChartSlide by section name + slide index
-                    var matchingChartSlide = chartSlides.FirstOrDefault(cs =>
-                        cs.SectionName.Equals(section.Name, StringComparison.OrdinalIgnoreCase) &&
-                        cs.SlideIndex == slideIndexInSection);
+                    string chunkText = string.Join("\n", lines.Skip(chunkStart).Take(linesPerSlide));
 
-                    if (matchingChartSlide != null)
+                    // Try to get timing from ChordChartData. A block-level embedded
+                    // timestamp belongs to the block's FIRST chunk only — copying it
+                    // onto every chunk would fire the same auto-advance cue twice.
+                    double? slideTimestamp = null;
+                    if (chunkStart == 0 && timestampMs >= 0)
                     {
-                        slideTimestamp = matchingChartSlide.StartMs;
+                        // Timestamp embedded in text: {M:SS.mmm}
+                        slideTimestamp = timestampMs;
                     }
-                }
-
-                generated.Add(new Slide
-                {
-                    Type = SlideType.Lyrics,
-                    Content = new SlideContent
+                    else if (chartSlides != null)
                     {
-                        Text = text,
-                        Subtitle = section.Name
-                    },
-                    SectionName = section.Name,
-                    Order = order++,
-                    TimestampMs = slideTimestamp,
-                    Transition = SlideTransition.Fade,
-                    TransitionDurationMs = 500
-                });
+                        // Find matching ChartSlide by section name + slide index
+                        var matchingChartSlide = chartSlides.FirstOrDefault(cs =>
+                            cs.SectionName.Equals(section.Name, StringComparison.OrdinalIgnoreCase) &&
+                            cs.SlideIndex == slideIndexInSection);
 
-                slideIndexInSection++;
+                        if (matchingChartSlide != null)
+                        {
+                            slideTimestamp = matchingChartSlide.StartMs;
+                        }
+                    }
+
+                    generated.Add(new Slide
+                    {
+                        Type = SlideType.Lyrics,
+                        Content = new SlideContent
+                        {
+                            Text = chunkText,
+                            Subtitle = section.Name
+                        },
+                        SectionName = section.Name,
+                        Order = order++,
+                        TimestampMs = slideTimestamp,
+                        Transition = SlideTransition.Fade,
+                        TransitionDurationMs = 500
+                    });
+
+                    slideIndexInSection++;
+                }
             }
         }
 

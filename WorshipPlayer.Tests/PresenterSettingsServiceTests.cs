@@ -190,15 +190,17 @@ public class PresenterSettingsServiceTests : IDisposable
     }
 
     [Fact]
-    public void FreshPresenterSettings_DefaultsAutoSlideConfig_To4And500()
+    public void FreshPresenterSettings_DefaultsAutoSlideConfig_To2And500()
     {
         // The EditSections wiring (MainWindow.EditSections_Click) copies
         // _presenterSettingsService.Settings.LinesPerSlide/SlideLeadMs into the editor.
-        // When the user never changed Settings, the fallback MUST stay 4/500 so the
-        // slide-creation pipeline behaves exactly as before. This pins that contract.
+        // Field request 2026-10-24 SUPERSEDES the old 4-line default: a whole 4-line
+        // chorus projected on one screen in tiny text, so the fallback is now 2/500
+        // (two lines on screen, then the next two). Users who want denser slides
+        // can still pick 3–4 in Settings; this pins the new default.
         var fresh = new PresenterSettings();
 
-        Assert.Equal(4, fresh.LinesPerSlide);
+        Assert.Equal(2, fresh.LinesPerSlide);
         Assert.Equal(500, fresh.SlideLeadMs);
     }
 

@@ -7,8 +7,8 @@ namespace WorshipPlayer.Presenter.Views;
 /// Code-built (no XAML) editor for ONE song section's lyric text, opened from a
 /// slide thumbnail's right-click menu in the OperatorWindow (field feature
 /// 2026-10-24: "edit this chorus"). The caller owns save + refresh; this dialog
-/// only collects text. One blank line in the text = a new slide, matching the
-/// slide generator's block splitter, so the hint says so.
+/// only collects text. The slide generator shows linesPerSlide lines at a time
+/// (a blank line also starts a new slide), so the hint says so.
 /// </summary>
 public sealed class SectionLyricsEditorDialog : Window
 {
@@ -45,7 +45,7 @@ public sealed class SectionLyricsEditorDialog : Window
 
         var hint = new TextBlock
         {
-            Text = "Edit the words for this whole section. One blank line starts a new slide.",
+            Text = "Edit the words for this whole section. On screen they show 2 lines at a time (a blank line also starts a new slide).",
             FontSize = 11,
             Opacity = 0.7,
             Margin = new Thickness(0, 0, 0, 8)
