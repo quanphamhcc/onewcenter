@@ -498,6 +498,43 @@ public class PresenterEngine : IDisposable
     }
 
     /// <summary>
+    /// Replace the live slide list WITHOUT jumping to slide 0 (field feature
+    /// 2026-10-24: editing a section's lyrics while its item is live). Unlike
+    /// <see cref="LoadItemSlides"/>, the caller picks which slide stays on screen
+    /// via <paramref name="preferredIndex"/> (clamped); exactly one SlideChanged
+    /// fires for that slide, so the AUDIENCE preview updates in place instead of
+    /// flashing through slide 0. An empty list clears the index and fires nothing.
+    /// </summary>
+    public void ReplaceSlidesPreservingIndex(List<Slide> slides, int preferredIndex)
+    {
+        Slide? previousSlide;
+        Slide? newSlide;
+        lock (_stateLock)
+        {
+            previousSlide = _currentSlideIndex >= 0 && _currentSlideIndex < _currentSlides.Count
+                ? _currentSlides[_currentSlideIndex]
+                : null;
+            _currentSlides = slides ?? new List<Slide>();
+            _currentSlideIndex = _currentSlides.Count > 0
+                ? Math.Clamp(preferredIndex, 0, _currentSlides.Count - 1)
+                : -1;
+            newSlide = _currentSlideIndex >= 0 ? _currentSlides[_currentSlideIndex] : null;
+        }
+
+        if (newSlide != null)
+        {
+            SlideChanged?.Invoke(this, new SlideChangedEventArgs
+            {
+                PreviousSlide = previousSlide,
+                NewSlide = newSlide,
+                Transition = SlideTransition.Fade,
+                TransitionDurationMs = 500,
+                IsLogo = false
+            });
+        }
+    }
+
+    /// <summary>
     /// Load slides already resolved for the CURRENT service item (e.g. the operator
     /// center pane's GetSlidesForItem output for a library-linked Song or a live-linked
     /// Slides item whose ServiceItem.Slides are empty) directly into the engine and

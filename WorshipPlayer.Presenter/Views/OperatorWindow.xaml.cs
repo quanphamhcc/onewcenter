@@ -2822,6 +2822,25 @@ public partial class OperatorWindow : Window
     {
         var menu = new ContextMenu();
 
+        // Field feature 2026-10-24: edit THIS slide's whole section (e.g. CHORUS) in
+        // the library song, right from the thumbnail. Disabled when the slide has no
+        // section (blank slide) or its song/section cannot be resolved — editing a
+        // lone slide's text would silently diverge from the song, so it is not offered.
+        string slideSection = slideIndex >= 0 && slideIndex < displayedSlides.Count
+            ? displayedSlides[slideIndex].SectionName ?? ""
+            : "";
+        var editLyrics = new MenuItem { Header = $"Edit \"{slideSection}\" Lyrics…" };
+        var editSong = _songManager != null
+            ? SongPathResolver.Resolve(_songManager.Songs, item.SongFolder, item.Title)
+            : null;
+        editLyrics.IsEnabled = editSong != null &&
+            SongSectionLyrics.FindSection(editSong, slideSection) != null;
+        editLyrics.Click += async (s, ev) =>
+            await EditSectionLyricsAsync(item, displayedSlides, slideIndex);
+        menu.Items.Add(editLyrics);
+
+        menu.Items.Add(new Separator());
+
         var moveLeft = new MenuItem { Header = "Move Slide Left", IsEnabled = slideIndex > 0 };
         moveLeft.Click += async (s, ev) =>
             await EditItemSlideOrderAsync(item, displayedSlides, slideIndex, ItemSlideOrderEdit.MoveLeft);
@@ -2909,6 +2928,119 @@ public partial class OperatorWindow : Window
         catch (Exception ex)
         {
             ShowToolError("Edit Slide Order", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Field feature 2026-10-24: edit one song section's lyric text from its slide
+    /// thumbnail (right-click → Edit "CHORUS" Lyrics…). The edit targets the
+    /// LIBRARY song (the source of truth for lyrics), never just the thumbnail:
+    /// <list type="bullet">
+    /// <item>The section's whole <c>Section.Text</c> is replaced and saved via
+    /// <c>SongManager.SaveSongAsync</c> (app.db first, song.json backup).</item>
+    /// <item>An item carrying its own baked slides (T10 move/duplicate baked the
+    /// displayed list) would otherwise keep showing the OLD words, because baked
+    /// slides win in <see cref="GetSlidesForItem"/> — so its slides are regenerated
+    /// from the edited song and its stale id-based order is dropped (that order was
+    /// authored against pre-edit slide ids and would already misplace the new
+    /// slides by appending them at the end).</item>
+    /// <item>If the item is live, the engine's slides are replaced in place via
+    /// <c>ReplaceSlidesPreservingIndex</c>: the slide the operator was showing
+    /// stays on screen with its new words — no jump back to slide 0, no flash.</item>
+    /// </list>
+    /// Unchanged text is a no-op (dialog cancelled or text identical → nothing
+    /// saved, nothing refreshed).
+    /// </summary>
+    private async Task EditSectionLyricsAsync(
+        ServiceItem item, List<Slide> displayedSlides, int slideIndex)
+    {
+        try
+        {
+            if (slideIndex < 0 || slideIndex >= displayedSlides.Count) return;
+            var slide = displayedSlides[slideIndex];
+
+            var song = _songManager != null
+                ? SongPathResolver.Resolve(_songManager.Songs, item.SongFolder, item.Title)
+                : null;
+            if (song == null)
+            {
+                ShowToolError("Edit Section Lyrics",
+                    "This item's song was not found in the library, so its lyrics cannot be edited here.");
+                return;
+            }
+
+            var section = SongSectionLyrics.FindSection(song, slide.SectionName);
+            if (section == null)
+            {
+                ShowToolError("Edit Section Lyrics",
+                    $"Section \"{slide.SectionName}\" was not found in \"{song.Title}\".");
+                return;
+            }
+
+            // Capture the live position BEFORE the dialog: which slide the audience
+            // is seeing, and whether it belongs to the section being edited.
+            var order = _serviceOrderManager?.CurrentServiceOrder;
+            int itemIndex = order?.Items.IndexOf(item) ?? -1;
+            bool isLive = itemIndex >= 0 && _engine != null && itemIndex == _engine.CurrentItemIndex;
+            int liveIndex = _engine?.CurrentSlideIndex ?? -1;
+            string liveSection = "";
+            string liveText = "";
+            if (isLive && _engine != null && liveIndex >= 0 && liveIndex < _engine.CurrentSlides.Count)
+            {
+                var liveSlide = _engine.CurrentSlides[liveIndex];
+                liveSection = liveSlide.SectionName ?? "";
+                liveText = liveSlide.Content?.Text ?? "";
+            }
+
+            var dialog = new SectionLyricsEditorDialog(item.Title, section.Name, section.Text)
+            {
+                Owner = this
+            };
+            if (dialog.ShowDialog() != true) return;
+            string newText = dialog.EditedText;
+            if (string.Equals(newText, section.Text, StringComparison.Ordinal)) return;
+
+            SongSectionLyrics.TrySetSectionText(song, section.Name, newText);
+            if (_songManager != null)
+            {
+                await _songManager.SaveSongAsync(song);
+            }
+
+            if (item.Slides != null && item.Slides.Count > 0 && _engine != null)
+            {
+                item.Slides = _engine.GenerateSlidesForSong(song);
+                item.SlideOrder = null;
+                await SaveServiceOrderAsync();
+            }
+
+            if (isLive && _engine != null)
+            {
+                var newSlides = GetSlidesForItem(item);
+                int preferred = Math.Clamp(liveIndex, 0, Math.Max(0, newSlides.Count - 1));
+                if (newSlides.Count > 0)
+                {
+                    if (string.Equals(liveSection, section.Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // The slide on screen IS from the edited section: keep its
+                        // position so the audience sees the same slide, new words.
+                        preferred = Math.Clamp(liveIndex, 0, newSlides.Count - 1);
+                    }
+                    else
+                    {
+                        int same = newSlides.FindIndex(s =>
+                            string.Equals(s.SectionName, liveSection, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(s.Content?.Text, liveText, StringComparison.Ordinal));
+                        if (same >= 0) preferred = same;
+                    }
+                }
+                _engine.ReplaceSlidesPreservingIndex(newSlides, preferred);
+            }
+
+            RefreshSlideSections();
+        }
+        catch (Exception ex)
+        {
+            ShowToolError("Edit Section Lyrics", ex.Message);
         }
     }
 
