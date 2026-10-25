@@ -49,6 +49,11 @@ public class LyricSlideGenerator
         // blank slide each — the same units PresenterEngine.GenerateSlidesForSong uses.
         if (song.Sections.Count > 0)
         {
+            // Same repeated-name rule as PresenterEngine: count section
+            // occurrences in order so chart timing pairs the Nth section
+            // with the Nth chart entry of that name (field fix 2026-10-25).
+            var sectionOccurrences = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var unit in SongSlideOrderResolver.ResolveUnits(song))
             {
                 if (unit.IsBlank)
@@ -69,6 +74,10 @@ public class LyricSlideGenerator
                 if (string.IsNullOrWhiteSpace(sectionLyrics))
                     continue;
 
+                int sectionOccurrence = sectionOccurrences.TryGetValue(section.Name, out var seen)
+                    ? seen : 0;
+                sectionOccurrences[section.Name] = sectionOccurrence + 1;
+
                 var sectionSlides = SplitLyricsToSlides(
                     sectionLyrics,
                     section.Name,
@@ -78,7 +87,7 @@ public class LyricSlideGenerator
                 // Assign timing from ChartSlide data if available
                 if (song.ChordChart?.Slides != null)
                 {
-                    AssignChartSlideTimings(sectionSlides, section.Name, song.ChordChart.Slides);
+                    AssignChartSlideTimings(sectionSlides, section.Name, song.ChordChart.Slides, sectionOccurrence);
                 }
 
                 foreach (var slide in sectionSlides)
@@ -101,6 +110,22 @@ public class LyricSlideGenerator
             {
                 slide.Order = order++;
                 slides.Add(slide);
+            }
+        }
+
+        // Safety net (field fix 2026-10-25): timestamps must increase with
+        // slide order, or the position-update path jumps to the last slide
+        // carrying an old time and sticks there. Drop any timestamp that
+        // steps back; those slides still advance by section change / tap.
+        double lastTimedMs = double.MinValue;
+        foreach (var slide in slides)
+        {
+            if (slide.TimestampMs.HasValue)
+            {
+                if (slide.TimestampMs.Value <= lastTimedMs)
+                    slide.TimestampMs = null;
+                else
+                    lastTimedMs = slide.TimestampMs.Value;
             }
         }
 
@@ -254,15 +279,19 @@ public class LyricSlideGenerator
 
     /// <summary>
     /// Assign timing data from ChartSlides to generated slides.
-    /// Matches by section name and slide index within the section.
+    /// Matches by section name and slide index within the section, taking
+    /// the <paramref name="occurrence"/>-th chart entry for repeated section
+    /// names — never reuse an earlier occurrence's time (field fix 2026-10-25).
     /// </summary>
-    private void AssignChartSlideTimings(List<Slide> sectionSlides, string sectionName, List<ChartSlide> chartSlides)
+    private void AssignChartSlideTimings(List<Slide> sectionSlides, string sectionName, List<ChartSlide> chartSlides, int occurrence)
     {
         for (int i = 0; i < sectionSlides.Count; i++)
         {
-            var matchingChart = chartSlides.FirstOrDefault(cs =>
-                cs.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
-                cs.SlideIndex == i);
+            var matchingChart = chartSlides
+                .Where(cs => cs.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
+                             cs.SlideIndex == i)
+                .Skip(occurrence)
+                .FirstOrDefault();
 
             if (matchingChart != null && matchingChart.StartMs > 0)
             {

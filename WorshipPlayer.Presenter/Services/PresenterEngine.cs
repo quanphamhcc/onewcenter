@@ -607,6 +607,11 @@ public class PresenterEngine : IDisposable
         // Use ChordChartData slide timing if available
         var chartSlides = song.ChordChart?.Slides;
 
+        // Worship songs repeat section names (every "CHORUS" in the song).
+        // Count occurrences in generation order so chart matching below can
+        // pair the Nth section with the Nth chart entry of that name.
+        var sectionOccurrences = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
         // Walk the song's slide-generation units (đợt 2 T9 / R6.1): without a custom
         // slide order this is exactly the original section order; with one, sections
         // repeat/skip per the order and Blank units become one blank slide each.
@@ -629,6 +634,13 @@ public class PresenterEngine : IDisposable
             var section = unit.Section!;
             string sectionText = section.Text;
             if (string.IsNullOrWhiteSpace(sectionText)) continue;
+
+            // This section's occurrence index (0-based) among sections
+            // sharing its name — counted only for sections that actually
+            // produce slides, so empty sections consume no chart entries.
+            int sectionOccurrence = sectionOccurrences.TryGetValue(section.Name, out var seen)
+                ? seen : 0;
+            sectionOccurrences[section.Name] = sectionOccurrence + 1;
 
             // Split section text into slide blocks (separated by empty lines)
             var blocks = _chordParser.ExtractSlideBlocks(sectionText);
@@ -662,9 +674,18 @@ public class PresenterEngine : IDisposable
             var chunkMeta = new List<(int slideIndex, double startMs, double? endMs, int chunkIndex, int chunkCount, double sectionLoopOutMs)>();
             foreach (var (timestampMs, text) in blocks)
             {
-                var matchingChartSlide = chartSlides?.FirstOrDefault(cs =>
-                    cs.SectionName.Equals(section.Name, StringComparison.OrdinalIgnoreCase) &&
-                    cs.SlideIndex == blockIndexInSection);
+                // Field fix 2026-10-25: match the Nth section occurrence to
+                // the Nth chart entry with this name + block index. Matching
+                // by name alone (FirstOrDefault) handed EVERY "CHORUS" the
+                // first chorus's times, so the timeline went non-monotonic
+                // and the position path jumped to the last chorus and stuck
+                // there. No chart entry for this occurrence => untimed:
+                // never reuse an earlier occurrence's time.
+                var matchingChartSlide = chartSlides?
+                    .Where(cs => cs.SectionName.Equals(section.Name, StringComparison.OrdinalIgnoreCase) &&
+                                 cs.SlideIndex == blockIndexInSection)
+                    .Skip(sectionOccurrence)
+                    .FirstOrDefault();
 
                 double? blockStart = timestampMs >= 0
                     ? timestampMs
@@ -742,6 +763,25 @@ public class PresenterEngine : IDisposable
                     generated[meta.slideIndex].TimestampMs =
                         meta.startMs + meta.chunkIndex * (end.Value - meta.startMs) / meta.chunkCount;
                 }
+            }
+        }
+
+        // Safety net (field fix 2026-10-25): the position-update path assumes
+        // timestamps increase with slide order. Any timestamp that steps back
+        // — a repeated section reusing an earlier time, stale chart data,
+        // embedded times on a repeated section — would make it jump to the
+        // last slide carrying that old time and stick there. Drop such
+        // timestamps instead; those slides still advance by section change,
+        // MIDI, or tap, exactly like untimed blocks.
+        double lastTimedMs = double.MinValue;
+        foreach (var slide in generated)
+        {
+            if (slide.TimestampMs.HasValue)
+            {
+                if (slide.TimestampMs.Value <= lastTimedMs)
+                    slide.TimestampMs = null;
+                else
+                    lastTimedMs = slide.TimestampMs.Value;
             }
         }
 
