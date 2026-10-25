@@ -359,4 +359,97 @@ public class GenerateSlidesForSongTests
 
         Assert.Equal(1, engine.CurrentSlideIndex);
     }
+
+    // Field report 2026-10-25: while the song was singing the FIRST chorus
+    // (~slide 3) the display jumped to the LAST chorus (~slide 14) and stuck
+    // there. Root cause: chart matching by (SectionName, SlideIndex) with
+    // FirstOrDefault hands EVERY section named "CHORUS" the FIRST chorus's
+    // times, so the timeline goes non-monotonic and OnPlaybackPositionUpdate
+    // (which scans from the end) lands on the last chorus and never leaves.
+    // The Nth section occurrence must match the Nth chart entry.
+    [Fact]
+    public void GenerateSlidesForSong_RepeatedChorus_UsesOccurrenceChartTiming()
+    {
+        var engine = NewEngine();
+        var song = new Song
+        {
+            Title = "Repeat Song",
+            OriginalKey = "C",
+            ChordChart = new ChordChartData
+            {
+                Slides = new List<ChartSlide>
+                {
+                    new ChartSlide { SectionName = "VERSE 1", SlideIndex = 0, StartMs = 1000, EndMs = 5000 },
+                    new ChartSlide { SectionName = "CHORUS", SlideIndex = 0, StartMs = 10000, EndMs = 18000 },
+                    new ChartSlide { SectionName = "VERSE 2", SlideIndex = 0, StartMs = 20000, EndMs = 28000 },
+                    new ChartSlide { SectionName = "CHORUS", SlideIndex = 0, StartMs = 30000, EndMs = 38000 }
+                }
+            },
+            Sections = new List<Section>
+            {
+                new Section { Name = "VERSE 1", Text = "L1\nL2" },
+                new Section { Name = "CHORUS", Text = "C1\nC2" },
+                new Section { Name = "VERSE 2", Text = "L1\nL2" },
+                new Section { Name = "CHORUS", Text = "C1\nC2" }
+            }
+        };
+
+        var slides = engine.GenerateSlidesForSong(song);
+
+        Assert.Equal(4, slides.Count);
+        Assert.Equal(1000, slides[0].TimestampMs);
+        Assert.Equal(10000, slides[1].TimestampMs);
+        Assert.Equal(20000, slides[2].TimestampMs);
+        Assert.Equal(30000, slides[3].TimestampMs);
+
+        // The music path: at 12s the song is singing the FIRST chorus — the
+        // display must stay on it, not jump to the last chorus.
+        engine.LoadItemSlides(slides);
+        engine.OnPlaybackPositionUpdate(12000);
+        Assert.Equal(1, engine.CurrentSlideIndex);
+    }
+
+    // Same repeated chorus, but the chart only timed the first chorus: the
+    // second chorus must stay untimed — never inherit the first chorus's
+    // time, or the position path sticks on it for the rest of the song.
+    [Fact]
+    public void GenerateSlidesForSong_RepeatedChorusWithoutCoverage_StaysUntimed()
+    {
+        var engine = NewEngine();
+        var song = new Song
+        {
+            Title = "Partial Song",
+            OriginalKey = "C",
+            ChordChart = new ChordChartData
+            {
+                Slides = new List<ChartSlide>
+                {
+                    new ChartSlide { SectionName = "VERSE 1", SlideIndex = 0, StartMs = 1000, EndMs = 5000 },
+                    new ChartSlide { SectionName = "CHORUS", SlideIndex = 0, StartMs = 10000, EndMs = 18000 },
+                    new ChartSlide { SectionName = "VERSE 2", SlideIndex = 0, StartMs = 20000, EndMs = 28000 }
+                }
+            },
+            Sections = new List<Section>
+            {
+                new Section { Name = "VERSE 1", Text = "L1\nL2" },
+                new Section { Name = "CHORUS", Text = "C1\nC2" },
+                new Section { Name = "VERSE 2", Text = "L1\nL2" },
+                new Section { Name = "CHORUS", Text = "C1\nC2" }
+            }
+        };
+
+        var slides = engine.GenerateSlidesForSong(song);
+
+        Assert.Equal(4, slides.Count);
+        Assert.Equal(1000, slides[0].TimestampMs);
+        Assert.Equal(10000, slides[1].TimestampMs);
+        Assert.Equal(20000, slides[2].TimestampMs);
+        Assert.Null(slides[3].TimestampMs);
+
+        engine.LoadItemSlides(slides);
+        engine.OnPlaybackPositionUpdate(12000);
+        Assert.Equal(1, engine.CurrentSlideIndex);
+        engine.OnPlaybackPositionUpdate(25000);
+        Assert.Equal(2, engine.CurrentSlideIndex);
+    }
 }

@@ -1,5 +1,6 @@
 using Xunit;
 using WorshipPlayer.Core.Models;
+using WorshipPlayer.Presenter.Services;
 
 namespace WorshipPlayer.Tests;
 
@@ -222,5 +223,43 @@ public class LyricSlideGeneratorTimingTests
         Assert.Equal(95.0, state.TempoPercent);
         Assert.True(state.IsLooping);
         Assert.Equal("BRIDGE", state.QueuedSectionName);
+    }
+
+    // Field fix 2026-10-25 (same repeated-chorus bug as PresenterEngine):
+    // the second CHORUS must get its own chart time, not the first's.
+    [Fact]
+    public void GenerateFromSong_RepeatedChorus_UsesOccurrenceChartTiming()
+    {
+        var generator = new LyricSlideGenerator(new SlideTheme());
+        var song = new Song
+        {
+            Title = "Repeat Song",
+            ChordChart = new ChordChartData
+            {
+                Slides = new List<ChartSlide>
+                {
+                    new ChartSlide { SectionName = "VERSE 1", SlideIndex = 0, StartMs = 1000, EndMs = 5000 },
+                    new ChartSlide { SectionName = "CHORUS", SlideIndex = 0, StartMs = 10000, EndMs = 18000 },
+                    new ChartSlide { SectionName = "VERSE 2", SlideIndex = 0, StartMs = 20000, EndMs = 28000 },
+                    new ChartSlide { SectionName = "CHORUS", SlideIndex = 0, StartMs = 30000, EndMs = 38000 }
+                }
+            },
+            Sections = new List<Section>
+            {
+                new Section { Name = "VERSE 1", Text = "L1\nL2" },
+                new Section { Name = "CHORUS", Text = "C1\nC2" },
+                new Section { Name = "VERSE 2", Text = "L1\nL2" },
+                new Section { Name = "CHORUS", Text = "C1\nC2" }
+            }
+        };
+
+        var slides = generator.GenerateFromSong(song);
+
+        // Title slide + 4 lyric slides.
+        Assert.Equal(5, slides.Count);
+        Assert.Equal(1000.0, slides[1].TimestampMs);
+        Assert.Equal(10000.0, slides[2].TimestampMs);
+        Assert.Equal(20000.0, slides[3].TimestampMs);
+        Assert.Equal(30000.0, slides[4].TimestampMs);
     }
 }
