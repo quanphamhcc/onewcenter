@@ -63,12 +63,14 @@ public class PresenterSettings
 
     // ─── Auto-Timed Slides (lyric grouping + vocal timing) ─────────
     /// <summary>
-    /// Global default number of lyric lines per slide when auto-grouping a section's lyrics
+    /// Global default number of lyric lines per slide when grouping a section's lyrics
     /// (clamped 2–4). A section may override this via <c>Section.LinesPerSlideOverride</c>.
-    /// Additive and backward-compatible; defaults to 4.
+    /// Field request 2026-10-24: the old default of 4 projected a whole 4-line chorus
+    /// on one screen in tiny text, so the default is now 2 (two lines on screen, then
+    /// the next two). Users who want denser slides can still pick 3–4 in Settings.
     /// </summary>
     [JsonPropertyName("linesPerSlide")]
-    public int LinesPerSlide { get; set; } = 4;
+    public int LinesPerSlide { get; set; } = 2;
 
     /// <summary>
     /// Lead time (ms) subtracted from each auto-computed slide advance time so the slide appears
