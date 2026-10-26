@@ -4725,13 +4725,63 @@ def detect_downbeat_phase(classified: Dict, grid: Dict, time_sig: int = 4) -> Di
     }
 
 
-def run_detect_downbeat(folder_path: str, time_sig: int = 4, grid_mode: str = None) -> Optional[Dict]:
+def _apply_bpm_override(grid: Dict, override_bpm: float, classified: Dict, files: List[str]) -> None:
+    """Lock the grid to a USER-PROVIDED BPM (ground truth for spacing) and RE-ANCHOR its phase to
+    the audio. The detected anchor came from a possibly-wrong tempo, so we find a fresh phase by
+    sliding a fixed-interval grid across the drum+bass onset envelope and picking the offset where
+    onset energy best lands on grid lines. Caller then runs downbeat detection to pick beat 1."""
+    import numpy as _np
+    interval = 60.0 / override_bpm
+    grid['bpm'] = override_bpm
+    grid['beat_interval_sec'] = interval
+    total_dur = grid.get('total_duration_sec', 0) or 0
+    if total_dur <= 0:
+        return
+    anchor = grid.get('grid_anchor_sec', 0.0)
+    try:
+        af = classified.get('drums') or classified.get('bass')
+        if not af:
+            af = files[0] if files else None
+        if af and os.path.exists(af):
+            y, sr = librosa.load(af, sr=SAMPLE_RATE)
+            oe = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
+            bp = classified.get('bass')
+            if bp and os.path.exists(bp) and bp != af:
+                yb, _ = librosa.load(bp, sr=sr)
+                ob = librosa.onset.onset_strength(y=yb, sr=sr, hop_length=HOP_LENGTH)
+                n = min(len(oe), len(ob)); oe = oe[:n] + ob[:n]
+            best_off, best_e = 0.0, -1.0
+            N_OFF = 24
+            for oi in range(N_OFF):
+                off = (oi / N_OFF) * interval
+                gl = _np.arange(off, total_dur, interval)
+                idxs = _np.clip((gl * sr / HOP_LENGTH).astype(int), 0, len(oe) - 1)
+                e = float(_np.sum(oe[idxs]))
+                if e > best_e:
+                    best_e, best_off = e, off
+            anchor = best_off
+            print(f"    Re-anchored fixed-tempo grid to onset phase {anchor*1000:.0f} ms")
+    except Exception as e:
+        print(f"    (BPM-override re-anchor skipped: {e})")
+    grid['grid_anchor_sec'] = anchor
+    beats = []
+    t = anchor
+    while t < total_dur:
+        beats.append(t)
+        t += interval
+    grid['beats'] = beats
+    grid['confidence'] = 1.0
+
+
+def run_detect_downbeat(folder_path: str, time_sig: int = 4, grid_mode: str = None,
+                        override_bpm: float = None) -> Optional[Dict]:
     """Lightweight entry point: detect ONLY the musical downbeat phase.
 
     Fast — no Whisper, no LLM, no section detection. Classifies stems, builds the
     click-track beat grid (accurate spacing), then runs music-driven phase
     detection. Emits a small JSON result for the C# caller. `grid_mode`
-    ('auto'|'even'|'following') forces how the grid is built.
+    ('auto'|'even'|'following') forces how the grid is built. `override_bpm`, when given, LOCKS the
+    tempo to the user's value and re-anchors — so beat 1 / downbeat are found on a correct grid.
     """
     print(f"\n{'='*60}")
     print(f"  DOWNBEAT DETECTION: {Path(folder_path).name}")
@@ -4757,6 +4807,11 @@ def run_detect_downbeat(folder_path: str, time_sig: int = 4, grid_mode: str = No
                 break
             except Exception:
                 continue
+
+    # Lock to user BPM (ground truth) + re-anchor, before downbeat phase detection.
+    if override_bpm and override_bpm > 0:
+        print(f"  BPM override: locking tempo to {override_bpm:.2f} and re-anchoring")
+        _apply_bpm_override(grid, override_bpm, classified, files)
 
     print("__PROGRESS__|60|Analyzing drums, bass and chords for the downbeat...")
     result = detect_downbeat_phase(classified, grid, time_sig)
@@ -4910,21 +4965,12 @@ def analyze_multitrack(folder_path: str, llm_mode: str = "openai",
             except:
                 continue
 
-    # BPM OVERRIDE: Use user-specified BPM if provided
+    # BPM OVERRIDE: user-specified BPM is GROUND TRUTH for spacing. Lock the interval to it and
+    # RE-ANCHOR the grid to the music (shared helper), so beat 1 / downbeat are found on a correct
+    # grid instead of inheriting a wrong detected tempo. The downbeat detector then picks beat 1.
     if override_bpm and override_bpm > 0:
-        print(f"  Applying BPM override: {grid['bpm']:.2f} → {override_bpm}")
-        grid['bpm'] = override_bpm
-        grid['beat_interval_sec'] = 60.0 / override_bpm
-        # Rebuild beats from the new interval
-        anchor = grid['grid_anchor_sec']
-        total_dur = grid['total_duration_sec']
-        new_beats = []
-        t = anchor
-        while t < total_dur:
-            new_beats.append(t)
-            t += grid['beat_interval_sec']
-        grid['beats'] = new_beats
-        grid['confidence'] = 1.0  # User-specified = maximum confidence
+        print(f"  Applying BPM override: {grid['bpm']:.2f} → {override_bpm} (locked; re-anchoring)")
+        _apply_bpm_override(grid, override_bpm, classified, files)
     else:
         # BPM SANITY CHECK: If detected BPM is unusually high, try halving/thirding
         detected_bpm = grid['bpm']
@@ -5261,6 +5307,25 @@ def main():
                 print(f"WARNING: Invalid --grid-mode '{_gm}'. Options: auto, even, following",
                       file=sys.stderr)
 
+    # --bpm and --time-sig parsed early so they also apply to the --detect-downbeat path (user can
+    # provide the known tempo so beat 1 / downbeat are found on a correct, locked grid).
+    _early_bpm = None
+    if '--bpm' in sys.argv:
+        _bi = sys.argv.index('--bpm')
+        if _bi + 1 < len(sys.argv):
+            try:
+                _early_bpm = float(sys.argv[_bi + 1])
+            except ValueError:
+                pass
+    _early_ts = 4
+    if '--time-sig' in sys.argv:
+        _ti = sys.argv.index('--time-sig')
+        if _ti + 1 < len(sys.argv):
+            try:
+                _early_ts = max(2, min(12, int(sys.argv[_ti + 1])))
+            except ValueError:
+                pass
+
     # ── LIGHTWEIGHT MODE: detect the musical downbeat only (no Whisper/LLM/sections) ──
     # Used by the "Auto Generate Click Track" button. Emits a small JSON result.
     if '--detect-downbeat' in sys.argv:
@@ -5268,7 +5333,8 @@ def main():
             print(f"ERROR: Folder not found: {folder_path}", file=sys.stderr)
             sys.exit(1)
         try:
-            db = run_detect_downbeat(folder_path, time_sig=4, grid_mode=grid_mode)
+            db = run_detect_downbeat(folder_path, time_sig=_early_ts, grid_mode=grid_mode,
+                                     override_bpm=_early_bpm)
         except Exception as e:
             print(f"ERROR: Unhandled exception: {e}", file=sys.stderr)
             import traceback
@@ -5353,6 +5419,7 @@ def main():
     # Run analysis
     try:
         song_data = analyze_multitrack(folder_path, llm_mode=llm_mode,
+                                       time_sig=_early_ts,
                                        override_bpm=override_bpm,
                                        demucs_quality=demucs_quality,
                                        lines_per_slide=lines_per_slide,

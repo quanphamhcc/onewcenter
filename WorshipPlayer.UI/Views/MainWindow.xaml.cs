@@ -660,6 +660,14 @@ public partial class MainWindow : Window
             "Create Multi-Track", MessageBoxButton.OKCancel, MessageBoxImage.Question);
         if (confirm != MessageBoxResult.OK) return;
 
+        // OPTIONAL tempo prompt: if the operator knows the real BPM (+ time signature), it LOCKS the
+        // click grid to that tempo and finds beat 1 on a correct grid. Blank BPM = auto-detect.
+        // Cancel here aborts Create Multi-Track entirely.
+        var tempo = BpmPromptDialog.Show(this, songTitle);
+        if (tempo == null) return; // cancelled
+        double? userBpm = tempo.Value.Bpm;      // null = auto-detect
+        int userTimeSig = tempo.Value.TimeSig;  // beats per bar (default 4)
+
         // Resolve the analysis script + python interpreter.
         string appFolder = AppDomain.CurrentDomain.BaseDirectory;
         string scriptPath = new[]
@@ -723,7 +731,7 @@ public partial class MainWindow : Window
             // here too (that was a redundant second detection that could disagree with the dialog).
             var (analyzed, analyzeMsg) = await service.AnalyzeSongAsync(
                 songFolder, llmMode: "none", onProgress: onProgress, quality: "default",
-                skipDownbeatDetect: true);
+                skipDownbeatDetect: true, bpmOverride: userBpm, timeSignature: userTimeSig);
             if (analyzed == null)
             {
                 MessageBox.Show($"Stem separation failed:\n\n{analyzeMsg}",
@@ -772,7 +780,8 @@ public partial class MainWindow : Window
             try
             {
                 UpdateTaskProgress(85, "Analyzing tempo (constant vs variable)…");
-                var (det, _) = await service.DetectDownbeatAsync(stemFolder, onProgress);
+                var (det, _) = await service.DetectDownbeatAsync(stemFolder, onProgress,
+                    gridMode: null, bpmOverride: userBpm, timeSignature: userTimeSig);
                 if (det != null)
                 {
                     var dbr = det.Value;
@@ -780,7 +789,8 @@ public partial class MainWindow : Window
                     if (mode == null) { HideTaskProgress(); StatusText.Text = "Create Multi-Track cancelled."; return; }
                     if (mode != "auto" && !string.Equals(dbr.GridFit.Applied, mode, StringComparison.OrdinalIgnoreCase))
                     {
-                        var (det2, _) = await service.DetectDownbeatAsync(stemFolder, onProgress, mode);
+                        var (det2, _) = await service.DetectDownbeatAsync(stemFolder, onProgress,
+                            gridMode: mode, bpmOverride: userBpm, timeSignature: userTimeSig);
                         if (det2 != null) dbr = det2.Value;
                     }
                     // Adopt the chosen grid, including its FINAL corrected beat positions so the

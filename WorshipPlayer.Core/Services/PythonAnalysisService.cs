@@ -68,7 +68,8 @@ public class PythonAnalysisService
         List<string>? sectionHints = null,
         Dictionary<string, string>? sectionLyrics = null,
         int linesPerSlide = 4, int slideLeadMs = 500,
-        string? gridMode = null, bool skipDownbeatDetect = false)
+        string? gridMode = null, bool skipDownbeatDetect = false,
+        int? timeSignature = null)
     {
         if (!File.Exists(_scriptPath))
             return (null, $"Analysis script not found: {_scriptPath}");
@@ -99,7 +100,11 @@ public class PythonAnalysisService
             if (!string.IsNullOrEmpty(quality) && quality != "default")
                 args += $" --quality {quality}";
             if (bpmOverride.HasValue && bpmOverride.Value > 0)
-                args += $" --bpm {bpmOverride.Value:F1}";
+                args += $" --bpm {bpmOverride.Value:F3}";
+            // User-provided time signature (beats per bar) pairs with --bpm so the downbeat/bar
+            // math uses the correct meter instead of assuming 4/4.
+            if (timeSignature.HasValue && timeSignature.Value >= 2)
+                args += $" --time-sig {timeSignature.Value}";
             // Slide grouping/timing options: lines-per-slide (2-4) and the read-ahead lead (ms).
             args += $" --lines-per-slide {Math.Clamp(linesPerSlide, 2, 4)}";
             args += $" --slide-lead-ms {Math.Max(0, slideLeadMs)}";
@@ -181,7 +186,8 @@ public class PythonAnalysisService
     /// in the song folder. Returns null with a message on failure.
     /// </summary>
     public async Task<(DownbeatResult? result, string message)> DetectDownbeatAsync(
-        string songFolderPath, Action<int, string>? onProgress = null, string? gridMode = null)
+        string songFolderPath, Action<int, string>? onProgress = null, string? gridMode = null,
+        double? bpmOverride = null, int? timeSignature = null)
     {
         if (!File.Exists(_scriptPath))
             return (null, $"Analysis script not found: {_scriptPath}");
@@ -193,6 +199,12 @@ public class PythonAnalysisService
             var args = $"\"{_scriptPath}\" \"{songFolderPath}\" --detect-downbeat";
             if (!string.IsNullOrEmpty(gridMode))
                 args += $" --grid-mode {gridMode}";
+            // User-provided BPM (ground truth) locks the tempo so beat 1 / downbeat are found on a
+            // correct grid instead of a possibly-wrong detected tempo.
+            if (bpmOverride.HasValue && bpmOverride.Value > 0)
+                args += $" --bpm {bpmOverride.Value:F3}";
+            if (timeSignature.HasValue && timeSignature.Value >= 2)
+                args += $" --time-sig {timeSignature.Value}";
             var run = await RunCommandWithProgressAsync(_pythonPath, args,
                 timeoutSeconds: 300, onProgress: onProgress);
 
