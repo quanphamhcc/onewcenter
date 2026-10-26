@@ -59,7 +59,9 @@ public partial class MainWindow : Window
     {
         // Initialize services - try multiple paths to find Songs folder
         var appFolder = AppDomain.CurrentDomain.BaseDirectory;
-        var appDbPath = Path.Combine(appFolder, "app.db");
+        // Resolve the shared app.db path (honors an env var / db-path.txt override so the whole
+        // app can point at a network/UNC database; defaults to the app-folder app.db).
+        var appDbPath = WorshipPlayer.Core.Services.AppDatabase.ResolvePath();
 
         _settingsService = new SettingsService(appDbPath);
         await _settingsService.LoadAsync();

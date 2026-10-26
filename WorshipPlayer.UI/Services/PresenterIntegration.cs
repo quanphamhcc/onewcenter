@@ -92,10 +92,12 @@ public class PresenterIntegration : IDisposable
         _presenterSettingsService = presenterSettingsService;
         _songManager = songManager;
 
-        // Shared SQLite application database path (app.db next to the app), reused by the
-        // service-order / song-usage / media / alert / template stores below.
+        // Shared SQLite application database path, reused by the service-order / song-usage /
+        // media / alert / template stores below. Resolved via AppDatabase.ResolvePath() so an
+        // env var / db-path.txt override points EVERY store at the same (possibly network) db;
+        // defaults to the app-folder app.db.
         var appFolder = AppDomain.CurrentDomain.BaseDirectory;
-        var appDbPath = Path.Combine(appFolder, "app.db");
+        var appDbPath = WorshipPlayer.Core.Services.AppDatabase.ResolvePath();
 
         // Create ServiceOrderManager (JSON files under the ServiceOrders folder stay
         // authoritative; the shared app.db is a reconciled mirror — Phase 5 SQL migration).

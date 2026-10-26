@@ -35,6 +35,61 @@ public class AppDatabase
     public static string DefaultPath =>
         Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DefaultFileName);
 
+    /// <summary>
+    /// Environment variable that, when set to a path, overrides where <c>app.db</c> lives.
+    /// Takes priority over the sidecar file and the default location.
+    /// </summary>
+    public const string PathOverrideEnvVar = "WORSHIPPLAYER_DB";
+
+    /// <summary>
+    /// Sidecar file (next to the app) whose first non-empty line is the path to <c>app.db</c>.
+    /// Lets the operator point the whole app at a shared/network database (e.g. a UNC path)
+    /// WITHOUT a rebuild, and revert just by deleting or clearing the file.
+    /// </summary>
+    public const string PathOverrideFileName = "db-path.txt";
+
+    /// <summary>
+    /// Resolve the <c>app.db</c> path every store should use. Priority:
+    /// <list type="number">
+    ///   <item>the <see cref="PathOverrideEnvVar"/> environment variable, when set to a non-empty value;</item>
+    ///   <item>the first non-empty, non-comment line of <see cref="PathOverrideFileName"/> next to the app;</item>
+    ///   <item><see cref="DefaultPath"/> (app-folder <c>app.db</c>) otherwise.</item>
+    /// </list>
+    /// All resolution is best-effort and never throws — any error falls through to the next option,
+    /// so a bad override can never stop the app from starting on its local database.
+    /// </summary>
+    public static string ResolvePath()
+    {
+        // 1) Environment variable wins (easy per-machine / per-launch override).
+        try
+        {
+            var env = Environment.GetEnvironmentVariable(PathOverrideEnvVar);
+            if (!string.IsNullOrWhiteSpace(env))
+                return env.Trim();
+        }
+        catch { /* fall through */ }
+
+        // 2) Sidecar file next to the app (first non-empty, non-'#' line).
+        try
+        {
+            var sidecar = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, PathOverrideFileName);
+            if (File.Exists(sidecar))
+            {
+                foreach (var raw in File.ReadAllLines(sidecar))
+                {
+                    var line = raw.Trim();
+                    if (line.Length == 0 || line.StartsWith('#'))
+                        continue;
+                    return line;
+                }
+            }
+        }
+        catch { /* fall through */ }
+
+        // 3) Default: app-folder app.db.
+        return DefaultPath;
+    }
+
     private readonly string _connectionString;
 
     /// <summary>
