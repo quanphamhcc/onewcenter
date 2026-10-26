@@ -4771,6 +4771,18 @@ def _apply_bpm_override(grid: Dict, override_bpm: float, classified: Dict, files
         t += interval
     grid['beats'] = beats
     grid['confidence'] = 1.0
+    # The grid is now a PERFECTLY even grid locked to the user's BPM, so the analyze-first dialog
+    # must reflect that (not the stale verdict/metrics from the earlier possibly-wrong detection).
+    # Zero deviation, constant tempo, user BPM — this is ground truth now.
+    grid['grid_fit'] = {
+        'recommended': 'even',
+        'applied': 'even',
+        'even_fits': True,
+        'fit_max_dev_ms': 0.0,
+        'fit_rms_ms': 0.0,
+        'raw_jitter_ms': 0.0,
+        'fit_bpm': override_bpm,
+    }
 
 
 def run_detect_downbeat(folder_path: str, time_sig: int = 4, grid_mode: str = None,
