@@ -1300,6 +1300,135 @@ def analyze_vocals(classified: Dict, grid: Dict, time_sig: int = 4) -> Dict[str,
 # TASK #4: WHISPER INTEGRATION (lyrics + cue track)
 # ═══════════════════════════════════════════════════════════════════════
 
+def forced_align_lyrics(section_hints, section_lyrics, vocal_path, grid):
+    """Forced-align the USER'S KNOWN lyrics to the vocal stem and return word timings.
+
+    This answers "WHEN is each known word sung?" — an ALIGNMENT problem — instead of asking an ASR
+    model "what are the words?" (which mishears quiet/sung intros and can hallucinate). Because the
+    word list is fixed (the user's lyrics), it CANNOT fabricate words. Gap-aware: we use vocal
+    activity (VAD via RMS) to split the song into sung REGIONS, map the ordered lyric words onto
+    those regions, and forced-align each region's words WITHIN its own time window — so a long
+    instrumental gap can't make the alignment drift the rest of the song.
+
+    Returns a word_timestamps-shaped list [{'word','start_sec','end_sec'}], or None if unavailable
+    (no lyrics / WhisperX missing / alignment failed) so the caller keeps the ASR timings.
+    """
+    if not section_hints or not section_lyrics or not vocal_path or not os.path.exists(vocal_path):
+        return None
+    try:
+        import numpy as _np
+        # NLTK path guard (same reason as transcribe_with_whisper) before importing whisperx.
+        try:
+            _nltk_dir = os.environ.get('OWC_NLTK_DATA') or os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(sys.executable))), 'nltk_data')
+            os.environ['NLTK_DATA'] = _nltk_dir
+            import nltk  # noqa
+            nltk.data.path[:] = [_nltk_dir]
+        except Exception:
+            pass
+        import whisperx as _wx
+        try:
+            import torch
+            _dev = 'cuda' if torch.cuda.is_available() else 'cpu'
+        except Exception:
+            _dev = 'cpu'
+
+        print("  Forced-aligning provided lyrics to the vocal (no ASR guessing)…")
+        audio, sr = librosa.load(vocal_path, sr=16000, mono=True)
+        audio = _np.asarray(audio, dtype=_np.float32)
+        dur = len(audio) / sr
+        if dur < 1.0:
+            return None
+
+        # ── VAD: sung regions via an RMS energy gate (dependency-free). ──
+        hop = 1600  # 100 ms
+        rms = librosa.feature.rms(y=audio, frame_length=3200, hop_length=hop)[0]
+        tt = _np.arange(len(rms)) * hop / sr
+        thr = float(_np.percentile(rms, 60)) * 0.5
+        voiced = rms > thr
+        regions = []
+        i = 0
+        while i < len(voiced):
+            if voiced[i]:
+                j = i
+                while j < len(voiced) and (voiced[j] or (j - i < 8)):  # bridge <0.8s dips
+                    j += 1
+                lo_t = float(tt[i]); hi_t = float(tt[min(j, len(tt) - 1)])
+                if hi_t - lo_t > 1.0:
+                    regions.append([lo_t, hi_t])
+                i = j
+            else:
+                i += 1
+        # Merge regions separated by a short (<2.5s) gap.
+        merged = []
+        for a_, b_ in regions:
+            if merged and a_ - merged[-1][1] < 2.5:
+                merged[-1][1] = b_
+            else:
+                merged.append([a_, b_])
+        if not merged:
+            return None
+        print(f"    VAD: {len(merged)} sung region(s)")
+
+        # ── Ordered lyric words (chords/markers stripped). ──
+        def _words_of(txt):
+            txt = re.sub(r'\[[^\]]*\]', '', txt or '')
+            return [w for w in re.sub(r'[^\w\s\']', ' ', txt.lower()).split() if len(w) > 1]
+        all_words = []
+        for name in section_hints:
+            for w in _words_of(section_lyrics.get(name, '')):
+                all_words.append(w)
+        if len(all_words) < 4:
+            return None
+
+        # ── Map words onto regions proportionally to each region's DURATION, then forced-align each
+        # region's chunk WITHIN that region. Proportional-by-duration is a reasonable prior for
+        # sung density and keeps the mapping monotonic; per-region alignment contains drift. ──
+        am, meta = _wx.load_align_model(language_code='en', device=_dev)
+        total_sung = sum(b - a for a, b in merged) or dur
+        n = len(all_words)
+        out_words = []
+        wpos = 0
+        for ri, (lo, hi) in enumerate(merged):
+            if wpos >= n:
+                break
+            share = (hi - lo) / total_sung
+            take = (n - wpos) if ri == len(merged) - 1 else max(1, int(round(n * share)))
+            take = min(take, n - wpos)
+            chunk = all_words[wpos:wpos + take]
+            wpos += take
+            text = ' '.join(chunk)
+            lo2 = max(0.0, lo - 0.3); hi2 = min(dur, hi + 0.3)
+            seg_audio = audio[int(lo2 * sr):int(hi2 * sr)]
+            if seg_audio.size < sr // 2 or not text.strip():
+                continue
+            try:
+                res = _wx.align([{'text': text, 'start': 0.0, 'end': hi2 - lo2}],
+                                am, meta, seg_audio, _dev, return_char_alignments=False)
+            except Exception:
+                continue
+            for s in res.get('segments', []):
+                for w in s.get('words', []) or []:
+                    st = w.get('start'); en = w.get('end')
+                    wt = (w.get('word') or '').strip()
+                    if not wt or st is None:
+                        continue
+                    out_words.append({
+                        'word': wt,
+                        'start_sec': float(st) + lo2,
+                        'end_sec': float(en) + lo2 if en is not None else float(st) + lo2,
+                    })
+        if len(out_words) < 4:
+            return None
+        print(f"    ✓ Forced-aligned {len(out_words)} lyric words across {len(merged)} region(s)")
+        return out_words
+    except ImportError:
+        return None
+    except Exception as e:
+        print(f"    ! Forced alignment skipped: {e}")
+        return None
+
+
 def transcribe_with_whisper(classified: Dict, grid: Dict, time_sig: int = 4) -> Dict[str, Any]:
     """Transcribe vocals for lyrics and cue track for section labels.
     Uses local Whisper model for accurate transcription with word timestamps."""
@@ -4917,6 +5046,20 @@ def analyze_multitrack(folder_path: str, llm_mode: str = "openai",
         except Exception as e:
             print(f"  ! Could not load section lyrics: {e}")
             section_lyrics = None
+
+    # Step 3e: FORCED-ALIGN the provided lyrics to the vocal. When the user gives exact lyrics, the
+    # question is "WHEN is each known word sung?" — an alignment problem. Forced alignment answers
+    # it directly (no ASR guessing), fixing mis-transcribed intros/quiet vocals that broke the
+    # Whisper-word matching. We REPLACE whisper_data['word_timestamps'] with the aligned words so
+    # the existing vocal-aligned section matcher runs on the CORRECT words. Falls back to Whisper's
+    # timings if alignment is unavailable/low-yield.
+    if section_hints and section_lyrics:
+        _vocal_path = classified.get('lead_vocal')
+        _aligned_words = forced_align_lyrics(section_hints, section_lyrics, _vocal_path, grid)
+        if _aligned_words and len(_aligned_words) >= 4:
+            whisper_data['word_timestamps'] = _aligned_words
+            whisper_data['word_timing_source'] = 'forced-alignment'
+            print(f"  ✓ Using forced-aligned lyric timings ({len(_aligned_words)} words) for sections")
 
     # Step 4: DETERMINE SECTION DETECTION PATH
     sections = None
