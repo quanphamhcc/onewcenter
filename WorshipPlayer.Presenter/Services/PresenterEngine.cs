@@ -30,6 +30,19 @@ public class PresenterEngine : IDisposable
 
     private List<Slide> _currentSlides = new();
     private int _currentSlideIndex = -1;
+
+    // Issue #5 (27/10): last audio position seen by OnPlaybackPositionUpdate.
+    // The audio clock owns slide advancement when timestamp advance is on;
+    // section events are gated against it (see SectionEventAgreesWithPosition).
+    // A stale value (previous song, before the first update of the new song)
+    // can only make the gate ignore one section event; the position matcher
+    // corrects on the next update, so no reset on slide load is needed.
+    private double? _lastPositionMs;
+    // A section event may legitimately land a few hundred ms before its
+    // slide's timestamp (event dispatch + position report granularity).
+    // Anything further out means the event disagrees with the audio clock
+    // and must not move the display — the matcher advances at the right time.
+    private const double SectionEventGraceMs = 250;
     private bool _isLive = false;
     private bool _isBlacked = false;
 
@@ -311,8 +324,15 @@ public class PresenterEngine : IDisposable
     /// </summary>
     public void OnPlaybackPositionUpdate(double positionMs)
     {
-        if (!_settings.AutoAdvanceFromTimestamp) { WorshipPlayer.Core.Services.DiagLog.Write($"PosUpdate pos={positionMs:0} SKIP (AutoAdvanceFromTimestamp OFF)"); return; }
         if (_currentSlides.Count == 0) { WorshipPlayer.Core.Services.DiagLog.Write($"PosUpdate pos={positionMs:0} SKIP (0 slides)"); return; }
+
+        // Issue #5 (27/10): remember the audio clock for OnSectionChanged's
+        // gate, even when timestamp advance is off (the gate itself only
+        // applies when the setting is on, so this never changes off-mode
+        // behaviour).
+        _lastPositionMs = positionMs;
+
+        if (!_settings.AutoAdvanceFromTimestamp) { WorshipPlayer.Core.Services.DiagLog.Write($"PosUpdate pos={positionMs:0} SKIP (AutoAdvanceFromTimestamp OFF)"); return; }
 
         // Find the slide that should be showing at this timestamp
         int chosen = -1;
@@ -329,6 +349,16 @@ public class PresenterEngine : IDisposable
                 }
                 break;
             }
+        }
+        if (chosen == -1 && _currentSlideIndex != 0
+            && _currentSlides.Any(s => s.TimestampMs.HasValue && s.TimestampMs.Value > 0))
+        {
+            // Issue #5 (27/10): pos is before the first timestamped slide —
+            // song start, or a stale index carried from a previous item/tap
+            // (field log: curIdx=13 at pos=1765 stayed wrong until pos passed
+            // the first timestamp). Slide 0 is the correct "not yet reached"
+            // display; previously the matcher left any stale index in place.
+            SetSlideIndex(0);
         }
         // Throttled 'stuck' trace: log roughly once/sec when the chosen slide is NOT past the
         // current one (i.e. nothing advances), to reveal a stalled/out-of-order timestamp.
@@ -359,13 +389,38 @@ public class PresenterEngine : IDisposable
             {
                 matched = true;
                 WorshipPlayer.Core.Services.DiagLog.Write($"OnSectionChanged matched section '{sectionName}' at slide {i} (curIdx={_currentSlideIndex})");
-                if (i != _currentSlideIndex)
+                if (i != _currentSlideIndex && SectionEventAgreesWithPosition(i))
                     SetSlideIndex(i);
                 break;
             }
         }
         if (!matched)
             WorshipPlayer.Core.Services.DiagLog.Write($"OnSectionChanged NO slide matches section '{sectionName}' — section names in list: " + string.Join(" | ", System.Linq.Enumerable.Select(_currentSlides, s => s.SectionName)));
+    }
+
+    /// <summary>
+    /// Issue #5 (27/10): does a backtrack section event agree with the audio
+    /// clock? A section event fires when audio crosses the section's chart
+    /// boundary, but the section's first slide is timestamped at its first
+    /// sung word — up to several seconds LATER (field log: PRE-CHORUS 1 event
+    /// at pos 43941, slide ts 47322 → 3.4s early jump, then the position
+    /// matcher yanked it back → visible flicker, repeated 1→0→1, 2→1→2, ...).
+    /// When timestamp advance is active and the audio position is known, only
+    /// honour the event if its slide agrees with the clock within grace; the
+    /// position matcher advances at the right timestamp anyway. Falls back to
+    /// the old behaviour (always honour) when the matcher is off, no position
+    /// is known yet, or the target slide is untimestamped. As a side effect
+    /// this also stops a bare repeated-section event (e.g. second CHORUS)
+    /// from jumping back to the FIRST chorus while the matcher is active.
+    /// Loop replays arrive via OnSectionLooped, not here, and are unaffected.
+    /// </summary>
+    private bool SectionEventAgreesWithPosition(int targetIndex)
+    {
+        if (!_settings.AutoAdvanceFromTimestamp) return true;
+        if (!_lastPositionMs.HasValue) return true;
+        var ts = _currentSlides[targetIndex].TimestampMs;
+        if (!ts.HasValue || ts.Value <= 0) return true;
+        return Math.Abs(ts.Value - _lastPositionMs.Value) <= SectionEventGraceMs;
     }
 
     // ─── Song/Section-Aware Methods ───────────────────────────────
