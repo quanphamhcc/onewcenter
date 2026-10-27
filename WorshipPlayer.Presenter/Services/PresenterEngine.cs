@@ -311,23 +311,36 @@ public class PresenterEngine : IDisposable
     /// </summary>
     public void OnPlaybackPositionUpdate(double positionMs)
     {
-        if (!_settings.AutoAdvanceFromTimestamp) return;
-        if (_currentSlides.Count == 0) return;
+        if (!_settings.AutoAdvanceFromTimestamp) { WorshipPlayer.Core.Services.DiagLog.Write($"PosUpdate pos={positionMs:0} SKIP (AutoAdvanceFromTimestamp OFF)"); return; }
+        if (_currentSlides.Count == 0) { WorshipPlayer.Core.Services.DiagLog.Write($"PosUpdate pos={positionMs:0} SKIP (0 slides)"); return; }
 
         // Find the slide that should be showing at this timestamp
+        int chosen = -1;
         for (int i = _currentSlides.Count - 1; i >= 0; i--)
         {
             var slide = _currentSlides[i];
             if (slide.TimestampMs.HasValue && slide.TimestampMs.Value > 0 && positionMs >= slide.TimestampMs.Value)
             {
+                chosen = i;
                 if (i != _currentSlideIndex)
                 {
+                    WorshipPlayer.Core.Services.DiagLog.Write($"PosUpdate pos={positionMs:0} -> ADVANCE slide {_currentSlideIndex} -> {i} (ts={slide.TimestampMs}) section='{slide.SectionName}'");
                     SetSlideIndex(i);
                 }
                 break;
             }
         }
+        // Throttled 'stuck' trace: log roughly once/sec when the chosen slide is NOT past the
+        // current one (i.e. nothing advances), to reveal a stalled/out-of-order timestamp.
+        long bucket = (long)(positionMs / 1000);
+        if (bucket != _diagLastPosBucket)
+        {
+            _diagLastPosBucket = bucket;
+            var cur = (_currentSlideIndex >= 0 && _currentSlideIndex < _currentSlides.Count) ? _currentSlides[_currentSlideIndex] : null;
+            WorshipPlayer.Core.Services.DiagLog.Write($"PosUpdate pos={positionMs:0} curIdx={_currentSlideIndex} curTs={cur?.TimestampMs} curSection='{cur?.SectionName}' chosenIdx={chosen} totalSlides={_currentSlides.Count}");
+        }
     }
+    private long _diagLastPosBucket = -1;
 
     /// <summary>
     /// Called when backtrack reports a section change. Finds the first slide
@@ -335,18 +348,24 @@ public class PresenterEngine : IDisposable
     /// </summary>
     public void OnSectionChanged(string sectionName)
     {
+        WorshipPlayer.Core.Services.DiagLog.Write($"OnSectionChanged('{sectionName}') curIdx={_currentSlideIndex} totalSlides={_currentSlides.Count}");
         if (string.IsNullOrEmpty(sectionName)) return;
 
         // Find the first slide matching this section
+        bool matched = false;
         for (int i = 0; i < _currentSlides.Count; i++)
         {
             if (_currentSlides[i].SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase))
             {
+                matched = true;
+                WorshipPlayer.Core.Services.DiagLog.Write($"OnSectionChanged matched section '{sectionName}' at slide {i} (curIdx={_currentSlideIndex})");
                 if (i != _currentSlideIndex)
                     SetSlideIndex(i);
                 break;
             }
         }
+        if (!matched)
+            WorshipPlayer.Core.Services.DiagLog.Write($"OnSectionChanged NO slide matches section '{sectionName}' — section names in list: " + string.Join(" | ", System.Linq.Enumerable.Select(_currentSlides, s => s.SectionName)));
     }
 
     // ─── Song/Section-Aware Methods ───────────────────────────────
@@ -582,6 +601,7 @@ public class PresenterEngine : IDisposable
             _currentSlides = generated;
             _currentSlideIndex = generated.Count > 0 ? 0 : -1;
         }
+        DiagDumpSlides("GenerateSlidesFromSong");
     }
 
     /// <summary>
@@ -1034,6 +1054,25 @@ public class PresenterEngine : IDisposable
                 });
             }
         }
+        DiagDumpSlides("OnServiceItemChanged item='" + (e.NewItem?.Title ?? "null") + "'");
+    }
+
+    // TEMP DIAG: dump the current live slide list with timestamps so Muse can see missing /
+    // out-of-order timestamps that stall OnPlaybackPositionUpdate (Issue #5 lyric hang).
+    private void DiagDumpSlides(string where)
+    {
+        try
+        {
+            WorshipPlayer.Core.Services.DiagLog.Write($"--- SLIDES loaded ({where}) count={_currentSlides.Count} curIdx={_currentSlideIndex} ---");
+            for (int i = 0; i < _currentSlides.Count; i++)
+            {
+                var s = _currentSlides[i];
+                string txt = (s.Content?.Text ?? "").Replace("\n", " / ");
+                if (txt.Length > 45) txt = txt.Substring(0, 45) + "...";
+                WorshipPlayer.Core.Services.DiagLog.Write($"  [{i,2}] ts={(s.TimestampMs.HasValue ? s.TimestampMs.Value.ToString("0") : "null"),8} section='{s.SectionName}' text='{txt}'");
+            }
+        }
+        catch { }
     }
 
     private void SetSlideIndex(int newIndex)
