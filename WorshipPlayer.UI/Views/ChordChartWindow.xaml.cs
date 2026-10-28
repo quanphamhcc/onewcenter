@@ -77,25 +77,12 @@ public partial class ChordChartWindow : Window
         // starts singing the next line. Musicians need to see lyrics slightly early.
         double currentMs = _getPositionMs() + 500;
 
-        // Find which slide should be showing based on current position
-        int targetSlide = -1;
-        for (int i = 0; i < _chartData.Slides.Count; i++)
-        {
-            var slide = _chartData.Slides[i];
-            if (currentMs >= slide.StartMs && currentMs < slide.EndMs)
-            {
-                targetSlide = i;
-                break;
-            }
-        }
-
-        // Also check if we're past the last slide's start
-        if (targetSlide < 0 && _chartData.Slides.Count > 0)
-        {
-            var lastSlide = _chartData.Slides[^1];
-            if (currentMs >= lastSlide.StartMs)
-                targetSlide = _chartData.Slides.Count - 1;
-        }
+        // Find which slide should be showing based on current position.
+        // Shared rule with the audience slides (Issue #5, 28/10): interval
+        // hit, else last slide already started (seek-proof — the old
+        // "keep the previous page" held a STALE section after a backward
+        // seek into a gap), else keep the current page.
+        int targetSlide = ChordChartSlideSelector.SelectSlideIndex(_chartData.Slides, currentMs);
 
         if (targetSlide >= 0 && targetSlide != _currentSlideIndex)
         {
