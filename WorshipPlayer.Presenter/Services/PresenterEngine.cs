@@ -687,6 +687,10 @@ public class PresenterEngine : IDisposable
         // pair the Nth section with the Nth chart entry of that name.
         var sectionOccurrences = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
+        // Field fix (Issue #5, 28/10): per-section spans for chart anchoring
+        // (applied after generation, before the safety net below).
+        var sectionSpans = new List<(int start, int end, double loopInMs, bool hasEmbeddedTime)>();
+
         // Walk the song's slide-generation units (đợt 2 T9 / R6.1): without a custom
         // slide order this is exactly the original section order; with one, sections
         // repeat/skip per the order and Blank units become one blank slide each.
@@ -716,6 +720,11 @@ public class PresenterEngine : IDisposable
             int sectionOccurrence = sectionOccurrences.TryGetValue(section.Name, out var seen)
                 ? seen : 0;
             sectionOccurrences[section.Name] = sectionOccurrence + 1;
+
+            // Chart-anchoring span for this section (recorded after its
+            // second pass below).
+            int sectionStartIndex = generated.Count;
+            bool sectionHasEmbeddedTime = false;
 
             // Split section text into slide blocks (separated by empty lines)
             var blocks = _chordParser.ExtractSlideBlocks(sectionText);
@@ -749,6 +758,10 @@ public class PresenterEngine : IDisposable
             var chunkMeta = new List<(int slideIndex, double startMs, double? endMs, int chunkIndex, int chunkCount, double sectionLoopOutMs)>();
             foreach (var (timestampMs, text) in blocks)
             {
+                // An embedded {M:SS.mmm} time is explicit user intent: the
+                // section keeps its times and is excluded from chart anchoring.
+                if (timestampMs >= 0) sectionHasEmbeddedTime = true;
+
                 // Field fix 2026-10-25: match the Nth section occurrence to
                 // the Nth chart entry with this name + block index. Matching
                 // by name alone (FirstOrDefault) handed EVERY "CHORUS" the
@@ -839,6 +852,72 @@ public class PresenterEngine : IDisposable
                         meta.startMs + meta.chunkIndex * (end.Value - meta.startMs) / meta.chunkCount;
                 }
             }
+
+            sectionSpans.Add((sectionStartIndex, generated.Count, section.LoopInMs, sectionHasEmbeddedTime));
+        }
+
+        // Chart anchoring (Issue #5, 28/10): the chord chart shows a section
+        // from its chart boundary (LoopInMs, bar-derived), but slide
+        // timestamps came from the first SUNG WORD of each block — up to
+        // ~10s later (BRIDGE 1: chart 146448, first sung word 156678). In
+        // that gap the chord chart had moved on while the audience still
+        // showed the previous section, and the position matcher yanked any
+        // early section jump back (field log 27/10: 10->9, 11->9 around
+        // pos 143k-149k). So anchor each section's slides to its chart
+        // start: shift the whole section's timestamps uniformly so its
+        // first slide lands on LoopInMs. Uniform shifting preserves
+        // intra-section rhythm; sections with an embedded manual timestamp
+        // keep their times (explicit user intent). The clamp keeps the
+        // timeline monotonic even for repeated sections (same LoopInMs
+        // twice) — the safety net below stays as backstop. With anchoring,
+        // mixer section events (which fire at LoopInMs) and the matcher
+        // agree, and the display no longer depends on section events that
+        // stop firing after PRE-CHORUS 2 in the field logs.
+        double prevTimedMs = double.MinValue;
+        foreach (var (start, end, loopInMs, hasEmbeddedTime) in sectionSpans)
+        {
+            double? lastTs = null;
+            for (int i = end - 1; i >= start; i--)
+            {
+                var ts = generated[i].TimestampMs;
+                if (ts.HasValue) { lastTs = ts.Value; break; }
+            }
+
+            int first = -1;
+            double firstTs = 0;
+            for (int i = start; i < end; i++)
+            {
+                var ts = generated[i].TimestampMs;
+                if (ts.HasValue) { first = i; firstTs = ts.Value; break; }
+            }
+
+            if (first >= 0 && !hasEmbeddedTime && loopInMs > 0)
+            {
+                double target = Math.Max(loopInMs, prevTimedMs + 1);
+                double? secondTs = null;
+                for (int i = first + 1; i < end; i++)
+                {
+                    var ts = generated[i].TimestampMs;
+                    if (ts.HasValue) { secondTs = ts.Value; break; }
+                }
+
+                // Apply only when the section's own order is already
+                // increasing (otherwise leave it for the safety net) and
+                // the shift is material.
+                if ((!secondTs.HasValue || secondTs.Value > firstTs) && Math.Abs(firstTs - target) >= 1)
+                {
+                    double shift = firstTs - target;
+                    for (int i = start; i < end; i++)
+                    {
+                        var ts = generated[i].TimestampMs;
+                        if (ts.HasValue)
+                            generated[i].TimestampMs = ts.Value - shift;
+                    }
+                    if (lastTs.HasValue) lastTs = lastTs.Value - shift;
+                }
+            }
+
+            if (lastTs.HasValue) prevTimedMs = lastTs.Value;
         }
 
         // Safety net (field fix 2026-10-25): the position-update path assumes
