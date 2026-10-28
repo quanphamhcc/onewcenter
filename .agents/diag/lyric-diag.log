@@ -1,1133 +1,397 @@
-09:43:44.850  --- SLIDES loaded (OnServiceItemChanged item='Christ Is Enough - Hillsong LIVE') count=0 curIdx=-1 ---
-09:43:46.639  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-09:43:46.639    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-09:43:46.639    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-09:43:46.640    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-09:43:46.640    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.640    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.641    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-09:43:46.641    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-09:43:46.641    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-09:43:46.641    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.642    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.642    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-09:43:46.642    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-09:43:46.642    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.643    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.643    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-09:43:46.643    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-09:43:46.649  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-09:43:46.649    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-09:43:46.650    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-09:43:46.650    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-09:43:46.650    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.650    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.651    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-09:43:46.651    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-09:43:46.651    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-09:43:46.652    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.652    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.652    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-09:43:46.652    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-09:43:46.653    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.653    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:43:46.653    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-09:43:46.653    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-09:48:30.650  --- SLIDES loaded (OnServiceItemChanged item='Christ Is Enough - Hillsong LIVE') count=0 curIdx=-1 ---
-09:48:32.818  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-09:48:32.818    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-09:48:32.819    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-09:48:32.819    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-09:48:32.819    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.820    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.820    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-09:48:32.820    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-09:48:32.821    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-09:48:32.821    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.821    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.822    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-09:48:32.822    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-09:48:32.823    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.823    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.823    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-09:48:32.823    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-09:48:32.824  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-09:48:32.825    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-09:48:32.825    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-09:48:32.825    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-09:48:32.826    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.826    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.826    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-09:48:32.826    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-09:48:32.827    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-09:48:32.827    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.827    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.828    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-09:48:32.828    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-09:48:32.829    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.829    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:32.830    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-09:48:32.830    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-09:48:35.234  --- SLIDES loaded (OnServiceItemChanged item='Christ Is Enough - Hillsong LIVE') count=0 curIdx=-1 ---
-09:48:36.981  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-09:48:36.983    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-09:48:36.985    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-09:48:36.987    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-09:48:36.989    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:36.991    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:36.993    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-09:48:36.995    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-09:48:36.997    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-09:48:36.998    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:36.999    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:37.000    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-09:48:37.002    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-09:48:37.003    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:37.005    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:37.007    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-09:48:37.009    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-09:48:37.011  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-09:48:37.012    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-09:48:37.015    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-09:48:37.016    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-09:48:37.018    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:37.020    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:37.022    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-09:48:37.024    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-09:48:37.025    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-09:48:37.026    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:37.027    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:37.028    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-09:48:37.028    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-09:48:37.029    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:37.029    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-09:48:37.030    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-09:48:37.030    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:31.331  --- SLIDES loaded (OnServiceItemChanged item='Christ Is Enough - Hillsong LIVE') count=0 curIdx=-1 ---
-20:59:33.818  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-20:59:33.819    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-20:59:33.819    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-20:59:33.820    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-20:59:33.820    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.820    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.820    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-20:59:33.821    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-20:59:33.821    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-20:59:33.821    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.822    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.822    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:33.822    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-20:59:33.823    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.823    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.823    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-20:59:33.823    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:33.829  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-20:59:33.830    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-20:59:33.830    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-20:59:33.830    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-20:59:33.831    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.831    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.831    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-20:59:33.832    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-20:59:33.832    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-20:59:33.832    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.833    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.833    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:33.833    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-20:59:33.834    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.834    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:33.834    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-20:59:33.835    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:38.336  --- SLIDES loaded (OnServiceItemChanged item='Christ Is Enough - Hillsong LIVE') count=0 curIdx=-1 ---
-20:59:39.937  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-20:59:39.937    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-20:59:39.938    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-20:59:39.938    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-20:59:39.938    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.939    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.939    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-20:59:39.940    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-20:59:39.940    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-20:59:39.940    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.941    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.942    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:39.942    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-20:59:39.942    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.943    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.943    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-20:59:39.943    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:39.944  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-20:59:39.944    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-20:59:39.945    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-20:59:39.945    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-20:59:39.945    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.945    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.946    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-20:59:39.946    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-20:59:39.946    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-20:59:39.946    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.947    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.947    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:39.947    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-20:59:39.947    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.948    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:39.948    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-20:59:39.948    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:40.902  --- SLIDES loaded (OnServiceItemChanged item='Christ Is Enough - Hillsong LIVE') count=0 curIdx=-1 ---
-20:59:42.713  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-20:59:42.714    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-20:59:42.714    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-20:59:42.714    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-20:59:42.715    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.715    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.715    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-20:59:42.716    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-20:59:42.716    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-20:59:42.716    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.716    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.717    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:42.717    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-20:59:42.717    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.717    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.718    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-20:59:42.718    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:42.719  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-20:59:42.719    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-20:59:42.719    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-20:59:42.719    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-20:59:42.720    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.720    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.721    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-20:59:42.721    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-20:59:42.721    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-20:59:42.722    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.722    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.722    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:42.722    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-20:59:42.723    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.723    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-20:59:42.723    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-20:59:42.724    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-20:59:51.882  PosUpdate pos=1765 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-20:59:52.438  PosUpdate pos=2015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-20:59:54.437  PosUpdate pos=3015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-20:59:56.437  PosUpdate pos=4015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-20:59:58.437  PosUpdate pos=5015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:00:00.438  PosUpdate pos=6015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:00:02.438  PosUpdate pos=7015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:00:04.437  PosUpdate pos=8015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:00:06.438  PosUpdate pos=9015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:00:08.438  PosUpdate pos=10015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:00:10.437  PosUpdate pos=11015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:00:12.437  PosUpdate pos=12015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:00:14.437  PosUpdate pos=13015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:00:16.239  OnSectionChanged('VERSE 1') curIdx=0 totalSlides=16
-21:00:16.240  OnSectionChanged matched section 'VERSE 1' at slide 1 (curIdx=0)
-21:00:16.241  PosUpdate pos=26194 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=0 totalSlides=16
-21:00:17.237  PosUpdate pos=26694 -> ADVANCE slide 0 -> 1 (ts=26692) section='VERSE 1'
-21:00:17.888  PosUpdate pos=27019 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:19.888  PosUpdate pos=28019 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:21.887  PosUpdate pos=29019 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:23.887  PosUpdate pos=30019 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:25.888  PosUpdate pos=31019 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:27.887  PosUpdate pos=32019 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:29.887  PosUpdate pos=33019 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:31.888  PosUpdate pos=34019 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:33.888  PosUpdate pos=35019 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:33.978  OnSectionChanged('PRE-CHORUS 1') curIdx=1 totalSlides=16
-21:00:33.978  OnSectionChanged matched section 'PRE-CHORUS 1' at slide 2 (curIdx=1)
-21:00:33.988  PosUpdate pos=43941 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:34.137  PosUpdate pos=44016 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:36.137  PosUpdate pos=45016 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:38.138  PosUpdate pos=46016 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:40.137  PosUpdate pos=47016 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:00:40.787  PosUpdate pos=47341 -> ADVANCE slide 1 -> 2 (ts=47322) section='PRE-CHORUS 1'
-21:00:42.137  PosUpdate pos=48016 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:00:44.137  PosUpdate pos=49016 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:00:46.138  PosUpdate pos=50016 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:00:48.137  PosUpdate pos=51016 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:00:50.138  PosUpdate pos=52016 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:00:51.758  OnSectionChanged('CHORUS') curIdx=2 totalSlides=16
-21:00:51.759  OnSectionChanged matched section 'CHORUS' at slide 3 (curIdx=2)
-21:00:51.788  PosUpdate pos=61735 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:00:51.987  PosUpdate pos=61835 -> ADVANCE slide 2 -> 3 (ts=61823,12925170038) section='CHORUS'
-21:00:52.337  PosUpdate pos=62010 curIdx=3 curTs=61823,12925170038 curSection='CHORUS' chosenIdx=3 totalSlides=16
-21:00:54.337  PosUpdate pos=63010 curIdx=3 curTs=61823,12925170038 curSection='CHORUS' chosenIdx=3 totalSlides=16
-21:00:56.338  PosUpdate pos=64010 curIdx=3 curTs=61823,12925170038 curSection='CHORUS' chosenIdx=3 totalSlides=16
-21:00:58.337  PosUpdate pos=65010 curIdx=3 curTs=61823,12925170038 curSection='CHORUS' chosenIdx=3 totalSlides=16
-21:00:59.087  PosUpdate pos=65385 -> ADVANCE slide 3 -> 4 (ts=65378,564625850195) section='CHORUS'
-21:01:00.338  PosUpdate pos=66010 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:01:02.337  PosUpdate pos=67010 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:01:04.337  PosUpdate pos=68010 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:01:06.338  PosUpdate pos=69010 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:01:08.337  PosUpdate pos=70010 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:01:10.338  PosUpdate pos=71010 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:01:12.338  PosUpdate pos=72010 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:01:14.337  PosUpdate pos=73010 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:01:16.278  OnSectionChanged('VERSE 2') curIdx=4 totalSlides=16
-21:01:16.278  OnSectionChanged matched section 'VERSE 2' at slide 5 (curIdx=4)
-21:01:16.288  PosUpdate pos=86247 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:01:16.587  PosUpdate pos=86397 -> ADVANCE slide 4 -> 5 (ts=86387) section='VERSE 2'
-21:01:17.837  PosUpdate pos=87022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:19.837  PosUpdate pos=88022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:21.838  PosUpdate pos=89022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:23.837  PosUpdate pos=90022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:25.838  PosUpdate pos=91022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:27.838  PosUpdate pos=92022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:29.837  PosUpdate pos=93022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:31.837  PosUpdate pos=94022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:33.838  PosUpdate pos=95022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:35.837  PosUpdate pos=96022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:36.338  OnSectionChanged('PRE-CHORUS 2') curIdx=5 totalSlides=16
-21:01:36.338  OnSectionChanged matched section 'PRE-CHORUS 2' at slide 6 (curIdx=5)
-21:01:36.339  PosUpdate pos=106304 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:37.737  PosUpdate pos=107004 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:01:38.488  PosUpdate pos=107379 -> ADVANCE slide 5 -> 6 (ts=107356) section='PRE-CHORUS 2'
-21:01:39.737  PosUpdate pos=108004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:01:41.737  PosUpdate pos=109004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:01:43.737  PosUpdate pos=110004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:01:45.737  PosUpdate pos=111004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:01:47.737  PosUpdate pos=112004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:01:49.737  PosUpdate pos=113004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:01:51.737  PosUpdate pos=114004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:01:53.738  PosUpdate pos=115004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:01:54.037  PosUpdate pos=115154 -> ADVANCE slide 6 -> 7 (ts=115146) section='PRE-CHORUS 2'
-21:01:55.738  PosUpdate pos=116004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:01:57.737  PosUpdate pos=117004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:01:59.737  PosUpdate pos=118004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:02:01.738  PosUpdate pos=119004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:02:03.737  PosUpdate pos=120004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:02:05.737  PosUpdate pos=121004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:02:07.738  PosUpdate pos=122004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:02:07.787  PosUpdate pos=122029 -> ADVANCE slide 7 -> 8 (ts=122009,25170067967) section='CHORUS'
-21:02:09.738  PosUpdate pos=123004 curIdx=8 curTs=122009,25170067967 curSection='CHORUS' chosenIdx=8 totalSlides=16
-21:02:11.737  PosUpdate pos=124004 curIdx=8 curTs=122009,25170067967 curSection='CHORUS' chosenIdx=8 totalSlides=16
-21:02:13.737  PosUpdate pos=125004 curIdx=8 curTs=122009,25170067967 curSection='CHORUS' chosenIdx=8 totalSlides=16
-21:02:14.837  PosUpdate pos=125554 -> ADVANCE slide 8 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:15.737  PosUpdate pos=126004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:17.737  PosUpdate pos=127004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:19.737  PosUpdate pos=128004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:21.737  PosUpdate pos=129004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:23.738  PosUpdate pos=130004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:25.737  PosUpdate pos=131004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:27.737  PosUpdate pos=132004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:29.737  PosUpdate pos=133004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:31.738  PosUpdate pos=134004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:33.737  PosUpdate pos=135004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:35.737  PosUpdate pos=136004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:37.737  PosUpdate pos=137004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:39.738  PosUpdate pos=138004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:41.737  PosUpdate pos=139004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:43.737  PosUpdate pos=140004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:45.738  PosUpdate pos=141004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:47.738  PosUpdate pos=142004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:49.738  PosUpdate pos=143004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:50.388  PosUpdate pos=143329 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:50.738  PosUpdate pos=143504 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:50.988  PosUpdate pos=143629 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:51.288  PosUpdate pos=143779 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:51.538  PosUpdate pos=143904 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:51.738  PosUpdate pos=144004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:52.288  PosUpdate pos=144279 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:53.087  PosUpdate pos=144679 -> ADVANCE slide 8 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:53.288  PosUpdate pos=144779 -> ADVANCE slide 8 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:53.738  PosUpdate pos=145004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:54.837  PosUpdate pos=145554 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:55.388  PosUpdate pos=145829 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:55.738  PosUpdate pos=146004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:56.037  PosUpdate pos=146154 -> ADVANCE slide 8 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:57.438  PosUpdate pos=146854 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:02:57.737  PosUpdate pos=147004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:59.737  PosUpdate pos=148004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:02:59.788  PosUpdate pos=148029 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:00.438  PosUpdate pos=148354 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:00.738  PosUpdate pos=148504 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:01.038  PosUpdate pos=148654 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:01.337  PosUpdate pos=148804 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:01.587  PosUpdate pos=148929 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:01.738  PosUpdate pos=149004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:03:01.887  PosUpdate pos=149079 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:02.387  PosUpdate pos=149329 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:02.688  PosUpdate pos=149479 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:02.937  PosUpdate pos=149604 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:03.388  PosUpdate pos=149829 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:03.737  PosUpdate pos=150004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:03:03.888  PosUpdate pos=150079 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:04.088  PosUpdate pos=150179 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:05.637  PosUpdate pos=150954 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:05.738  PosUpdate pos=151004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:03:05.887  PosUpdate pos=151079 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:06.288  PosUpdate pos=151279 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:06.438  PosUpdate pos=151354 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:06.738  PosUpdate pos=151504 -> ADVANCE slide 10 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:07.488  PosUpdate pos=151879 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:07.737  PosUpdate pos=152004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:03:08.037  PosUpdate pos=152154 -> ADVANCE slide 11 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:03:09.737  PosUpdate pos=153004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:03:11.737  PosUpdate pos=154004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:03:13.738  PosUpdate pos=155004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:03:15.737  PosUpdate pos=156004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:03:17.088  PosUpdate pos=156679 -> ADVANCE slide 9 -> 10 (ts=156678) section='BRIDGE 1'
-21:03:17.397  --- SLIDES loaded (OnServiceItemChanged item='Praise') count=0 curIdx=-1 ---
-21:03:19.846  --- SLIDES loaded (GenerateSlidesFromSong) count=57 curIdx=0 ---
-21:03:19.846    [ 0] ts=    1621 section='INTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:03:19.847    [ 1] ts=    5715 section='INTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:03:19.847    [ 2] ts=    9810 section='INTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:03:19.848    [ 3] ts=   26188 section='VERSE I' text='I'll [G]praise in the valley / [C]Praise on t...'
-21:03:19.848    [ 4] ts=   29731 section='VERSE I' text='I'll [D]praise when I'm sure[C] / And praise ...'
-21:03:19.848    [ 5] ts=   33274 section='VERSE I' text='I'll [G]praise when outnumbered / [C]Praise w...'
-21:03:19.849    [ 6] ts=   36818 section='VERSE I' text=''Cause [D/F#]praise is the waters[C] / My ene...'
-21:03:19.849    [ 7] ts=  105557 section='PRE-CHORUS' text='As [D]long as I'm breathing / [C]I've got a r...'
-21:03:19.849    [ 8] ts=  186815 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.850    [ 9] ts=  187987 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.850    [10] ts=  189159 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.850    [11] ts=  190330 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.851    [12] ts=  191502 section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.851    [13] ts=  192674 section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:03:19.851    [14] ts=  193845 section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:03:19.852    [15] ts=  195017 section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.853    [16] ts=  196189 section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:03:19.853    [17] ts=  197360 section='CHORUS' text='Oh my so[D]ul'
-21:03:19.854    [18] ts=    null section='VERSE II' text='I'll [G]praise when I feel it / And I'll [C]p...'
-21:03:19.855    [19] ts=    null section='VERSE II' text='I'll [D]praise 'cause I know[C] / You're stil...'
-21:03:19.856    [20] ts=    null section='VERSE II' text=''Cause my [G]praise is a weapon / It's [C]mor...'
-21:03:19.856    [21] ts=    null section='VERSE II' text='Oh, my [D/F#]praise is the shout[C] / That br...'
-21:03:19.857    [22] ts=    null section='PRE-CHORUS' text='As [D]long as I'm breathing / [C]I've got a r...'
-21:03:19.857    [23] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.858    [24] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.858    [25] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.859    [26] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.859    [27] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.860    [28] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:03:19.860    [29] ts=    null section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:03:19.861    [30] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.861    [31] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:03:19.862    [32] ts=    null section='CHORUS' text='Oh my so[D]ul'
-21:03:19.863    [33] ts=    null section='INTERLUDE' text='[Em][C][G][D] / [Em][C][G][D]'
-21:03:19.863    [34] ts=    null section='BRIDGE' text='I'll [G]praise 'cause You're sovereign / [C/G...'
-21:03:19.864    [35] ts=    null section='BRIDGE' text='[D/G]Praise 'cause You rose and de[C/G]feated...'
-21:03:19.864    [36] ts=    null section='BRIDGE' text='[C/G]Praise 'cause You're true / [D/G]Praise ...'
-21:03:19.865    [37] ts=    null section='BRIDGE' text='I'll [G]praise 'cause You're sovereign / [Am]...'
-21:03:19.866    [38] ts=    null section='BRIDGE' text='[G/B]Praise 'cause You rose and de[C]feated t...'
-21:03:19.867    [39] ts=    null section='BRIDGE' text='[Am]Praise 'cause You're true / [G/B]Praise '...'
-21:03:19.868    [40] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.868    [41] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.869    [42] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.869    [43] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.870    [44] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.870    [45] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:03:19.870    [46] ts=    null section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:03:19.870    [47] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.871    [48] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:03:19.871    [49] ts=    null section='CHORUS' text='Oh my so[D]ul'
-21:03:19.871    [50] ts=    null section='INTERLUDE' text='[Em][C][G][D] / [Em][C][G][D]'
-21:03:19.872    [51] ts=  281302 section='OUTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:03:19.872    [52] ts=  281569 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:03:19.872    [53] ts=  281835 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:03:19.872    [54] ts=  282101 section='OUTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:03:19.873    [55] ts=  282367 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:03:19.873    [56] ts=  282634 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:03:19.874  --- SLIDES loaded (GenerateSlidesFromSong) count=57 curIdx=0 ---
-21:03:19.875    [ 0] ts=    1621 section='INTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:03:19.875    [ 1] ts=    5715 section='INTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:03:19.876    [ 2] ts=    9810 section='INTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:03:19.876    [ 3] ts=   26188 section='VERSE I' text='I'll [G]praise in the valley / [C]Praise on t...'
-21:03:19.876    [ 4] ts=   29731 section='VERSE I' text='I'll [D]praise when I'm sure[C] / And praise ...'
-21:03:19.877    [ 5] ts=   33274 section='VERSE I' text='I'll [G]praise when outnumbered / [C]Praise w...'
-21:03:19.877    [ 6] ts=   36818 section='VERSE I' text=''Cause [D/F#]praise is the waters[C] / My ene...'
-21:03:19.877    [ 7] ts=  105557 section='PRE-CHORUS' text='As [D]long as I'm breathing / [C]I've got a r...'
-21:03:19.878    [ 8] ts=  186815 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.878    [ 9] ts=  187987 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.879    [10] ts=  189159 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.879    [11] ts=  190330 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.879    [12] ts=  191502 section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.880    [13] ts=  192674 section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:03:19.880    [14] ts=  193845 section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:03:19.881    [15] ts=  195017 section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.881    [16] ts=  196189 section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:03:19.881    [17] ts=  197360 section='CHORUS' text='Oh my so[D]ul'
-21:03:19.882    [18] ts=    null section='VERSE II' text='I'll [G]praise when I feel it / And I'll [C]p...'
-21:03:19.882    [19] ts=    null section='VERSE II' text='I'll [D]praise 'cause I know[C] / You're stil...'
-21:03:19.882    [20] ts=    null section='VERSE II' text=''Cause my [G]praise is a weapon / It's [C]mor...'
-21:03:19.883    [21] ts=    null section='VERSE II' text='Oh, my [D/F#]praise is the shout[C] / That br...'
-21:03:19.883    [22] ts=    null section='PRE-CHORUS' text='As [D]long as I'm breathing / [C]I've got a r...'
-21:03:19.884    [23] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.884    [24] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.884    [25] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.885    [26] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.885    [27] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.885    [28] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:03:19.886    [29] ts=    null section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:03:19.886    [30] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.887    [31] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:03:19.887    [32] ts=    null section='CHORUS' text='Oh my so[D]ul'
-21:03:19.888    [33] ts=    null section='INTERLUDE' text='[Em][C][G][D] / [Em][C][G][D]'
-21:03:19.888    [34] ts=    null section='BRIDGE' text='I'll [G]praise 'cause You're sovereign / [C/G...'
-21:03:19.889    [35] ts=    null section='BRIDGE' text='[D/G]Praise 'cause You rose and de[C/G]feated...'
-21:03:19.889    [36] ts=    null section='BRIDGE' text='[C/G]Praise 'cause You're true / [D/G]Praise ...'
-21:03:19.890    [37] ts=    null section='BRIDGE' text='I'll [G]praise 'cause You're sovereign / [Am]...'
-21:03:19.890    [38] ts=    null section='BRIDGE' text='[G/B]Praise 'cause You rose and de[C]feated t...'
-21:03:19.891    [39] ts=    null section='BRIDGE' text='[Am]Praise 'cause You're true / [G/B]Praise '...'
-21:03:19.891    [40] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.892    [41] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.892    [42] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.892    [43] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:03:19.893    [44] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.893    [45] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:03:19.894    [46] ts=    null section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:03:19.894    [47] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:03:19.894    [48] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:03:19.895    [49] ts=    null section='CHORUS' text='Oh my so[D]ul'
-21:03:19.895    [50] ts=    null section='INTERLUDE' text='[Em][C][G][D] / [Em][C][G][D]'
-21:03:19.895    [51] ts=  281302 section='OUTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:03:19.895    [52] ts=  281569 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:03:19.896    [53] ts=  281835 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:03:19.896    [54] ts=  282101 section='OUTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:03:19.897    [55] ts=  282367 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:03:19.897    [56] ts=  282634 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:03:27.863  PosUpdate pos=1749 curIdx=0 curTs=1620,922 curSection='INTRO' chosenIdx=0 totalSlides=57
-21:03:28.469  PosUpdate pos=2024 curIdx=0 curTs=1620,922 curSection='INTRO' chosenIdx=0 totalSlides=57
-21:03:30.468  PosUpdate pos=3024 curIdx=0 curTs=1620,922 curSection='INTRO' chosenIdx=0 totalSlides=57
-21:03:32.468  PosUpdate pos=4024 curIdx=0 curTs=1620,922 curSection='INTRO' chosenIdx=0 totalSlides=57
-21:03:34.468  PosUpdate pos=5024 curIdx=0 curTs=1620,922 curSection='INTRO' chosenIdx=0 totalSlides=57
-21:03:35.868  PosUpdate pos=5724 -> ADVANCE slide 0 -> 1 (ts=5715,3585) section='INTRO'
-21:03:36.468  PosUpdate pos=6024 curIdx=1 curTs=5715,3585 curSection='INTRO' chosenIdx=1 totalSlides=57
-21:03:38.468  PosUpdate pos=7024 curIdx=1 curTs=5715,3585 curSection='INTRO' chosenIdx=1 totalSlides=57
-21:03:40.468  PosUpdate pos=8024 curIdx=1 curTs=5715,3585 curSection='INTRO' chosenIdx=1 totalSlides=57
-21:03:42.468  PosUpdate pos=9024 curIdx=1 curTs=5715,3585 curSection='INTRO' chosenIdx=1 totalSlides=57
-21:03:44.067  PosUpdate pos=9824 -> ADVANCE slide 1 -> 2 (ts=9809,795) section='INTRO'
-21:03:44.468  PosUpdate pos=10024 curIdx=2 curTs=9809,795 curSection='INTRO' chosenIdx=2 totalSlides=57
-21:03:46.467  PosUpdate pos=11024 curIdx=2 curTs=9809,795 curSection='INTRO' chosenIdx=2 totalSlides=57
-21:04:02.666  --- SLIDES loaded (OnServiceItemChanged item='Praise') count=0 curIdx=-1 ---
-21:04:04.284  --- SLIDES loaded (GenerateSlidesFromSong) count=57 curIdx=0 ---
-21:04:04.285    [ 0] ts=    1621 section='INTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:04:04.285    [ 1] ts=    5715 section='INTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:04:04.285    [ 2] ts=    9810 section='INTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:04:04.286    [ 3] ts=   26188 section='VERSE I' text='I'll [G]praise in the valley / [C]Praise on t...'
-21:04:04.286    [ 4] ts=   29731 section='VERSE I' text='I'll [D]praise when I'm sure[C] / And praise ...'
-21:04:04.286    [ 5] ts=   33274 section='VERSE I' text='I'll [G]praise when outnumbered / [C]Praise w...'
-21:04:04.286    [ 6] ts=   36818 section='VERSE I' text=''Cause [D/F#]praise is the waters[C] / My ene...'
-21:04:04.287    [ 7] ts=  105557 section='PRE-CHORUS' text='As [D]long as I'm breathing / [C]I've got a r...'
-21:04:04.287    [ 8] ts=  186815 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.287    [ 9] ts=  187987 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.287    [10] ts=  189159 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.288    [11] ts=  190330 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.288    [12] ts=  191502 section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.288    [13] ts=  192674 section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:04:04.289    [14] ts=  193845 section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:04:04.289    [15] ts=  195017 section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.289    [16] ts=  196189 section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:04:04.290    [17] ts=  197360 section='CHORUS' text='Oh my so[D]ul'
-21:04:04.290    [18] ts=    null section='VERSE II' text='I'll [G]praise when I feel it / And I'll [C]p...'
-21:04:04.290    [19] ts=    null section='VERSE II' text='I'll [D]praise 'cause I know[C] / You're stil...'
-21:04:04.291    [20] ts=    null section='VERSE II' text=''Cause my [G]praise is a weapon / It's [C]mor...'
-21:04:04.291    [21] ts=    null section='VERSE II' text='Oh, my [D/F#]praise is the shout[C] / That br...'
-21:04:04.291    [22] ts=    null section='PRE-CHORUS' text='As [D]long as I'm breathing / [C]I've got a r...'
-21:04:04.292    [23] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.292    [24] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.292    [25] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.293    [26] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.293    [27] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.293    [28] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:04:04.293    [29] ts=    null section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:04:04.294    [30] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.294    [31] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:04:04.294    [32] ts=    null section='CHORUS' text='Oh my so[D]ul'
-21:04:04.294    [33] ts=    null section='INTERLUDE' text='[Em][C][G][D] / [Em][C][G][D]'
-21:04:04.295    [34] ts=    null section='BRIDGE' text='I'll [G]praise 'cause You're sovereign / [C/G...'
-21:04:04.295    [35] ts=    null section='BRIDGE' text='[D/G]Praise 'cause You rose and de[C/G]feated...'
-21:04:04.295    [36] ts=    null section='BRIDGE' text='[C/G]Praise 'cause You're true / [D/G]Praise ...'
-21:04:04.295    [37] ts=    null section='BRIDGE' text='I'll [G]praise 'cause You're sovereign / [Am]...'
-21:04:04.296    [38] ts=    null section='BRIDGE' text='[G/B]Praise 'cause You rose and de[C]feated t...'
-21:04:04.296    [39] ts=    null section='BRIDGE' text='[Am]Praise 'cause You're true / [G/B]Praise '...'
-21:04:04.296    [40] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.297    [41] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.297    [42] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.297    [43] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.298    [44] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.298    [45] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:04:04.298    [46] ts=    null section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:04:04.298    [47] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.298    [48] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:04:04.299    [49] ts=    null section='CHORUS' text='Oh my so[D]ul'
-21:04:04.299    [50] ts=    null section='INTERLUDE' text='[Em][C][G][D] / [Em][C][G][D]'
-21:04:04.299    [51] ts=  281302 section='OUTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:04:04.299    [52] ts=  281569 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:04:04.300    [53] ts=  281835 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:04:04.300    [54] ts=  282101 section='OUTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:04:04.300    [55] ts=  282367 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:04:04.300    [56] ts=  282634 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:04:04.301  --- SLIDES loaded (GenerateSlidesFromSong) count=57 curIdx=0 ---
-21:04:04.301    [ 0] ts=    1621 section='INTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:04:04.301    [ 1] ts=    5715 section='INTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:04:04.302    [ 2] ts=    9810 section='INTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:04:04.302    [ 3] ts=   26188 section='VERSE I' text='I'll [G]praise in the valley / [C]Praise on t...'
-21:04:04.302    [ 4] ts=   29731 section='VERSE I' text='I'll [D]praise when I'm sure[C] / And praise ...'
-21:04:04.302    [ 5] ts=   33274 section='VERSE I' text='I'll [G]praise when outnumbered / [C]Praise w...'
-21:04:04.303    [ 6] ts=   36818 section='VERSE I' text=''Cause [D/F#]praise is the waters[C] / My ene...'
-21:04:04.303    [ 7] ts=  105557 section='PRE-CHORUS' text='As [D]long as I'm breathing / [C]I've got a r...'
-21:04:04.303    [ 8] ts=  186815 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.303    [ 9] ts=  187987 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.304    [10] ts=  189159 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.304    [11] ts=  190330 section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.304    [12] ts=  191502 section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.305    [13] ts=  192674 section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:04:04.305    [14] ts=  193845 section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:04:04.305    [15] ts=  195017 section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.305    [16] ts=  196189 section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:04:04.306    [17] ts=  197360 section='CHORUS' text='Oh my so[D]ul'
-21:04:04.306    [18] ts=    null section='VERSE II' text='I'll [G]praise when I feel it / And I'll [C]p...'
-21:04:04.306    [19] ts=    null section='VERSE II' text='I'll [D]praise 'cause I know[C] / You're stil...'
-21:04:04.306    [20] ts=    null section='VERSE II' text=''Cause my [G]praise is a weapon / It's [C]mor...'
-21:04:04.307    [21] ts=    null section='VERSE II' text='Oh, my [D/F#]praise is the shout[C] / That br...'
-21:04:04.307    [22] ts=    null section='PRE-CHORUS' text='As [D]long as I'm breathing / [C]I've got a r...'
-21:04:04.307    [23] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.307    [24] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.308    [25] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.308    [26] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.308    [27] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.308    [28] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:04:04.309    [29] ts=    null section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:04:04.309    [30] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.309    [31] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:04:04.309    [32] ts=    null section='CHORUS' text='Oh my so[D]ul'
-21:04:04.310    [33] ts=    null section='INTERLUDE' text='[Em][C][G][D] / [Em][C][G][D]'
-21:04:04.320    [34] ts=    null section='BRIDGE' text='I'll [G]praise 'cause You're sovereign / [C/G...'
-21:04:04.321    [35] ts=    null section='BRIDGE' text='[D/G]Praise 'cause You rose and de[C/G]feated...'
-21:04:04.321    [36] ts=    null section='BRIDGE' text='[C/G]Praise 'cause You're true / [D/G]Praise ...'
-21:04:04.321    [37] ts=    null section='BRIDGE' text='I'll [G]praise 'cause You're sovereign / [Am]...'
-21:04:04.321    [38] ts=    null section='BRIDGE' text='[G/B]Praise 'cause You rose and de[C]feated t...'
-21:04:04.322    [39] ts=    null section='BRIDGE' text='[Am]Praise 'cause You're true / [G/B]Praise '...'
-21:04:04.322    [40] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.322    [41] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.322    [42] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.323    [43] ts=    null section='CHORUS' text='[Em]Pra-[C]ise the L[G]ord / Oh my so[D]ul'
-21:04:04.323    [44] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.323    [45] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]I won'...'
-21:04:04.323    [46] ts=    null section='CHORUS' text='My G[C]od is alive / H[G]ow could I keep it i...'
-21:04:04.324    [47] ts=    null section='CHORUS' text='[Em]I won't be quiet / My G[C]od is alive'
-21:04:04.324    [48] ts=    null section='CHORUS' text='H[G]ow could I keep it ins[D]ide / [Em]Pra-[C...'
-21:04:04.324    [49] ts=    null section='CHORUS' text='Oh my so[D]ul'
-21:04:04.324    [50] ts=    null section='INTERLUDE' text='[Em][C][G][D] / [Em][C][G][D]'
-21:04:04.325    [51] ts=  281302 section='OUTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:04:04.325    [52] ts=  281569 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:04:04.325    [53] ts=  281835 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:04:04.326    [54] ts=  282101 section='OUTRO' text='[N.C.]Let everything that has breath / [N.C.]...'
-21:04:04.326    [55] ts=  282367 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Let everything ...'
-21:04:04.326    [56] ts=  282634 section='OUTRO' text='[N.C.]Praise the Lord / [N.C.]Praise the Lord'
-21:04:04.369  --- SLIDES loaded (OnServiceItemChanged item='Christ Is Enough - Hillsong LIVE') count=0 curIdx=-1 ---
-21:04:06.092  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-21:04:06.093    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-21:04:06.093    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-21:04:06.094    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-21:04:06.094    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.094    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.094    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-21:04:06.095    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-21:04:06.095    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-21:04:06.095    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.095    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.096    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-21:04:06.096    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-21:04:06.096    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.097    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.097    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-21:04:06.097    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-21:04:06.098  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
-21:04:06.098    [ 0] ts=   25531 section='INTRO' text='[G#m][E][B][F#/A#]'
-21:04:06.099    [ 1] ts=   26692 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
-21:04:06.099    [ 2] ts=   47322 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
-21:04:06.100    [ 3] ts=   61823 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.100    [ 4] ts=   65379 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.100    [ 5] ts=   86387 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
-21:04:06.101    [ 6] ts=  107356 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
-21:04:06.101    [ 7] ts=  115146 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
-21:04:06.101    [ 8] ts=  122009 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.101    [ 9] ts=  125544 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.102    [10] ts=  156678 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
-21:04:06.102    [11] ts=  162441 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
-21:04:06.102    [12] ts=  208570 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.102    [13] ts=  212261 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
-21:04:06.102    [14] ts=  258519 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
-21:04:06.103    [15] ts=  260214 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
-21:04:14.663  PosUpdate pos=1765 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:15.224  PosUpdate pos=2015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:17.224  PosUpdate pos=3015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:19.225  PosUpdate pos=4015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:21.224  PosUpdate pos=5015 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:23.234  PosUpdate pos=6020 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:25.234  PosUpdate pos=7020 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:27.235  PosUpdate pos=8020 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:29.194  PosUpdate pos=9000 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:31.205  PosUpdate pos=10005 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:33.204  PosUpdate pos=11005 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:35.204  PosUpdate pos=12005 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:37.205  PosUpdate pos=13005 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=-1 totalSlides=16
-21:04:39.040  OnSectionChanged('VERSE 1') curIdx=0 totalSlides=16
-21:04:39.040  OnSectionChanged matched section 'VERSE 1' at slide 1 (curIdx=0)
-21:04:39.055  PosUpdate pos=26209 curIdx=0 curTs=25531 curSection='INTRO' chosenIdx=0 totalSlides=16
-21:04:40.054  PosUpdate pos=26709 -> ADVANCE slide 0 -> 1 (ts=26692) section='VERSE 1'
-21:04:40.655  PosUpdate pos=27009 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:42.664  PosUpdate pos=28014 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:44.664  PosUpdate pos=29014 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:46.664  PosUpdate pos=30014 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:48.664  PosUpdate pos=31014 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:50.664  PosUpdate pos=32014 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:52.664  PosUpdate pos=33014 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:54.665  PosUpdate pos=34014 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:56.664  PosUpdate pos=35014 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:56.765  OnSectionChanged('PRE-CHORUS 1') curIdx=1 totalSlides=16
-21:04:56.766  OnSectionChanged matched section 'PRE-CHORUS 1' at slide 2 (curIdx=1)
-21:04:56.766  PosUpdate pos=43936 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:56.914  PosUpdate pos=44011 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:04:58.914  PosUpdate pos=45011 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:05:00.925  PosUpdate pos=46016 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:05:02.925  PosUpdate pos=47016 curIdx=1 curTs=26692 curSection='VERSE 1' chosenIdx=1 totalSlides=16
-21:05:03.575  PosUpdate pos=47341 -> ADVANCE slide 1 -> 2 (ts=47322) section='PRE-CHORUS 1'
-21:05:04.924  PosUpdate pos=48016 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:05:06.924  PosUpdate pos=49016 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:05:08.924  PosUpdate pos=50016 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:05:10.895  PosUpdate pos=51001 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:05:12.905  PosUpdate pos=52006 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:05:14.545  OnSectionChanged('CHORUS') curIdx=2 totalSlides=16
-21:05:14.545  OnSectionChanged matched section 'CHORUS' at slide 3 (curIdx=2)
-21:05:14.555  PosUpdate pos=61725 curIdx=2 curTs=47322 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
-21:05:14.754  PosUpdate pos=61825 -> ADVANCE slide 2 -> 3 (ts=61823,12925170038) section='CHORUS'
-21:05:15.114  PosUpdate pos=62005 curIdx=3 curTs=61823,12925170038 curSection='CHORUS' chosenIdx=3 totalSlides=16
-21:05:17.114  PosUpdate pos=63005 curIdx=3 curTs=61823,12925170038 curSection='CHORUS' chosenIdx=3 totalSlides=16
-21:05:19.114  PosUpdate pos=64005 curIdx=3 curTs=61823,12925170038 curSection='CHORUS' chosenIdx=3 totalSlides=16
-21:05:21.114  PosUpdate pos=65005 curIdx=3 curTs=61823,12925170038 curSection='CHORUS' chosenIdx=3 totalSlides=16
-21:05:21.865  PosUpdate pos=65380 -> ADVANCE slide 3 -> 4 (ts=65378,564625850195) section='CHORUS'
-21:05:23.114  PosUpdate pos=66005 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:05:25.134  PosUpdate pos=67015 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:05:27.144  PosUpdate pos=68020 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:05:29.104  PosUpdate pos=69000 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:05:31.104  PosUpdate pos=70000 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:05:33.114  PosUpdate pos=71005 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:05:35.124  PosUpdate pos=72010 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:05:37.124  PosUpdate pos=73010 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:05:39.065  OnSectionChanged('VERSE 2') curIdx=4 totalSlides=16
-21:05:39.065  OnSectionChanged matched section 'VERSE 2' at slide 5 (curIdx=4)
-21:05:39.084  PosUpdate pos=86252 curIdx=4 curTs=65378,564625850195 curSection='CHORUS' chosenIdx=4 totalSlides=16
-21:05:39.385  PosUpdate pos=86402 -> ADVANCE slide 4 -> 5 (ts=86387) section='VERSE 2'
-21:05:40.585  PosUpdate pos=87002 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:05:42.594  PosUpdate pos=88002 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:05:44.585  PosUpdate pos=89002 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:05:46.584  PosUpdate pos=90002 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:05:48.595  PosUpdate pos=91007 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:05:50.594  PosUpdate pos=92007 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:05:52.595  PosUpdate pos=93007 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:05:54.594  PosUpdate pos=94007 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:05:56.595  PosUpdate pos=95007 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:05:58.624  PosUpdate pos=96022 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:05:59.125  OnSectionChanged('PRE-CHORUS 2') curIdx=5 totalSlides=16
-21:05:59.125  OnSectionChanged matched section 'PRE-CHORUS 2' at slide 6 (curIdx=5)
-21:05:59.125  PosUpdate pos=106304 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:06:00.524  PosUpdate pos=107004 curIdx=5 curTs=86387 curSection='VERSE 2' chosenIdx=5 totalSlides=16
-21:06:01.274  PosUpdate pos=107379 -> ADVANCE slide 5 -> 6 (ts=107356) section='PRE-CHORUS 2'
-21:06:02.525  PosUpdate pos=108004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:06:04.524  PosUpdate pos=109004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:06:06.524  PosUpdate pos=110004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:06:08.524  PosUpdate pos=111004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:06:10.525  PosUpdate pos=112004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:06:12.525  PosUpdate pos=113004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:06:14.524  PosUpdate pos=114004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:06:16.524  PosUpdate pos=115004 curIdx=6 curTs=107356 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
-21:06:16.824  PosUpdate pos=115154 -> ADVANCE slide 6 -> 7 (ts=115146) section='PRE-CHORUS 2'
-21:06:18.534  PosUpdate pos=116004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:06:20.524  PosUpdate pos=117004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:06:22.524  PosUpdate pos=118004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:06:24.524  PosUpdate pos=119004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:06:26.525  PosUpdate pos=120004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:06:28.524  PosUpdate pos=121004 curIdx=7 curTs=115146 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
-21:06:30.535  PosUpdate pos=122009 -> ADVANCE slide 7 -> 8 (ts=122009,25170067967) section='CHORUS'
-21:06:30.536  PosUpdate pos=122009 curIdx=8 curTs=122009,25170067967 curSection='CHORUS' chosenIdx=8 totalSlides=16
-21:06:32.544  PosUpdate pos=123014 curIdx=8 curTs=122009,25170067967 curSection='CHORUS' chosenIdx=8 totalSlides=16
-21:06:34.544  PosUpdate pos=124014 curIdx=8 curTs=122009,25170067967 curSection='CHORUS' chosenIdx=8 totalSlides=16
-21:06:36.544  PosUpdate pos=125014 curIdx=8 curTs=122009,25170067967 curSection='CHORUS' chosenIdx=8 totalSlides=16
-21:06:37.656  PosUpdate pos=125569 -> ADVANCE slide 8 -> 9 (ts=125544,12585033984) section='CHORUS'
-21:06:38.554  PosUpdate pos=126019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:06:40.554  PosUpdate pos=127019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:06:42.554  PosUpdate pos=128019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:06:44.554  PosUpdate pos=129019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:06:46.564  PosUpdate pos=130024 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:06:48.564  PosUpdate pos=131024 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:06:50.565  PosUpdate pos=132024 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:06:52.564  PosUpdate pos=133024 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:06:54.564  PosUpdate pos=134024 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:06:56.564  PosUpdate pos=135024 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:06:58.534  PosUpdate pos=136009 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:00.555  PosUpdate pos=137019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:02.554  PosUpdate pos=138019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:04.554  PosUpdate pos=139019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:06.555  PosUpdate pos=140019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:08.555  PosUpdate pos=141019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:10.554  PosUpdate pos=142019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:12.555  PosUpdate pos=143019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:14.555  PosUpdate pos=144019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:16.555  PosUpdate pos=145019 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:18.565  PosUpdate pos=146024 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:20.525  PosUpdate pos=147004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:22.524  PosUpdate pos=148004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:24.524  PosUpdate pos=149004 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:26.534  PosUpdate pos=150009 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:28.535  PosUpdate pos=151009 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:30.535  PosUpdate pos=152009 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:32.534  PosUpdate pos=153009 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:34.545  PosUpdate pos=154014 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:36.545  PosUpdate pos=155014 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:38.545  PosUpdate pos=156014 curIdx=9 curTs=125544,12585033984 curSection='CHORUS' chosenIdx=9 totalSlides=16
-21:07:39.894  PosUpdate pos=156689 -> ADVANCE slide 9 -> 10 (ts=156678) section='BRIDGE 1'
-21:07:40.544  PosUpdate pos=157014 curIdx=10 curTs=156678 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
-21:07:42.544  PosUpdate pos=158014 curIdx=10 curTs=156678 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
-21:07:44.544  PosUpdate pos=159014 curIdx=10 curTs=156678 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
-21:07:46.544  PosUpdate pos=160014 curIdx=10 curTs=156678 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
-21:07:48.525  PosUpdate pos=161004 curIdx=10 curTs=156678 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
-21:07:50.534  PosUpdate pos=162009 curIdx=10 curTs=156678 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
-21:07:51.435  PosUpdate pos=162459 -> ADVANCE slide 10 -> 11 (ts=162440,5) section='BRIDGE 1'
-21:07:52.544  PosUpdate pos=163014 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:07:54.544  PosUpdate pos=164014 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:07:56.565  PosUpdate pos=165024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:07:58.565  PosUpdate pos=166024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:00.525  PosUpdate pos=167004 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:02.524  PosUpdate pos=168004 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:04.545  PosUpdate pos=169014 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:06.544  PosUpdate pos=170014 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:08.564  PosUpdate pos=171024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:10.524  PosUpdate pos=172004 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:12.534  PosUpdate pos=173009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:14.535  PosUpdate pos=174009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:16.535  PosUpdate pos=175009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:18.545  PosUpdate pos=176014 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:20.545  PosUpdate pos=177014 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:22.545  PosUpdate pos=178014 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:24.544  PosUpdate pos=179014 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:26.545  PosUpdate pos=180014 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:28.555  PosUpdate pos=181019 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:30.555  PosUpdate pos=182019 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:32.565  PosUpdate pos=183024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:34.564  PosUpdate pos=184024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:36.565  PosUpdate pos=185024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:38.524  PosUpdate pos=186004 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:40.524  PosUpdate pos=187004 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:42.534  PosUpdate pos=188009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:44.535  PosUpdate pos=189009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:46.534  PosUpdate pos=190009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:48.535  PosUpdate pos=191009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:50.534  PosUpdate pos=192009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:52.534  PosUpdate pos=193009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:54.544  PosUpdate pos=194014 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:56.554  PosUpdate pos=195019 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:08:58.554  PosUpdate pos=196019 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:00.554  PosUpdate pos=197019 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:02.555  PosUpdate pos=198019 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:04.565  PosUpdate pos=199024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:06.535  PosUpdate pos=200009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:08.534  PosUpdate pos=201009 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:10.565  PosUpdate pos=202024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:12.564  PosUpdate pos=203024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:14.564  PosUpdate pos=204024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:16.565  PosUpdate pos=205024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:18.564  PosUpdate pos=206024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:20.565  PosUpdate pos=207024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:22.565  PosUpdate pos=208024 curIdx=11 curTs=162440,5 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
-21:09:23.664  PosUpdate pos=208574 -> ADVANCE slide 11 -> 12 (ts=208570) section='CHORUS'
-21:09:24.524  PosUpdate pos=209004 curIdx=12 curTs=208570 curSection='CHORUS' chosenIdx=12 totalSlides=16
-21:09:26.554  PosUpdate pos=210019 curIdx=12 curTs=208570 curSection='CHORUS' chosenIdx=12 totalSlides=16
-21:09:28.564  PosUpdate pos=211024 curIdx=12 curTs=208570 curSection='CHORUS' chosenIdx=12 totalSlides=16
-21:09:30.536  PosUpdate pos=212009 curIdx=12 curTs=208570 curSection='CHORUS' chosenIdx=12 totalSlides=16
-21:09:31.085  PosUpdate pos=212284 -> ADVANCE slide 12 -> 13 (ts=212261) section='CHORUS'
-21:09:32.534  PosUpdate pos=213009 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:34.535  PosUpdate pos=214009 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:36.544  PosUpdate pos=215014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:38.544  PosUpdate pos=216014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:40.544  PosUpdate pos=217014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:42.544  PosUpdate pos=218014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:44.544  PosUpdate pos=219014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:46.554  PosUpdate pos=220019 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:48.564  PosUpdate pos=221024 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:50.565  PosUpdate pos=222024 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:52.564  PosUpdate pos=223024 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:54.565  PosUpdate pos=224024 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:56.564  PosUpdate pos=225024 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:09:58.565  PosUpdate pos=226024 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:00.565  PosUpdate pos=227024 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:02.524  PosUpdate pos=228004 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:04.525  PosUpdate pos=229004 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:06.535  PosUpdate pos=230009 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:08.545  PosUpdate pos=231014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:10.544  PosUpdate pos=232014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:12.544  PosUpdate pos=233014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:14.544  PosUpdate pos=234014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:16.546  PosUpdate pos=235014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:18.544  PosUpdate pos=236014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:20.545  PosUpdate pos=237014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:22.545  PosUpdate pos=238014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:24.544  PosUpdate pos=239014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:26.544  PosUpdate pos=240014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:28.544  PosUpdate pos=241014 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:30.556  PosUpdate pos=242019 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:32.554  PosUpdate pos=243019 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:34.565  PosUpdate pos=244024 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:36.565  PosUpdate pos=245024 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:38.565  PosUpdate pos=246024 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:40.525  PosUpdate pos=247004 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:42.524  PosUpdate pos=248004 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:44.524  PosUpdate pos=249004 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:46.524  PosUpdate pos=250004 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:48.534  PosUpdate pos=251009 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:50.535  PosUpdate pos=252009 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:52.534  PosUpdate pos=253009 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:54.535  PosUpdate pos=254009 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:56.534  PosUpdate pos=255009 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:10:58.554  PosUpdate pos=256019 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:11:00.554  PosUpdate pos=257019 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:11:02.554  PosUpdate pos=258019 curIdx=13 curTs=212261 curSection='CHORUS' chosenIdx=13 totalSlides=16
-21:11:03.554  PosUpdate pos=258519 -> ADVANCE slide 13 -> 14 (ts=258519) section='BRIDGE 2'
-21:11:04.554  PosUpdate pos=259019 curIdx=14 curTs=258519 curSection='BRIDGE 2' chosenIdx=14 totalSlides=16
-21:11:06.524  PosUpdate pos=260004 curIdx=14 curTs=258519 curSection='BRIDGE 2' chosenIdx=14 totalSlides=16
-21:11:06.974  PosUpdate pos=260229 -> ADVANCE slide 14 -> 15 (ts=260214,42176870618) section='CODA'
-21:11:08.524  PosUpdate pos=261004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:10.544  PosUpdate pos=262014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:12.544  PosUpdate pos=263014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:14.544  PosUpdate pos=264014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:16.544  PosUpdate pos=265014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:18.525  PosUpdate pos=266004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:20.524  PosUpdate pos=267004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:22.525  PosUpdate pos=268004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:24.524  PosUpdate pos=269004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:26.534  PosUpdate pos=270009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:28.535  PosUpdate pos=271009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:30.535  PosUpdate pos=272009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:32.535  PosUpdate pos=273009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:34.535  PosUpdate pos=274009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:36.534  PosUpdate pos=275009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:38.555  PosUpdate pos=276019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:40.555  PosUpdate pos=277019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:42.575  PosUpdate pos=278029 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:44.534  PosUpdate pos=279009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:46.535  PosUpdate pos=280009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:48.545  PosUpdate pos=281014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:50.555  PosUpdate pos=282019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:52.554  PosUpdate pos=283019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:54.524  PosUpdate pos=284004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:56.524  PosUpdate pos=285004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:11:58.524  PosUpdate pos=286004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:00.524  PosUpdate pos=287004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:02.525  PosUpdate pos=288004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:04.525  PosUpdate pos=289004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:06.524  PosUpdate pos=290004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:08.544  PosUpdate pos=291014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:10.544  PosUpdate pos=292014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:12.544  PosUpdate pos=293014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:14.554  PosUpdate pos=294019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:16.554  PosUpdate pos=295019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:18.554  PosUpdate pos=296019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:20.554  PosUpdate pos=297019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:22.554  PosUpdate pos=298019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:24.564  PosUpdate pos=299024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:26.525  PosUpdate pos=300004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:28.524  PosUpdate pos=301004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:30.524  PosUpdate pos=302004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:32.534  PosUpdate pos=303009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:34.534  PosUpdate pos=304009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:36.544  PosUpdate pos=305014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:38.554  PosUpdate pos=306019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:40.554  PosUpdate pos=307019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:42.565  PosUpdate pos=308024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:44.524  PosUpdate pos=309004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:46.524  PosUpdate pos=310004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:48.524  PosUpdate pos=311004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:50.525  PosUpdate pos=312004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:52.524  PosUpdate pos=313004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:54.524  PosUpdate pos=314004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:56.525  PosUpdate pos=315004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:12:58.524  PosUpdate pos=316004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:00.525  PosUpdate pos=317004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:02.534  PosUpdate pos=318009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:04.534  PosUpdate pos=319009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:06.545  PosUpdate pos=320014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:08.565  PosUpdate pos=321024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:10.565  PosUpdate pos=322024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:12.524  PosUpdate pos=323004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:14.534  PosUpdate pos=324009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:16.535  PosUpdate pos=325009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:18.535  PosUpdate pos=326009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:20.544  PosUpdate pos=327014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:22.555  PosUpdate pos=328019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:24.554  PosUpdate pos=329019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:26.554  PosUpdate pos=330019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:28.555  PosUpdate pos=331019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:30.555  PosUpdate pos=332019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:32.554  PosUpdate pos=333019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:34.554  PosUpdate pos=334019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:36.554  PosUpdate pos=335019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:38.554  PosUpdate pos=336019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:40.554  PosUpdate pos=337019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:42.565  PosUpdate pos=338024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:44.525  PosUpdate pos=339004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:46.534  PosUpdate pos=340009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:48.554  PosUpdate pos=341019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:50.565  PosUpdate pos=342024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:52.525  PosUpdate pos=343004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:54.535  PosUpdate pos=344004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:56.524  PosUpdate pos=345004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:13:58.524  PosUpdate pos=346004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:00.544  PosUpdate pos=347014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:02.544  PosUpdate pos=348014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:04.544  PosUpdate pos=349014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:06.544  PosUpdate pos=350014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:08.544  PosUpdate pos=351014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:10.544  PosUpdate pos=352014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:12.545  PosUpdate pos=353014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:14.554  PosUpdate pos=354019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:16.564  PosUpdate pos=355024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:18.565  PosUpdate pos=356024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:20.566  PosUpdate pos=357024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:22.565  PosUpdate pos=358024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:24.565  PosUpdate pos=359024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:26.534  PosUpdate pos=360009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:28.545  PosUpdate pos=361014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:30.544  PosUpdate pos=362014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:32.555  PosUpdate pos=363014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:34.554  PosUpdate pos=364019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:36.524  PosUpdate pos=365004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:38.524  PosUpdate pos=366004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:40.534  PosUpdate pos=367009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:42.534  PosUpdate pos=368009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:44.534  PosUpdate pos=369009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:46.564  PosUpdate pos=370019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:48.554  PosUpdate pos=371019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:50.524  PosUpdate pos=372004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:52.535  PosUpdate pos=373009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:54.555  PosUpdate pos=374019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:56.554  PosUpdate pos=375019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:14:58.524  PosUpdate pos=376004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:00.525  PosUpdate pos=377004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:02.524  PosUpdate pos=378004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:04.525  PosUpdate pos=379004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:06.544  PosUpdate pos=380014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:08.554  PosUpdate pos=381019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:10.554  PosUpdate pos=382019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:12.554  PosUpdate pos=383019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:14.564  PosUpdate pos=384024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:16.564  PosUpdate pos=385024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:18.525  PosUpdate pos=386004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:20.525  PosUpdate pos=387004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:22.525  PosUpdate pos=388004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:24.525  PosUpdate pos=389004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:26.534  PosUpdate pos=390009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:28.534  PosUpdate pos=391009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:30.545  PosUpdate pos=392014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:32.555  PosUpdate pos=393019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:34.526  PosUpdate pos=394004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:36.524  PosUpdate pos=395004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:38.525  PosUpdate pos=396004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:40.525  PosUpdate pos=397004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:42.535  PosUpdate pos=398009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:44.534  PosUpdate pos=399009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:46.534  PosUpdate pos=400009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:48.534  PosUpdate pos=401009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:50.534  PosUpdate pos=402009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:52.534  PosUpdate pos=403009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:54.535  PosUpdate pos=404009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:56.544  PosUpdate pos=405014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:15:58.554  PosUpdate pos=406019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:00.564  PosUpdate pos=407024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:02.525  PosUpdate pos=408004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:04.525  PosUpdate pos=409004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:06.534  PosUpdate pos=410009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:08.534  PosUpdate pos=411009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:10.535  PosUpdate pos=412009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:12.534  PosUpdate pos=413009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:14.535  PosUpdate pos=414009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:16.535  PosUpdate pos=415009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:18.534  PosUpdate pos=416009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:20.534  PosUpdate pos=417009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:22.535  PosUpdate pos=418009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:24.535  PosUpdate pos=419009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:26.534  PosUpdate pos=420009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:28.534  PosUpdate pos=421009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:30.534  PosUpdate pos=422009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:32.544  PosUpdate pos=423014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:34.555  PosUpdate pos=424014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:36.574  PosUpdate pos=425024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:38.534  PosUpdate pos=426004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:40.535  PosUpdate pos=427009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:42.535  PosUpdate pos=428009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:44.535  PosUpdate pos=429009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:46.534  PosUpdate pos=430009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:48.544  PosUpdate pos=431014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:50.544  PosUpdate pos=432014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:52.555  PosUpdate pos=433019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:54.554  PosUpdate pos=434019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:56.554  PosUpdate pos=435019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:16:58.564  PosUpdate pos=436024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:00.524  PosUpdate pos=437004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:02.525  PosUpdate pos=438004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:04.545  PosUpdate pos=439014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:06.545  PosUpdate pos=440014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:08.545  PosUpdate pos=441014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:10.555  PosUpdate pos=442019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:12.524  PosUpdate pos=443004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:14.535  PosUpdate pos=444009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:16.534  PosUpdate pos=445009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:18.535  PosUpdate pos=446009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:20.534  PosUpdate pos=447009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:22.544  PosUpdate pos=448014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:24.544  PosUpdate pos=449014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:26.554  PosUpdate pos=450019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:28.554  PosUpdate pos=451019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:30.554  PosUpdate pos=452019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:32.554  PosUpdate pos=453019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:34.565  PosUpdate pos=454024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:36.565  PosUpdate pos=455024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:38.565  PosUpdate pos=456024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:40.525  PosUpdate pos=457004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:42.524  PosUpdate pos=458004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:44.524  PosUpdate pos=459004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:46.524  PosUpdate pos=460004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:48.525  PosUpdate pos=461004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:50.534  PosUpdate pos=462009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:52.535  PosUpdate pos=463009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:54.544  PosUpdate pos=464009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:56.535  PosUpdate pos=465009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:17:58.534  PosUpdate pos=466009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:00.535  PosUpdate pos=467009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:02.544  PosUpdate pos=468014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:04.554  PosUpdate pos=469019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:06.554  PosUpdate pos=470019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:08.554  PosUpdate pos=471019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:10.554  PosUpdate pos=472019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:12.565  PosUpdate pos=473024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:14.564  PosUpdate pos=474024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:16.524  PosUpdate pos=475004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:18.534  PosUpdate pos=476009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:20.544  PosUpdate pos=477014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:22.555  PosUpdate pos=478019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:24.564  PosUpdate pos=479024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:26.525  PosUpdate pos=480004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:28.525  PosUpdate pos=481004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:30.524  PosUpdate pos=482004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:32.524  PosUpdate pos=483004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:34.524  PosUpdate pos=484004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:36.525  PosUpdate pos=485004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:38.534  PosUpdate pos=486009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:40.545  PosUpdate pos=487014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:42.545  PosUpdate pos=488014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:44.555  PosUpdate pos=489019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:46.565  PosUpdate pos=490024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:48.524  PosUpdate pos=491004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:50.525  PosUpdate pos=492004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:52.544  PosUpdate pos=493014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:54.544  PosUpdate pos=494014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:56.545  PosUpdate pos=495014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:18:58.544  PosUpdate pos=496014 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:19:00.564  PosUpdate pos=497024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:19:02.566  PosUpdate pos=498024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:19:04.564  PosUpdate pos=499024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:19:06.524  PosUpdate pos=500004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:19:08.524  PosUpdate pos=501004 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:19:10.534  PosUpdate pos=502009 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:19:12.554  PosUpdate pos=503019 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
-21:19:14.565  PosUpdate pos=504024 curIdx=15 curTs=260214,42176870618 curSection='CODA' chosenIdx=15 totalSlides=16
+21:40:22.807  --- SLIDES loaded (OnServiceItemChanged item='Christ Is Enough - Hillsong LIVE') count=0 curIdx=-1 ---
+21:40:24.484  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
+21:40:24.484    [ 0] ts=    1637 section='INTRO' text='[G#m][E][B][F#/A#]'
+21:40:24.485    [ 1] ts=   26192 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
+21:40:24.485    [ 2] ts=   43932 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
+21:40:24.486    [ 3] ts=   61719 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.487    [ 4] ts=   65274 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.488    [ 5] ts=   86239 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
+21:40:24.488    [ 6] ts=  106301 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
+21:40:24.488    [ 7] ts=  114091 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
+21:40:24.488    [ 8] ts=  121928 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.489    [ 9] ts=  125463 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.489    [10] ts=  146448 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:24.490    [11] ts=  152211 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
+21:40:24.490    [12] ts=  207610 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.490    [13] ts=  211301 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.490    [14] ts=  258810 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
+21:40:24.491    [15] ts=  261039 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:24.497  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
+21:40:24.498    [ 0] ts=    1637 section='INTRO' text='[G#m][E][B][F#/A#]'
+21:40:24.498    [ 1] ts=   26192 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
+21:40:24.498    [ 2] ts=   43932 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
+21:40:24.499    [ 3] ts=   61719 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.499    [ 4] ts=   65274 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.499    [ 5] ts=   86239 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
+21:40:24.500    [ 6] ts=  106301 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
+21:40:24.500    [ 7] ts=  114091 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
+21:40:24.501    [ 8] ts=  121928 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.501    [ 9] ts=  125463 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.501    [10] ts=  146448 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:24.502    [11] ts=  152211 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
+21:40:24.502    [12] ts=  207610 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.502    [13] ts=  211301 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:24.503    [14] ts=  258810 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
+21:40:24.503    [15] ts=  261039 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:24.972  --- SLIDES loaded (OnServiceItemChanged item='Christ Is Enough - Hillsong LIVE') count=0 curIdx=-1 ---
+21:40:26.622  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
+21:40:26.622    [ 0] ts=    1637 section='INTRO' text='[G#m][E][B][F#/A#]'
+21:40:26.624    [ 1] ts=   26192 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
+21:40:26.624    [ 2] ts=   43932 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
+21:40:26.625    [ 3] ts=   61719 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.627    [ 4] ts=   65274 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.627    [ 5] ts=   86239 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
+21:40:26.628    [ 6] ts=  106301 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
+21:40:26.630    [ 7] ts=  114091 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
+21:40:26.631    [ 8] ts=  121928 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.632    [ 9] ts=  125463 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.634    [10] ts=  146448 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:26.635    [11] ts=  152211 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
+21:40:26.636    [12] ts=  207610 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.638    [13] ts=  211301 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.640    [14] ts=  258810 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
+21:40:26.641    [15] ts=  261039 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:26.643  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
+21:40:26.644    [ 0] ts=    1637 section='INTRO' text='[G#m][E][B][F#/A#]'
+21:40:26.645    [ 1] ts=   26192 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
+21:40:26.646    [ 2] ts=   43932 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
+21:40:26.647    [ 3] ts=   61719 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.648    [ 4] ts=   65274 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.649    [ 5] ts=   86239 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
+21:40:26.650    [ 6] ts=  106301 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
+21:40:26.652    [ 7] ts=  114091 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
+21:40:26.653    [ 8] ts=  121928 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.654    [ 9] ts=  125463 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.655    [10] ts=  146448 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:26.656    [11] ts=  152211 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
+21:40:26.657    [12] ts=  207610 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.657    [13] ts=  211301 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:26.659    [14] ts=  258810 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
+21:40:26.659    [15] ts=  261039 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:29.490  --- SLIDES loaded (OnServiceItemChanged item='Praise') count=0 curIdx=-1 ---
+21:40:30.333  --- SLIDES loaded (OnServiceItemChanged item='Christ Is Enough - Hillsong LIVE') count=0 curIdx=-1 ---
+21:40:32.257  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
+21:40:32.258    [ 0] ts=    1637 section='INTRO' text='[G#m][E][B][F#/A#]'
+21:40:32.258    [ 1] ts=   26192 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
+21:40:32.259    [ 2] ts=   43932 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
+21:40:32.259    [ 3] ts=   61719 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.259    [ 4] ts=   65274 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.260    [ 5] ts=   86239 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
+21:40:32.260    [ 6] ts=  106301 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
+21:40:32.261    [ 7] ts=  114091 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
+21:40:32.261    [ 8] ts=  121928 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.261    [ 9] ts=  125463 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.262    [10] ts=  146448 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:32.262    [11] ts=  152211 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
+21:40:32.262    [12] ts=  207610 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.262    [13] ts=  211301 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.263    [14] ts=  258810 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
+21:40:32.263    [15] ts=  261039 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:32.264  --- SLIDES loaded (GenerateSlidesFromSong) count=16 curIdx=0 ---
+21:40:32.264    [ 0] ts=    1637 section='INTRO' text='[G#m][E][B][F#/A#]'
+21:40:32.264    [ 1] ts=   26192 section='VERSE 1' text='Ch[G#m]rist is my rew[E]ard and all of my dev...'
+21:40:32.265    [ 2] ts=   43932 section='PRE-CHORUS 1' text='Through every tri[E]al, my soul w[F#]ill s[G#...'
+21:40:32.265    [ 3] ts=   61719 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.265    [ 4] ts=   65274 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.265    [ 5] ts=   86239 section='VERSE 2' text='Ch[G#m]rist my all in [E]all, my joy and my s...'
+21:40:32.266    [ 6] ts=  106301 section='PRE-CHORUS 2' text='Page 1/2 / Through every sto[E]rm, my soul w[...'
+21:40:32.266    [ 7] ts=  114091 section='PRE-CHORUS 2' text='Jes[F#/A#]us is her[E]e, to God b[G#m]e the g...'
+21:40:32.266    [ 8] ts=  121928 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.267    [ 9] ts=  125463 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.267    [10] ts=  146448 section='BRIDGE 1' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:32.267    [11] ts=  152211 section='BRIDGE 1' text='The cross be[G#m]fore m[E]e, the world be[F#]...'
+21:40:32.267    [12] ts=  207610 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.268    [13] ts=  211301 section='CHORUS' text='Ch[B]rist is enough for me, Ch[G#m]rist is en...'
+21:40:32.268    [14] ts=  258810 section='BRIDGE 2' text='I have de[G#m]cide[E]d to follow [F#]Jes[G#m]...'
+21:40:32.268    [15] ts=  261039 section='CODA' text='I have de[B]cided to follow Jesus, no turning...'
+21:40:44.404  PosUpdate pos=1765 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:40:44.960  PosUpdate pos=2015 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:40:46.960  PosUpdate pos=3015 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:40:48.961  PosUpdate pos=4015 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:40:50.960  PosUpdate pos=5015 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:40:52.960  PosUpdate pos=6015 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:40:54.960  PosUpdate pos=7015 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:40:56.950  PosUpdate pos=8010 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:40:58.950  PosUpdate pos=9010 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:41:00.950  PosUpdate pos=10010 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:41:02.950  PosUpdate pos=11010 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:41:04.951  PosUpdate pos=12010 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:41:06.950  PosUpdate pos=13010 curIdx=0 curTs=1637,0070000000014 curSection='INTRO' chosenIdx=0 totalSlides=16
+21:41:08.763  OnSectionChanged('VERSE 1') curIdx=0 totalSlides=16
+21:41:08.763  OnSectionChanged matched section 'VERSE 1' at slide 1 (curIdx=0)
+21:41:08.800  PosUpdate pos=26214 -> ADVANCE slide 0 -> 1 (ts=26192,109) section='VERSE 1'
+21:41:08.802  PosUpdate pos=26214 curIdx=1 curTs=26192,109 curSection='VERSE 1' chosenIdx=1 totalSlides=16
+21:41:10.401  PosUpdate pos=27014 curIdx=1 curTs=26192,109 curSection='VERSE 1' chosenIdx=1 totalSlides=16
+21:41:12.400  PosUpdate pos=28014 curIdx=1 curTs=26192,109 curSection='VERSE 1' chosenIdx=1 totalSlides=16
+21:41:14.400  PosUpdate pos=29014 curIdx=1 curTs=26192,109 curSection='VERSE 1' chosenIdx=1 totalSlides=16
+21:41:16.401  PosUpdate pos=30014 curIdx=1 curTs=26192,109 curSection='VERSE 1' chosenIdx=1 totalSlides=16
+21:41:18.400  PosUpdate pos=31014 curIdx=1 curTs=26192,109 curSection='VERSE 1' chosenIdx=1 totalSlides=16
+21:41:20.401  PosUpdate pos=32014 curIdx=1 curTs=26192,109 curSection='VERSE 1' chosenIdx=1 totalSlides=16
+21:41:22.400  PosUpdate pos=33014 curIdx=1 curTs=26192,109 curSection='VERSE 1' chosenIdx=1 totalSlides=16
+21:41:24.401  PosUpdate pos=34014 curIdx=1 curTs=26192,109 curSection='VERSE 1' chosenIdx=1 totalSlides=16
+21:41:26.401  PosUpdate pos=35014 curIdx=1 curTs=26192,109 curSection='VERSE 1' chosenIdx=1 totalSlides=16
+21:41:26.501  OnSectionChanged('PRE-CHORUS 1') curIdx=1 totalSlides=16
+21:41:26.501  OnSectionChanged matched section 'PRE-CHORUS 1' at slide 2 (curIdx=1)
+21:41:26.501  PosUpdate pos=43936 -> ADVANCE slide 1 -> 2 (ts=43932,154) section='PRE-CHORUS 1'
+21:41:26.502  PosUpdate pos=43936 curIdx=2 curTs=43932,154 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
+21:41:26.651  PosUpdate pos=44011 curIdx=2 curTs=43932,154 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
+21:41:28.650  PosUpdate pos=45011 curIdx=2 curTs=43932,154 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
+21:41:30.651  PosUpdate pos=46011 curIdx=2 curTs=43932,154 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
+21:41:32.650  PosUpdate pos=47011 curIdx=2 curTs=43932,154 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
+21:41:34.650  PosUpdate pos=48011 curIdx=2 curTs=43932,154 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
+21:41:36.650  PosUpdate pos=49011 curIdx=2 curTs=43932,154 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
+21:41:38.650  PosUpdate pos=50011 curIdx=2 curTs=43932,154 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
+21:41:40.650  PosUpdate pos=51011 curIdx=2 curTs=43932,154 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
+21:41:42.650  PosUpdate pos=52011 curIdx=2 curTs=43932,154 curSection='PRE-CHORUS 1' chosenIdx=2 totalSlides=16
+21:41:44.281  OnSectionChanged('CHORUS') curIdx=2 totalSlides=16
+21:41:44.281  OnSectionChanged matched section 'CHORUS' at slide 3 (curIdx=2)
+21:41:44.300  PosUpdate pos=61730 -> ADVANCE slide 2 -> 3 (ts=61718,639) section='CHORUS'
+21:41:44.301  PosUpdate pos=61730 curIdx=3 curTs=61718,639 curSection='CHORUS' chosenIdx=3 totalSlides=16
+21:41:44.850  PosUpdate pos=62005 curIdx=3 curTs=61718,639 curSection='CHORUS' chosenIdx=3 totalSlides=16
+21:41:46.850  PosUpdate pos=63005 curIdx=3 curTs=61718,639 curSection='CHORUS' chosenIdx=3 totalSlides=16
+21:41:48.851  PosUpdate pos=64005 curIdx=3 curTs=61718,639 curSection='CHORUS' chosenIdx=3 totalSlides=16
+21:41:50.851  PosUpdate pos=65005 curIdx=3 curTs=61718,639 curSection='CHORUS' chosenIdx=3 totalSlides=16
+21:41:51.400  PosUpdate pos=65280 -> ADVANCE slide 3 -> 4 (ts=65274,074374149815) section='CHORUS'
+21:41:52.850  PosUpdate pos=66005 curIdx=4 curTs=65274,074374149815 curSection='CHORUS' chosenIdx=4 totalSlides=16
+21:41:54.851  PosUpdate pos=67005 curIdx=4 curTs=65274,074374149815 curSection='CHORUS' chosenIdx=4 totalSlides=16
+21:41:56.850  PosUpdate pos=68005 curIdx=4 curTs=65274,074374149815 curSection='CHORUS' chosenIdx=4 totalSlides=16
+21:41:58.850  PosUpdate pos=69005 curIdx=4 curTs=65274,074374149815 curSection='CHORUS' chosenIdx=4 totalSlides=16
+21:42:00.851  PosUpdate pos=70005 curIdx=4 curTs=65274,074374149815 curSection='CHORUS' chosenIdx=4 totalSlides=16
+21:42:02.852  PosUpdate pos=71005 curIdx=4 curTs=65274,074374149815 curSection='CHORUS' chosenIdx=4 totalSlides=16
+21:42:04.851  PosUpdate pos=72005 curIdx=4 curTs=65274,074374149815 curSection='CHORUS' chosenIdx=4 totalSlides=16
+21:42:06.850  PosUpdate pos=73005 curIdx=4 curTs=65274,074374149815 curSection='CHORUS' chosenIdx=4 totalSlides=16
+21:42:08.802  OnSectionChanged('VERSE 2') curIdx=4 totalSlides=16
+21:42:08.802  OnSectionChanged matched section 'VERSE 2' at slide 5 (curIdx=4)
+21:42:08.803  PosUpdate pos=86242 -> ADVANCE slide 4 -> 5 (ts=86238,912) section='VERSE 2'
+21:42:08.804  PosUpdate pos=86242 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:10.350  PosUpdate pos=87017 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:12.350  PosUpdate pos=88017 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:14.350  PosUpdate pos=89017 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:16.351  PosUpdate pos=90017 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:18.351  PosUpdate pos=91017 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:20.350  PosUpdate pos=92017 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:22.350  PosUpdate pos=93017 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:24.350  PosUpdate pos=94017 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:26.350  PosUpdate pos=95017 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:28.350  PosUpdate pos=96017 curIdx=5 curTs=86238,912 curSection='VERSE 2' chosenIdx=5 totalSlides=16
+21:42:28.860  OnSectionChanged('PRE-CHORUS 2') curIdx=5 totalSlides=16
+21:42:28.861  OnSectionChanged matched section 'PRE-CHORUS 2' at slide 6 (curIdx=5)
+21:42:28.900  PosUpdate pos=106324 -> ADVANCE slide 5 -> 6 (ts=106300,952) section='PRE-CHORUS 2'
+21:42:28.901  PosUpdate pos=106324 curIdx=6 curTs=106300,952 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
+21:42:30.300  PosUpdate pos=107024 curIdx=6 curTs=106300,952 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
+21:42:32.301  PosUpdate pos=108024 curIdx=6 curTs=106300,952 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
+21:42:34.300  PosUpdate pos=109024 curIdx=6 curTs=106300,952 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
+21:42:36.300  PosUpdate pos=110024 curIdx=6 curTs=106300,952 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
+21:42:38.301  PosUpdate pos=111024 curIdx=6 curTs=106300,952 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
+21:42:40.300  PosUpdate pos=112024 curIdx=6 curTs=106300,952 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
+21:42:42.300  PosUpdate pos=113024 curIdx=6 curTs=106300,952 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
+21:42:44.301  PosUpdate pos=114024 curIdx=6 curTs=106300,952 curSection='PRE-CHORUS 2' chosenIdx=6 totalSlides=16
+21:42:44.451  PosUpdate pos=114099 -> ADVANCE slide 6 -> 7 (ts=114090,952) section='PRE-CHORUS 2'
+21:42:46.300  PosUpdate pos=115024 curIdx=7 curTs=114090,952 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
+21:42:48.300  PosUpdate pos=116024 curIdx=7 curTs=114090,952 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
+21:42:50.300  PosUpdate pos=117024 curIdx=7 curTs=114090,952 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
+21:42:52.300  PosUpdate pos=118024 curIdx=7 curTs=114090,952 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
+21:42:54.301  PosUpdate pos=119024 curIdx=7 curTs=114090,952 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
+21:42:56.300  PosUpdate pos=120024 curIdx=7 curTs=114090,952 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
+21:42:58.300  PosUpdate pos=121024 curIdx=7 curTs=114090,952 curSection='PRE-CHORUS 2' chosenIdx=7 totalSlides=16
+21:43:00.150  PosUpdate pos=121949 -> ADVANCE slide 7 -> 8 (ts=121927,982) section='CHORUS'
+21:43:00.300  PosUpdate pos=122024 curIdx=8 curTs=121927,982 curSection='CHORUS' chosenIdx=8 totalSlides=16
+21:43:02.300  PosUpdate pos=123024 curIdx=8 curTs=121927,982 curSection='CHORUS' chosenIdx=8 totalSlides=16
+21:43:04.300  PosUpdate pos=124024 curIdx=8 curTs=121927,982 curSection='CHORUS' chosenIdx=8 totalSlides=16
+21:43:06.300  PosUpdate pos=125024 curIdx=8 curTs=121927,982 curSection='CHORUS' chosenIdx=8 totalSlides=16
+21:43:07.201  PosUpdate pos=125474 -> ADVANCE slide 8 -> 9 (ts=125462,85614966018) section='CHORUS'
+21:43:08.300  PosUpdate pos=126024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:10.300  PosUpdate pos=127024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:12.301  PosUpdate pos=128024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:14.300  PosUpdate pos=129024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:16.300  PosUpdate pos=130024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:18.301  PosUpdate pos=131024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:20.301  PosUpdate pos=132024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:22.300  PosUpdate pos=133024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:24.301  PosUpdate pos=134024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:26.301  PosUpdate pos=135024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:28.300  PosUpdate pos=136024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:30.300  PosUpdate pos=137024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:32.300  PosUpdate pos=138024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:34.300  PosUpdate pos=139024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:36.300  PosUpdate pos=140024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:38.300  PosUpdate pos=141024 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:40.260  PosUpdate pos=142004 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:42.260  PosUpdate pos=143004 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:44.260  PosUpdate pos=144004 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:46.260  PosUpdate pos=145004 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:48.260  PosUpdate pos=146004 curIdx=9 curTs=125462,85614966018 curSection='CHORUS' chosenIdx=9 totalSlides=16
+21:43:49.160  PosUpdate pos=146454 -> ADVANCE slide 9 -> 10 (ts=146448,254) section='BRIDGE 1'
+21:43:50.260  PosUpdate pos=147004 curIdx=10 curTs=146448,254 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
+21:43:52.261  PosUpdate pos=148004 curIdx=10 curTs=146448,254 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
+21:43:54.260  PosUpdate pos=149004 curIdx=10 curTs=146448,254 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
+21:43:56.261  PosUpdate pos=150004 curIdx=10 curTs=146448,254 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
+21:43:58.261  PosUpdate pos=151004 curIdx=10 curTs=146448,254 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
+21:44:00.261  PosUpdate pos=152004 curIdx=10 curTs=146448,254 curSection='BRIDGE 1' chosenIdx=10 totalSlides=16
+21:44:00.710  PosUpdate pos=152229 -> ADVANCE slide 10 -> 11 (ts=152210,754) section='BRIDGE 1'
+21:44:02.260  PosUpdate pos=153004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:04.260  PosUpdate pos=154004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:06.261  PosUpdate pos=155004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:08.260  PosUpdate pos=156004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:10.260  PosUpdate pos=157004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:12.260  PosUpdate pos=158004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:14.260  PosUpdate pos=159004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:16.260  PosUpdate pos=160004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:18.261  PosUpdate pos=161004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:20.260  PosUpdate pos=162004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:22.261  PosUpdate pos=163004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:24.260  PosUpdate pos=164004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:26.261  PosUpdate pos=165004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:28.260  PosUpdate pos=166004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:30.260  PosUpdate pos=167004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:32.260  PosUpdate pos=168004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:34.260  PosUpdate pos=169004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:36.260  PosUpdate pos=170004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:38.261  PosUpdate pos=171004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:40.261  PosUpdate pos=172004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:42.260  PosUpdate pos=173004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:44.261  PosUpdate pos=174004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:46.261  PosUpdate pos=175004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:48.260  PosUpdate pos=176004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:50.261  PosUpdate pos=177004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:52.260  PosUpdate pos=178004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:54.261  PosUpdate pos=179004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:56.260  PosUpdate pos=180004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:44:58.260  PosUpdate pos=181004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:00.260  PosUpdate pos=182004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:02.260  PosUpdate pos=183004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:04.260  PosUpdate pos=184004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:06.261  PosUpdate pos=185004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:08.261  PosUpdate pos=186004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:10.261  PosUpdate pos=187004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:12.261  PosUpdate pos=188004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:14.260  PosUpdate pos=189004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:16.260  PosUpdate pos=190004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:18.261  PosUpdate pos=191004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:20.260  PosUpdate pos=192004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:22.260  PosUpdate pos=193004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:24.261  PosUpdate pos=194004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:26.260  PosUpdate pos=195004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:28.287  PosUpdate pos=196014 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:30.288  PosUpdate pos=197014 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:32.307  PosUpdate pos=198024 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:34.307  PosUpdate pos=199024 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:36.307  PosUpdate pos=200024 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:38.307  PosUpdate pos=201024 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:40.307  PosUpdate pos=202024 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:42.267  PosUpdate pos=203004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:44.277  PosUpdate pos=204004 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:46.277  PosUpdate pos=205009 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:48.277  PosUpdate pos=206009 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:50.286  PosUpdate pos=207014 curIdx=11 curTs=152210,754 curSection='BRIDGE 1' chosenIdx=11 totalSlides=16
+21:45:51.507  PosUpdate pos=207624 -> ADVANCE slide 11 -> 12 (ts=207609,615) section='CHORUS'
+21:45:52.307  PosUpdate pos=208024 curIdx=12 curTs=207609,615 curSection='CHORUS' chosenIdx=12 totalSlides=16
+21:45:54.297  PosUpdate pos=209019 curIdx=12 curTs=207609,615 curSection='CHORUS' chosenIdx=12 totalSlides=16
+21:45:56.297  PosUpdate pos=210019 curIdx=12 curTs=207609,615 curSection='CHORUS' chosenIdx=12 totalSlides=16
+21:45:58.297  PosUpdate pos=211019 curIdx=12 curTs=207609,615 curSection='CHORUS' chosenIdx=12 totalSlides=16
+21:45:58.896  PosUpdate pos=211319 -> ADVANCE slide 12 -> 13 (ts=211300,615) section='CHORUS'
+21:46:00.297  PosUpdate pos=212019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:02.297  PosUpdate pos=213019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:04.296  PosUpdate pos=214019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:06.297  PosUpdate pos=215019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:08.296  PosUpdate pos=216019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:10.296  PosUpdate pos=217019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:12.297  PosUpdate pos=218019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:14.267  PosUpdate pos=219004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:16.267  PosUpdate pos=220004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:18.266  PosUpdate pos=221004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:20.266  PosUpdate pos=222004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:22.267  PosUpdate pos=223004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:24.277  PosUpdate pos=224009 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:26.286  PosUpdate pos=225014 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:28.286  PosUpdate pos=226014 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:30.296  PosUpdate pos=227014 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:32.287  PosUpdate pos=228014 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:34.297  PosUpdate pos=229019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:36.307  PosUpdate pos=230024 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:38.306  PosUpdate pos=231024 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:40.306  PosUpdate pos=232024 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:42.286  PosUpdate pos=233014 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:44.297  PosUpdate pos=234019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:46.306  PosUpdate pos=235024 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:48.306  PosUpdate pos=236024 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:50.277  PosUpdate pos=237009 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:52.276  PosUpdate pos=238009 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:54.296  PosUpdate pos=239019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:56.296  PosUpdate pos=240019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:46:58.296  PosUpdate pos=241019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:00.296  PosUpdate pos=242019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:02.307  PosUpdate pos=243024 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:04.307  PosUpdate pos=244024 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:06.276  PosUpdate pos=245009 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:08.296  PosUpdate pos=246019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:10.306  PosUpdate pos=247019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:12.296  PosUpdate pos=248019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:14.297  PosUpdate pos=249019 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:16.317  PosUpdate pos=250024 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:18.267  PosUpdate pos=251004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:20.266  PosUpdate pos=252004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:22.266  PosUpdate pos=253004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:24.287  PosUpdate pos=254014 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:26.266  PosUpdate pos=255004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:28.267  PosUpdate pos=256004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:30.266  PosUpdate pos=257004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:32.267  PosUpdate pos=258004 curIdx=13 curTs=211300,615 curSection='CHORUS' chosenIdx=13 totalSlides=16
+21:47:33.917  PosUpdate pos=258829 -> ADVANCE slide 13 -> 14 (ts=258809,615) section='BRIDGE 2'
+21:47:34.266  PosUpdate pos=259004 curIdx=14 curTs=258809,615 curSection='BRIDGE 2' chosenIdx=14 totalSlides=16
+21:47:36.267  PosUpdate pos=260004 curIdx=14 curTs=258809,615 curSection='BRIDGE 2' chosenIdx=14 totalSlides=16
+21:47:38.266  PosUpdate pos=261004 curIdx=14 curTs=258809,615 curSection='BRIDGE 2' chosenIdx=14 totalSlides=16
+21:47:38.366  PosUpdate pos=261054 -> ADVANCE slide 14 -> 15 (ts=261038,73) section='CODA'
+21:47:40.266  PosUpdate pos=262004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:47:42.277  PosUpdate pos=263009 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:47:44.276  PosUpdate pos=264009 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:47:46.286  PosUpdate pos=265014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:47:48.287  PosUpdate pos=266014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:47:50.296  PosUpdate pos=267014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:47:52.296  PosUpdate pos=268019 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:47:54.296  PosUpdate pos=269019 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:47:56.296  PosUpdate pos=270019 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:47:58.306  PosUpdate pos=271024 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:00.307  PosUpdate pos=272024 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:02.306  PosUpdate pos=273024 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:04.266  PosUpdate pos=274004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:06.267  PosUpdate pos=275004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:08.276  PosUpdate pos=276009 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:10.276  PosUpdate pos=277009 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:12.287  PosUpdate pos=278014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:14.287  PosUpdate pos=279014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:16.287  PosUpdate pos=280014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:18.286  PosUpdate pos=281014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:20.296  PosUpdate pos=282019 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:22.296  PosUpdate pos=283019 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:24.266  PosUpdate pos=284004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:26.276  PosUpdate pos=285004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:28.266  PosUpdate pos=286004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:30.266  PosUpdate pos=287004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:32.266  PosUpdate pos=288004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:34.276  PosUpdate pos=289009 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:36.276  PosUpdate pos=290009 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:38.276  PosUpdate pos=291009 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:40.286  PosUpdate pos=292014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:42.287  PosUpdate pos=293014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:44.287  PosUpdate pos=294014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:46.286  PosUpdate pos=295014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:48.287  PosUpdate pos=296014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:50.296  PosUpdate pos=297019 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:52.297  PosUpdate pos=298019 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:54.306  PosUpdate pos=299024 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:56.266  PosUpdate pos=300004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:48:58.267  PosUpdate pos=301004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:00.266  PosUpdate pos=302004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:02.266  PosUpdate pos=303004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:04.266  PosUpdate pos=304004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:06.266  PosUpdate pos=305004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:08.266  PosUpdate pos=306004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:10.277  PosUpdate pos=307009 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:12.286  PosUpdate pos=308014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:14.286  PosUpdate pos=309014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:16.286  PosUpdate pos=310014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:18.286  PosUpdate pos=311014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:20.286  PosUpdate pos=312014 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:22.306  PosUpdate pos=313024 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
+21:49:24.267  PosUpdate pos=314004 curIdx=15 curTs=261038,73 curSection='CODA' chosenIdx=15 totalSlides=16
